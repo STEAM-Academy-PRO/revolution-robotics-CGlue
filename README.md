@@ -20,3 +20,15 @@ CGlue provides plugin based extensibility.
 CGlue requires python 3.x (TODO check minimum python version) and chevron.
 
 Got any issues or suggestions? Head on to the issues page and open a ticket!
+
+Running tests
+=============
+
+To set up the required packages, run the following:
+
+```
+pip install -r requirements.txt
+pip install -r requirements_tests.txt
+```
+
+Use `python setup.py test` to run the tests.

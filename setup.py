@@ -9,5 +9,6 @@ setup(
     license='MIT',
     author='Dániel Buga',
     author_email='daniel@revoltuionrobotics.org',
-    description='Framework for C software'
+    description='Framework for C software',
+    test_suite='nose2.collector.collector'
 )

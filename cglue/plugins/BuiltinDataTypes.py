@@ -652,7 +652,7 @@ class ConstantArraySignal(SignalType):
             consumer_name: {'read': {}}
         }
 
-        if runtime.types.passed_by(data_type) == TypeCollection.PASS_BY_VALUE:
+        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
 
             if 'count' not in consumer_port_data:
                 # single read, index should be next to consumer name

@@ -1,0 +1,41 @@
+{
+    "settings": {
+        "name": "test project",
+        "components_folder": "components",
+        "required_plugins": []
+    },
+    "sources": [],
+    "includes": [],
+    "components": [
+        "foo"
+    ],
+    "types": {
+        "uint8_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "0u"
+        }
+    },
+    "runtime": {
+        "runnables": {
+            "OnInit": [
+                "foo/Initialize"
+            ]
+        },
+        "port_connections": [
+            {
+                "provider": "foo/EventSource",
+                "consumers": [
+                    [
+                        "foo/EventHandler",
+                        {
+                            "arguments": {
+                                "some_arg": 2
+                            }
+                        }
+                    ]
+                ]
+            }
+        ]
+    }
+}

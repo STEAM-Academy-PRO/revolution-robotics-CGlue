@@ -1,5 +1,5 @@
-from utils.common import process_dict
-from data_types import TypeCollection
+from .utils.common import process_dict
+from .data_types import TypeCollection
 
 
 class PortType:

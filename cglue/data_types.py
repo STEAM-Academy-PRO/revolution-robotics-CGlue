@@ -1,4 +1,4 @@
-from utils.common import process_dict
+from .utils.common import process_dict
 
 
 class TypeCategory:

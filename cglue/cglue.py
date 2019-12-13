@@ -3,9 +3,9 @@ import os
 
 import chevron
 
-from utils.common import to_underscore, list_to_chevron_list
-from signal import SignalType
-from data_types import TypeCollection
+from .utils.common import to_underscore, list_to_chevron_list
+from .signal import SignalType
+from .data_types import TypeCollection
 
 runtime_header_template = """#ifndef GENERATED_RUNTIME_H_
 #define GENERATED_RUNTIME_H_
@@ -94,6 +94,7 @@ class Plugin:
 class CGlue:
     def __init__(self, project_config_file):
         self._project_config_file = project_config_file
+        self._basedir = os.path.dirname(project_config_file)
         self._plugins = {}
         self._defined_types = {}
         self._project_config = {}
@@ -143,7 +144,7 @@ class CGlue:
         self._port_types[port_type_name] = port_type
 
     def _load_component_config(self, component_name):
-        component_config_file = '{}/{}/config.json'.format(self.settings['components_folder'], component_name)
+        component_config_file = '{}/{}/{}/config.json'.format(self._basedir, self.settings['components_folder'], component_name)
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
             self.add_component(component_name, component_config)
@@ -236,7 +237,7 @@ class CGlue:
 
     def update_component(self, component_name):
 
-        component_folder = os.path.join(self.settings['components_folder'], component_name)
+        component_folder = os.path.join(self._basedir, self.settings['components_folder'], component_name)
         source_file = os.path.join(component_folder, component_name + '.c')
         header_file = os.path.join(component_folder, component_name + '.h')
         config_file = os.path.join(component_folder, 'config.json')

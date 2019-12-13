@@ -37,9 +37,15 @@ def expand_port_connection(port_connection):
     attrs = {k: v for k, v in port_connection.items() if k not in ['provider', 'consumer', 'consumers']}
 
     if 'consumer' in port_connection:
+        consumer = port_connection['consumer']
+        if type(consumer) is list:
+            consumer, attributes = consumer
+        else:
+            attributes = {}
+
         connection['consumers'] = [{
-            **process_port_ref_shorthand(port_connection['consumer']),
-            "attributes": {}
+            **process_port_ref_shorthand(consumer),
+            "attributes": attributes
         }]
     else:
         connection['consumers'] = []

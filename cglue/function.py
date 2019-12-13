@@ -1,6 +1,6 @@
 import chevron
 
-from data_types import TypeCollection, TypeWrapper
+from .data_types import TypeCollection, TypeWrapper
 
 
 class ArgumentList(dict):

@@ -1,0 +1,23 @@
+{
+    "name": "Foo",
+    "source_files": [
+        "foo.c"
+    ],
+    "runnables": {
+        "Initialize": {},
+        "EventHandler": {
+            "arguments": {
+                "some_arg": {
+                    "data_type": "uint8_t",
+                    "direction": "in"
+                }
+            }
+        }
+    },
+    "ports": {
+        "EventSource": {
+            "port_type": "Event"
+        }
+    },
+    "types": {}
+}

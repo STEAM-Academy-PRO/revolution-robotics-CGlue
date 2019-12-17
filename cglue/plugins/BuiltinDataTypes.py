@@ -741,9 +741,10 @@ class ReadValuePortType(PortType):
         super().__init__(types, {
             'order':          3,
             'consumes':       {
-                'array':    'single',
-                'variable': 'single',
-                'constant': 'single'
+                'array':            'single',
+                'variable':         'single',
+                'constant':         'single',
+                'constant_array':   'single'
             },
             'def_attributes': {
                 'required': ['data_type'],

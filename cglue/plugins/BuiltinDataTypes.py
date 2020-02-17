@@ -455,17 +455,19 @@ class QueueSignal(SignalType):
                 "{{ signal_name }}_data_valid = true;"
         else:
             template = \
-                "if ({{ signal_name }}_count < {{ queue_length }}u)\n" \
                 "{\n" \
-                "    ++{{ signal_name }}_count;\n" \
-                "}\n" \
-                "else\n" \
-                "{\n" \
-                "    {{ signal_name }}_overflow = true;\n" \
-                "}\n" \
-                "size_t idx = {{ signal_name }}_write_index;\n" \
-                "{{ signal_name }}_write_index = ({{ signal_name }}_write_index + 1u) % {{ queue_length }}u;\n" \
-                "{{ signal_name }}[idx] = {{ value }};"
+                "    if ({{ signal_name }}_count < {{ queue_length }}u)\n" \
+                "    {\n" \
+                "        ++{{ signal_name }}_count;\n" \
+                "    }\n" \
+                "    else\n" \
+                "    {\n" \
+                "        {{ signal_name }}_overflow = true;\n" \
+                "    }\n" \
+                "    size_t idx = {{ signal_name }}_write_index;\n" \
+                "    {{ signal_name }}_write_index = ({{ signal_name }}_write_index + 1u) % {{ queue_length }}u;\n" \
+                "    {{ signal_name }}[idx] = {{ value }};\n" \
+                "}"
 
         function = runtime.functions[provider_name]['write']
         argument_names = list(function.arguments.keys())

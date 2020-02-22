@@ -24,7 +24,7 @@ def get_sections(text):
         '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/\n(?P<usercode>.*?)\n(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
         text, flags=re.DOTALL)
 
-    return {secname: remove_indentation(text, len(indent)) for indent, secname, usercode in matches}
+    return {secname: remove_indentation(usercode, len(indent)) for indent, secname, usercode in matches}
 
 
 def get_sections_from_file(file_path):

@@ -45,7 +45,7 @@ class Port:
         self.port_type = port_type
         self.port_data = port_data
 
-        self._full_name = '{}/{}'.format(component_name, port_name)
+        self._full_name = f'{component_name}/{port_name}'
 
         self.functions = port_type.declare_functions(self)
 

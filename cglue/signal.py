@@ -67,6 +67,6 @@ class SignalType:
     def create_connection(self, context, name, provider, attributes):
         missing_attributes = self.required_attributes.difference(attributes.keys())
         if missing_attributes:
-            raise Exception('{} attributes are missing from connection provided by {}'
-                            .format(", ".join(missing_attributes), provider))
+            missing_list = ", ".join(missing_attributes)
+            raise Exception(f'{missing_list} attributes are missing from connection provided by {provider}')
         return SignalConnection(context, name, self, provider, attributes)

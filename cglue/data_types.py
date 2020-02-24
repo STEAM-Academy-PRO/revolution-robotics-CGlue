@@ -44,7 +44,7 @@ class TypeAlias(TypeCategory):
         super().__init__(type_collection, "type_alias", attributes)
 
     def render_typedef(self, type_name, type_data):
-        return "typedef {} {};".format(type_data['aliases'], type_name)
+        return f"typedef {type_data['aliases']} {type_name};"
 
     def render_value(self, type_name, type_data, value, context='assignment'):
         # call the render of aliased type
@@ -175,7 +175,7 @@ class TypeCollection:
         try:
             # if the type is already known, check if the definitions are compatible
             if info != self.get(type_name):
-                raise Exception('Conflicting definitions exist for {}'.format(type_name))
+                raise Exception(f'Conflicting definitions exist for {type_name}')
         except KeyError:
             # type is not yet known, add it
             self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']])

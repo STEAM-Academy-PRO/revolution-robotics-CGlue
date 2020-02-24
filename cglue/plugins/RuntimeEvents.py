@@ -10,7 +10,7 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
     user_arguments = attributes.get('arguments', {})
     for arg in user_arguments:
         if arg not in consumer_arguments:
-            print("Warning: Runnable {} does not have an argument named '{}'".format(consumer_name, arg))
+            print(f"Warning: Runnable {consumer_name} does not have an argument named '{arg}'")
 
     passed_arguments = {}
     for arg_name, arg_type in consumer_arguments.items():
@@ -19,11 +19,11 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
 
         elif arg_name in caller_args:
             if arg_type != caller_args[arg_name]:
-                raise Exception(
-                    'Caller of {} has matching argument {} but types are different'.format(consumer_name, arg_name))
+                raise Exception(f'Caller of {consumer_name} has matching '
+                                f'argument {arg_name} but types are different')
             passed_arguments[arg_name] = arg_name
         else:
-            raise Exception('Unable to connect argument {} of {}'.format(arg_name, consumer_name))
+            raise Exception(f'Unable to connect argument {arg_name} of {consumer_name}')
 
     return passed_arguments
 
@@ -83,8 +83,8 @@ class ServerCallSignal(SignalType):
 
         else:
             if caller_fn.return_type != fn_to_call.return_type:
-                raise Exception('Callee return type is incompatible ({} instead of {})'
-                                .format(consumer_port_data['return_type'], caller_fn.return_type))
+                raise Exception(f'Callee return type is incompatible ({consumer_port_data["return_type"]} '
+                                f'instead of {caller_fn.return_type})')
 
             template = "{{ data_type }} return_value = {{ call_code }};"
             data = {
@@ -117,7 +117,7 @@ class RunnablePortType(PortType):
         })
 
     def declare_functions(self, port):
-        fn_name = '{}_Run_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Run_{port.port_name}'
 
         function = FunctionPrototype(fn_name, port['return_type'])
 
@@ -156,7 +156,7 @@ class EventPortType(PortType):
         })
 
     def declare_functions(self, port):
-        fn_name = '{}_RaiseEvent_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_RaiseEvent_{port.port_name}'
 
         function = FunctionPrototype(fn_name, 'void')
 
@@ -196,7 +196,7 @@ class ServerCallPortType(PortType):
         })
 
     def declare_functions(self, port):
-        fn_name = '{}_Call_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Call_{port.port_name}'
 
         function = FunctionPrototype(fn_name, port['return_type'])
 
@@ -264,7 +264,7 @@ def expand_runtime_events(owner: CGlue, project_config):
         }
         runtime_component['ports'][event] = event_port
         event_connections.append({
-            'provider':  create_port_ref('/'.join(['Runtime', event])),
+            'provider':  create_port_ref(f'Runtime/{event}'),
             'consumers': handlers
         })
 

@@ -44,21 +44,23 @@ class StructType(TypeCategory):
         if type(value) is str:
             return value
 
+        types = self._type_collection
         field_types = type_data['fields']
         field_values = {field_name: value.get(field_name) for field_name in field_types}
 
         def render(field_name, field_value):
             """Render field values"""
-            return self._type_collection.get(field_types[field_name]).render_value(field_value, 'initialization')
+            return types.get(field_types[field_name]).render_value(field_value, 'initialization')
 
         rendered_values = {name: render(name, value) for name, value in field_values.items()}
 
-        rendered_field_values = ['.{} = {}'.format(name, rendered) for name, rendered in rendered_values.items()]
+        rendered_field_values = (f'.{name} = {rendered}' for name, rendered in rendered_values.items())
 
+        fields_str = ', '.join(rendered_field_values)
         if context == 'initialization':
-            return '{{ {} }}'.format(', '.join(rendered_field_values))
+            return f'{{ {fields_str} }}'
         else:
-            return '({}) {{ {} }}'.format(type_name, ', '.join(rendered_field_values))
+            return f'({type_name}) {{ {fields_str} }}'
 
     def attribute(self, type_name, type_data, name):
         if name == 'default_value':
@@ -142,13 +144,14 @@ class UnionType(TypeCategory):
             raise Exception('Only a single union member can be assigned')
 
         members = {name: self._type_collection.get(member_type) for name, member_type in type_data['members'].items()}
-        values = ['.{} = {}'.format(name, members[name].render_value(value, 'initialization'))
+        values = [f'.{name} = {members[name].render_value(value, "initialization")}'
                   for name, value in value.items()]
 
+        values_str = ', '.join(values)
         if context == 'initialization':
-            return '{{ {} }}'.format(', '.join(values))
+            return f'{{ {values_str} }}'
         else:
-            return '({}) {{ {} }}'.format(type_name, ', '.join(values))
+            return f'({type_name}) {{ {values_str} }}'
 
 
 def lookup_member(types: TypeCollection, data_type, member_list):
@@ -166,7 +169,7 @@ def lookup_member(types: TypeCollection, data_type, member_list):
         member_key = keys[type_data['type']]
         members = type_data[member_key]
     except KeyError:
-        raise Exception('Trying to access member of non-struct type {}'.format(data_type))
+        raise Exception(f'Trying to access member of non-struct type {data_type}')
 
     return lookup_member(types, members[member_list[0]], member_list[1:])
 
@@ -182,40 +185,32 @@ class VariableSignal(SignalType):
     def create(self, context, connection: SignalConnection):
         runtime = context['runtime']
         provider_port_data = runtime.get_port(connection.provider)
-        types = runtime.types
         data_type_name = provider_port_data['data_type']
-        data_type = types.get(data_type_name)
+        data_type = runtime.types.get(data_type_name)
         init_value = connection.attributes.get('init_value', data_type.default_value())
-        ctx = {
-            'template': 'static {{ data_type }} {{ signal_name }} = {{ init_value }};',
-            'data':     {
-                'init_value':  data_type.render_value(init_value, 'initialization'),
-                'data_type':   data_type_name,
-                'signal_name': connection.name
-            }
-        }
-        context['declarations'].append(chevron.render(**ctx))
+        rendered_init_value = data_type.render_value(init_value, 'initialization')
+        context['declarations'].append(
+            f'static {data_type_name} {connection.name} = {rendered_init_value};'
+        )
 
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         runtime = context['runtime']
         provider_port_data = runtime.get_port(provider_name)
         data_type = provider_port_data['data_type']
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            template = '{{ signal_name }} = {{ value }};'
-        else:
-            template = '{{ signal_name }} = *{{ value }};'
-
         function = runtime.functions[provider_name]['write']
         argument_names = list(function.arguments.keys())
+
+        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+            assignment = f'{connection.name} = {argument_names[0]};'
+        else:
+            assignment = f'{connection.name} = *{argument_names[0]};'
+
         return {
             provider_name: {
                 'write': {
                     'used_arguments': argument_names,
-                    'body':           chevron.render(template, {
-                        'signal_name': connection.name,
-                        'value':       argument_names[0]
-                    })
+                    'body':           assignment
                 }
             }
         }
@@ -237,7 +232,7 @@ class VariableSignal(SignalType):
 
         if data_type != source_data_type:
             raise Exception(
-                'Port data types don\'t match (Provider: {} Consumer: {})'.format(source_data_type, data_type))
+                f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
 
         function = runtime.functions[consumer_name]['read']
         argument_names = list(function.arguments.keys())
@@ -245,28 +240,14 @@ class VariableSignal(SignalType):
             consumer_name: {'read': {}}
         }
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            ctx = {
-                'template': '{{ data_type}} return_value = {{ signal_name }}{{ member_accessor }};',
-                'data':     {
-                    'data_type':       data_type,
-                    'signal_name':     connection.name,
-                    'member_accessor': member_accessor
-                }
-            }
-            mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+            return_value = f'{data_type} return_value = {connection.name}{member_accessor};'
+            mods[consumer_name]['read']['body'] = return_value
             mods[consumer_name]['read']['return_statement'] = 'return_value'
         else:
-            ctx = {
-                'template': '*{{ out_name }} = {{ signal_name }}{{ member_accessor }};',
-                'data':     {
-                    'signal_name':     connection.name,
-                    'out_name':        argument_names[0],
-                    'member_accessor': member_accessor
-                }
-            }
-
-            mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
-            mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+            out_name = argument_names[0]
+            out_assignment = f'*{out_name} = {connection.name}{member_accessor};'
+            mods[consumer_name]['read']['used_arguments'] = [out_name]
+            mods[consumer_name]['read']['body'] = out_assignment
 
         return mods
 
@@ -293,43 +274,34 @@ class ArraySignal(SignalType):
 
         if type(init_values) is list:
             if len(init_values) != count:
-                raise Exception('Array initializer count ({}) does not match size ({}) - signal provided by {}'
-                                .format(len(init_values), count, connection.provider))
+                raise Exception(f'Array initializer count ({len(init_values)}) does not '
+                                f'match size ({count}) - signal provided by {connection.provider}')
 
             init_values = ', '.join(init_values)
 
-        ctx = {
-            'template': 'static {{ data_type }} {{ signal_name }}[{{ size }}] = { {{ init_value }} };',
-            'data':     {
-                'init_value':  init_values,
-                'data_type':   data_type_name,
-                'signal_name': connection.name,
-                'size':        count
-            }
-        }
-        context['declarations'].append(chevron.render(**ctx))
+        context['declarations'].append(f'static {data_type_name} {connection.name}[{count}] = {{ {init_values} }};')
 
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         runtime = context['runtime']
         provider_port_data = runtime.get_port(provider_name)
         data_type = provider_port_data['data_type']
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            template = '{{ signal_name }}[{{ index }}] = {{ value }};'
-        else:
-            template = '{{ signal_name }}[{{ index }}] = *{{ value }};'
-
         function = runtime.functions[provider_name]['write']
         argument_names = list(function.arguments.keys())
+
+        index = argument_names[0]
+        value = argument_names[1]
+
+        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+            body = f'{connection.name}[{index}] = {value};'
+        else:
+            body = f'{connection.name}[{index}] = *{value};'
+
         return {
             provider_name: {
                 'write': {
-                    'used_arguments': [argument_names[0], argument_names[1]],
-                    'body':           chevron.render(template, {
-                        'signal_name': connection.name,
-                        'index':       argument_names[0],
-                        'value':       argument_names[1]
-                    })
+                    'used_arguments': [index, value],
+                    'body':           body
                 }
             }
         }
@@ -369,22 +341,13 @@ class ArraySignal(SignalType):
                 index = attributes['index']
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception('{} signal count ({}) is incompatible with {} ({})'
-                                    .format(consumer_name, consumer_port_data['count'],
-                                            connection.provider, provider_port_data['count']))
+                    raise Exception(
+                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
                 mods[consumer_name]['used_arguments'] = [argument_names[0]]
 
-            ctx = {
-                'template': '{{ data_type}} return_value = {{ signal_name }}[{{ index }}]{{ member_accessor }};',
-                'data':     {
-                    'data_type':       data_type,
-                    'signal_name':     connection.name,
-                    'index':           index,
-                    'member_accessor': member_accessor
-                }
-            }
-            mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+            mods[consumer_name]['read']['body'] = f'{data_type} return_value = {connection.name}[{index}]{member_accessor};'
             mods[consumer_name]['read']['return_statement'] = 'return_value'
         else:
 
@@ -394,23 +357,14 @@ class ArraySignal(SignalType):
                 out_name = argument_names[0]
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception('{} signal count ({}) is incompatible with {} ({})'
-                                    .format(consumer_name, consumer_port_data['count'],
-                                            connection.provider, provider_port_data['count']))
+                    raise Exception(
+                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
                 out_name = argument_names[1]
                 mods[consumer_name]['read']['used_arguments'] = [argument_names[0], argument_names[1]]
 
-            ctx = {
-                'template': '*{{ out_name }} = {{ signal_name }}[{{ index }}]{{ member_accessor }};',
-                'data':     {
-                    'signal_name':     connection.name,
-                    'index':           index,
-                    'out_name':        out_name,
-                    'member_accessor': member_accessor
-                }
-            }
-            mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+            mods[consumer_name]['read']['body'] = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 
         return mods
 
@@ -479,7 +433,7 @@ class QueueSignal(SignalType):
                     'body':           chevron.render(template, {
                         'queue_length': connection.attributes['queue_length'],
                         'signal_name':  connection.name,
-                        'value':        argument_names[0] if passed_by_value else '*{}'.format(argument_names[0])
+                        'value':        argument_names[0] if passed_by_value else '*' + argument_names[0]
                     })
                 }
             }
@@ -541,7 +495,7 @@ class QueueSignal(SignalType):
         data = {
             'queue_length':    connection.attributes['queue_length'],
             'signal_name':     connection.name,
-            'out_name':        argument_names[0] if passed_by_value else '*{}'.format(argument_names[0]),
+            'out_name':        argument_names[0] if passed_by_value else '*' + argument_names[0],
             'member_accessor': member_accessor
         }
 
@@ -593,23 +547,14 @@ class ConstantSignal(SignalType):
         }
 
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            mods[consumer_name]['read']['return_statement'] = '{}{}'.format(constant_provider.generate_call({}), member_accessor)
+            mods[consumer_name]['read']['return_statement'] = constant_provider.generate_call({}) + member_accessor
         else:
             if member_accessor:
-                ctx = {
-                    'template': '{{ data_type }} tmp;\n'
-                                '{{ constant_provider }};\n'
-                                '{{ out_name }} = tmp{{ member_accessor }};',
-                    'data':     {
-                        'constant_provider': constant_provider.generate_call({'value': '&tmp'}),
-                        'out_name':          argument_names[0],
-                        'member_accessor':   member_accessor,
-                        'data_type':         provider_port_data['data_type']
-                    }
-                }
-                body = chevron.render(**ctx)
+                body = f"{provider_port_data['data_type']} tmp;\n" \
+                       f"{constant_provider.generate_call({'value': '&tmp'})};\n" \
+                       f"{argument_names[0]} = tmp{member_accessor};"
             else:
-                body = '{};'.format(constant_provider.generate_call({'value': argument_names[0]}))
+                body = constant_provider.generate_call({"value": argument_names[0]}) + ';'
 
             mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
             mods[consumer_name]['read']['body'] = body
@@ -661,9 +606,9 @@ class ConstantArraySignal(SignalType):
                 index = attributes['index']
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception('{} signal count ({}) is incompatible with {} ({})'
-                                    .format(consumer_name, consumer_port_data['count'],
-                                            connection.provider, provider_port_data['count']))
+                    raise Exception(
+                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
                 mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
 
@@ -685,9 +630,9 @@ class ConstantArraySignal(SignalType):
                 out_name = argument_names[0]
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception('{} signal count ({}) is incompatible with {} ({})'
-                                    .format(consumer_name, consumer_port_data['count'],
-                                            connection.provider, provider_port_data['count']))
+                    raise Exception(
+                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
                 out_name = argument_names[1]
                 mods[consumer_name]['read']['used_arguments'] = [argument_names[0], argument_names[1]]
@@ -706,7 +651,7 @@ class ConstantArraySignal(SignalType):
                 }
                 mods[consumer_name]['read']['body'] = chevron.render(**ctx)
             else:
-                mods[consumer_name]['read']['body'] = '{};'.format(constant_provider.function_call({'index': index, 'value': out_name}))
+                mods[consumer_name]['read']['body'] = constant_provider.function_call({"index": index, "value": out_name}) + ';'
 
         return mods
 
@@ -727,15 +672,15 @@ def process_type_def(types: TypeCollection, type_name, type_def):
         elif 'members' in type_data:
             type_category = TypeCollection.UNION
         else:
-            raise Exception('Invalid type definition for {}'.format(type_name))
+            raise Exception(f'Invalid type definition for {type_name}')
 
     try:
         return types.category(type_category).process_type(type_data)
     except KeyError:
-        print('Unknown type category {} set for {}'.format(type_category, type_name))
+        print(f'Unknown type category {type_category} set for {type_name}')
         raise
     except Exception as e:
-        raise Exception('Type {} ({}) definition is not valid: {}'.format(type_name, type_category, e))
+        raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}')
 
 
 class ReadValuePortType(PortType):
@@ -758,7 +703,7 @@ class ReadValuePortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Read_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Read_{port.port_name}'
 
         if data_type.passed_by() == 'value':
             function = FunctionPrototype(fn_name, data_type.name)
@@ -812,7 +757,7 @@ class ReadQueuedValuePortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Read_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Read_{port.port_name}'
 
         function = FunctionPrototype(fn_name, 'QueueStatus_t', {
             'value': {'direction': 'out', 'data_type': data_type}
@@ -862,7 +807,7 @@ class ReadIndexedValuePortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Read_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Read_{port.port_name}'
 
         if data_type.passed_by() == 'value':
             function = FunctionPrototype(fn_name, data_type.name, {
@@ -900,7 +845,7 @@ class ReadIndexedValuePortType(PortType):
         data_type = self._types.get(port['data_type'])
 
         function = FunctionImplementation(prototype)
-        function.add_input_assert('index < {}'.format(port['count']))
+        function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
         if data_type.passed_by() == 'pointer':
@@ -925,7 +870,7 @@ class WriteDataPortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Write_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Write_{port.port_name}'
 
         function = FunctionPrototype(fn_name, 'void', {
             'value': {'direction': 'in', 'data_type': data_type}
@@ -974,7 +919,7 @@ class WriteIndexedDataPortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Write_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Write_{port.port_name}'
 
         function = FunctionPrototype(fn_name, 'void', {
             'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')},
@@ -989,7 +934,7 @@ class WriteIndexedDataPortType(PortType):
 
         function = FunctionImplementation(prototype)
         function.attributes.add('weak')
-        function.add_input_assert('index < {}'.format(port['count']))
+        function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
         if data_type.passed_by() == 'pointer':
@@ -1003,7 +948,7 @@ class WriteIndexedDataPortType(PortType):
         data_type = self._types.get(port['data_type'])
 
         function = FunctionImplementation(prototype)
-        function.add_input_assert('index < {}'.format(port['count']))
+        function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
         if data_type.passed_by() == 'pointer':
@@ -1028,7 +973,7 @@ class ConstantPortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Constant_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
         if data_type.passed_by() == 'value':
             function = FunctionPrototype(fn_name, data_type.name)
@@ -1051,7 +996,7 @@ class ConstantPortType(PortType):
         else:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
-            function.add_body('*value = {};'.format(constant_value))
+            function.add_body(f'*value = {constant_value};')
 
         return {'constant': function}
 
@@ -1074,7 +1019,7 @@ class ConstantArrayPortType(PortType):
     def declare_functions(self, port):
         data_type = self._types.get(port['data_type'])
 
-        fn_name = '{}_Constant_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
         if data_type.passed_by() == 'value':
             function = FunctionPrototype(fn_name, data_type.name, {
@@ -1093,11 +1038,11 @@ class ConstantArrayPortType(PortType):
         data_type = self._types.get(port['data_type'])
 
         function = FunctionImplementation(prototype)
-        function.add_input_assert('index < {}'.format(port['count']))
+        function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
         constant_value = ', '.join(port['value'])
-        function.add_body('static const {} constant[{}] = {{ {} }};'.format(data_type.name, port['count'], constant_value))
+        function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{ {constant_value} }};')
         if data_type.passed_by() == 'value':
             function.set_return_statement('constant[index]')
         else:
@@ -1142,7 +1087,7 @@ def process_project_types(owner: CGlue, project_config):
 
 
 def process_component_ports_and_types(owner: CGlue, component_name, component_config):
-    print("Processing component: {}".format(component_name))
+    print(f"Processing component: {component_name}")
     if 'ports' not in component_config:
         component_config['ports'] = {}
 
@@ -1150,7 +1095,7 @@ def process_component_ports_and_types(owner: CGlue, component_name, component_co
         for type_name, type_data in component_config.get('types', {}).items():
             add_type_def(owner, type_name, type_data)
     except Exception:
-        print("Failed to add type definitions for {}".format(component_name))
+        print(f"Failed to add type definitions for {component_name}")
         raise
 
 

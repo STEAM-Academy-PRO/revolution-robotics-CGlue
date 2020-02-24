@@ -43,10 +43,9 @@ class FunctionPrototype:
         required_args = set(self.arguments.keys())
         missing_args = required_args - arguments.keys()
         if missing_args:
-            raise Exception('Arguments are missing from call of {}: {}'
-                            .format(self.function_name, ', '.join(missing_args)))
+            raise Exception(f'Arguments are missing from call of {self.function_name}: {", ".join(missing_args)}')
 
-        return '{}({})'.format(self.function_name, ', '.join([str(arguments[name]) for name in self.arguments]))
+        return f'{self.function_name}({", ".join([str(arguments[name]) for name in self.arguments])})'
 
     @property
     def referenced_types(self):
@@ -76,8 +75,9 @@ class FunctionPrototype:
             return pattern.format(data['data_type'].name, name)
 
         args = [generate_parameter(name, data) for name, data in self.arguments.items()]
+        args_list = "void" if not args else ", ".join(args)
 
-        return '{} {}({})'.format(self.return_type, self.function_name, 'void' if not args else ', '.join(args))
+        return f'{self.return_type} {self.function_name}({args_list})'
 
 
 class FunctionImplementation:
@@ -106,7 +106,7 @@ class FunctionImplementation:
     def add_input_assert(self, statements):
         self.includes.add('"utils_assert.h"')
         if type(statements) is str:
-            self._asserts.add('ASSERT({});'.format(statements))
+            self._asserts.add(f'ASSERT({statements});')
         else:
             for statement in statements:
                 self.add_input_assert(statement)
@@ -122,11 +122,11 @@ class FunctionImplementation:
 
     def set_return_statement(self, statement):
         if self._return_statement:
-            raise Exception('Return statement already set for {}'.format(self.function_name))
+            raise Exception(f'Return statement already set for {self.function_name}')
 
         if statement:
             if self.return_type == 'void':
-                raise Exception('Function {} is void'.format(self.function_name))
+                raise Exception(f'Function {self.function_name} is void')
 
             self._return_statement = statement
 
@@ -137,15 +137,15 @@ class FunctionImplementation:
         body = list(sorted(self._asserts))
         body += [chunk.replace('\n', '\n    ') for chunk in self._body]
         if self._return_statement:
-            body.append('return {};'.format(self._return_statement))
+            body.append(f'return {self._return_statement};')
 
         def remove_trailing_spaces(l):
-            return '\n'.join([line.rstrip(' ') for line in l.split('\n')])
+            return '\n'.join((line.rstrip(' ') for line in l.split('\n')))
 
         unused_arguments = self.arguments.keys() - self._used_arguments
 
         for arg in sorted(unused_arguments):
-            body.insert(0, '(void) {};'.format(arg))
+            body.insert(0, f'(void) {arg};')
 
         ctx = {
             'template': "{{# attributes }}__attribute__(({{ . }}))\n{{/ attributes }}"
@@ -184,4 +184,4 @@ class FunctionImplementation:
         return self._prototype.generate_call(arguments)
 
     def __str__(self) -> str:
-        return 'FunctionDescriptor of {}'.format(self.function_name)
+        return f'FunctionDescriptor of {self.function_name}'

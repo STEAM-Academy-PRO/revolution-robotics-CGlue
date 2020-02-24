@@ -33,10 +33,11 @@ class AsyncServerCallSignal(SignalType):
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
+            indent = ' ' * 12
             if arg_dir == 'out' or arg_type.passed_by() == 'pointer':
-                callee_arguments[name] = '\n{}&{}_argument_{}'.format(' ' * 12, connection.name, name)
+                callee_arguments[name] = f'\n{indent}&{connection.name}_argument_{name}'
             else:
-                callee_arguments[name] = '\n{}{}_argument_{}'.format(' ' * 12, connection.name, name)
+                callee_arguments[name] = f'\n{indent}{connection.name}_argument_{name}'
 
         context['declarations'].append(chevron.render(**{
             'template':
@@ -211,7 +212,7 @@ switch (command)
         missing_arguments = set()
         for arg in attributes.get('arguments', {}):
             if arg not in provider_port['arguments']:
-                print('Warning: extra argument "{}" on signal {}, consumed by {}'.format(arg, connection.provider, consumer_name))
+                print(f'Warning: extra argument "{arg}" on signal {connection.provider}, consumed by {consumer_name}')
 
         call_arguments = []
         for arg, data in provider_port['arguments'].items():
@@ -250,8 +251,8 @@ switch (command)
                     missing_arguments.add(arg)
 
         if missing_arguments:
-            raise Exception('{} does not provide {} with the following in-arguments: {}'
-                            .format(consumer_name, connection.provider, ', '.join(missing_arguments)))
+            raise Exception(f'{consumer_name} does not provide {connection.provider} with'
+                            f' the following in-arguments: {", ".join(missing_arguments)}')
 
         call_function.add_body(chevron.render(**{
             'template': '''AsyncOperationState_t returned_state = AsyncState_Busy;
@@ -286,20 +287,20 @@ else
         call_function.set_return_statement('returned_state')
 
         # canceller
-        cancel_function.add_body('{}_command = AsyncCommand_Cancel;'.format(connection.name))
+        cancel_function.add_body(f'{connection.name}_command = AsyncCommand_Cancel;')
 
         # update event
         # FIXME: add a proper event maybe?
         update_call = update_function.prototype.generate_call({})
         update_event_function = context['functions'][connection.attributes['update_on']]['run']
-        update_event_function.add_body('{};'.format(update_call))
+        update_event_function.add_body(f'{update_call};')
 
         # get result
         # if the provider doesn't have an out arg, the default value for the type is passed back
         result_arguments = []
         for arg in result_function.arguments:
             if arg not in call_function.arguments:
-                value = '{}_argument_{}'.format(connection.name, arg)
+                value = f'{connection.name}_argument_{arg}'
             else:
                 value = result_function.arguments[arg]['data_type'].render_value(None)
 
@@ -358,9 +359,9 @@ class AsyncCallPortType(PortType):
         })
 
     def declare_functions(self, port):
-        call_fn_name = '{}_Async_{}_Call'.format(port.component_name, port.port_name)
-        result_fn_name = '{}_Async_{}_GetResult'.format(port.component_name, port.port_name)
-        cancel_fn_name = '{}_Async_{}_Cancel'.format(port.component_name, port.port_name)
+        call_fn_name = f'{port.component_name}_Async_{port.port_name}_Call'
+        result_fn_name = f'{port.component_name}_Async_{port.port_name}_GetResult'
+        cancel_fn_name = f'{port.component_name}_Async_{port.port_name}_Cancel'
 
         call_function = FunctionPrototype(call_fn_name, 'AsyncOperationState_t')
         result_function = FunctionPrototype(result_fn_name, 'AsyncOperationState_t')

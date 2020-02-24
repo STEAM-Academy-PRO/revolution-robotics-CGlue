@@ -1,5 +1,6 @@
 import os
 import shutil
+from contextlib import suppress
 
 
 class FileTransaction:
@@ -21,26 +22,26 @@ class FileTransaction:
             for folder in self._new_folders:
                 try:
                     os.makedirs(os.path.join(self._root, folder))
-                    print('New folder: {}'.format(folder))
+                    print(f'New folder: {folder}')
                 except OSError:
-                    print('Skipped folder: {}'.format(folder))
+                    print(f'Skipped folder: {folder}')
 
             for file_name, contents in self._files.items():
                 file_path = os.path.join(self._root, file_name)
 
                 result = change_file(file_path, contents)
                 if type(result) is str:
-                    print('Modified: {}'.format(file_path))
+                    print(f'Modified: {file_path}')
                     backups[file_path] = result
                 elif result:
-                    print('Created: {}'.format(file_path))
+                    print(f'Created: {file_path}')
                     new_files.append(file_path)
                 else:
-                    print('Up to date: {}'.format(file_path))
+                    print(f'Up to date: {file_path}')
 
             if delete_backups:
                 for file_name, backup in backups.items():
-                    print('Deleted: {}'.format(backup))
+                    print(f'Deleted: {backup}')
                     delete(backup)
 
         except Exception:
@@ -83,7 +84,7 @@ def change_file(filename, contents, delete_backup=False):
         backup = filename + ".bak"
         while os.path.isfile(backup):
             i += 1
-            backup = "{}.bak{}".format(filename, i)
+            backup = f"{filename}.bak{i}"
 
         copy_file(filename, backup)
 
@@ -103,12 +104,10 @@ def change_file(filename, contents, delete_backup=False):
 
 
 def delete(path):
-    try:
+    with suppress(FileNotFoundError):
         os.remove(path)
-    except FileNotFoundError:
-        pass
 
 
 def copy_file(src, dst):
     shutil.copy(src, dst)
-    print('Copied: {} -> {}'.format(src, dst))
+    print(f'Copied: {src} -> {dst}')

@@ -15,13 +15,19 @@ def remove_indentation(text, spaces):
     if spaces == 0:
         return text
     else:
-        return re.sub('^[ ]{{1,{}}}(.*?)$'.format(spaces), '\\1', text, flags=re.MULTILINE)
+        return re.sub(f'^[ ]{{1,{spaces}}}(.*?)$', '\\1', text, flags=re.MULTILINE)
 
 
 def get_sections(text):
+    """
+    >>> get_sections('/* Begin User Code Section: foobar */barbaz/* End User Code Section: foobar */')
+    {'foobar': 'barbaz'}
+    >>> get_sections('/* Begin User Code Section: foobar */\\nbar\\nbaz\\n/* End User Code Section: foobar */')
+    {'foobar': 'bar\\nbaz'}
+    """
     # parse contents
     matches = re.findall(
-        '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/\n(?P<usercode>.*?)\n(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
+        '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/[\n]?(?P<usercode>.*?)[\n]?(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
         text, flags=re.DOTALL)
 
     return {secname: remove_indentation(usercode, len(indent)) for indent, secname, usercode in matches}
@@ -39,7 +45,7 @@ def get_sections_from_file(file_path):
 
 
 def create_section(name, contents):
-    return '/* Begin User Code Section: {0} */\n{1}/* End User Code Section: {0} */'.format(name, contents)
+    return f'/* Begin User Code Section: {name} */\n{contents}/* End User Code Section: {name} */'
 
 
 def add_sections_to_function(function: FunctionImplementation, name):
@@ -51,20 +57,20 @@ def add_sections_to_function(function: FunctionImplementation, name):
 
 
 def fill_sections(source, sections):
+    """
+    >>> fill_sections(\
+'    /* Begin User Code Section: foobar *//* End User Code Section: foobar */', {'foobar': 'barbaz'})
+    '    /* Begin User Code Section: foobar */\\n    barbaz\\n    /* End User Code Section: foobar */'
+    """
     def repl(matches):
         indent = matches[1]
         secname = matches[2]
 
         lines = sections.get(secname, '').split("\n")
-        proclines = []
-        for line in lines:
-            if line != '':
-                proclines.append(indent + line)
-            else:
-                proclines.append(line)
-        proclines.append(indent)
+        indented_lines = (indent + line if line != '' else line for line in lines)
+        code_section = "\n".join(indented_lines) + "\n" + indent  # last indent is for the closing comment
 
-        return indent + create_section(secname, "\n".join(proclines))
+        return indent + create_section(secname, code_section)
 
     return re.sub(
         '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/(?P<usercode>.*?)/\\* End User Code Section: (?P=secname) \\*/',
@@ -78,7 +84,7 @@ def add_sections_to_component(owner: CGlue, component_name, context: dict):
 
     for func_name, functions in context['functions'].items():
         for func_type, function in functions.items():
-            name = '{}:{}'.format(func_name[func_name.rfind('/') + 1:], func_type)  # don't need to have the component name
+            name = f'{func_name[func_name.rfind("/") + 1:]}:{func_type}'  # don't need to have the component name
             add_sections_to_function(function, name)
 
 
@@ -87,7 +93,7 @@ def add_sections_to_runtime(owner: CGlue, context: dict):
 
     for func_name, functions in context['functions'].items():
         for func_type, function in functions.items():
-            name = '{}:{}'.format(func_name, func_type)
+            name = f'{func_name}:{func_type}'
             add_sections_to_function(function, name)
 
 

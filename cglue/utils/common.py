@@ -64,9 +64,9 @@ def process_dict(src, required, optional):
     unexpected_keys = not_required - optional_keys
 
     if unexpected_keys:
-        raise Exception('Unexpected keys: {}'.format(', '.join(unexpected_keys)))
+        raise Exception(f'Unexpected keys: {", ".join(unexpected_keys)}')
 
     if missing_required:
-        raise Exception('Missing keys: {}'.format(', '.join(missing_required)))
+        raise Exception(f'Missing keys: {", ".join(missing_required)}')
 
     return {**optional, **src}

@@ -46,7 +46,7 @@ def surround_with_lock(signal_impl):
         signal_impl.insert(0, lock_impl)
         signal_impl.append(unlock_impl)
     else:
-        signal_impl = '{}\n{}\n{}'.format(lock_impl, signal_impl, unlock_impl)
+        signal_impl = f'{lock_impl}\n{signal_impl}\n{unlock_impl}'
 
     return signal_impl
 

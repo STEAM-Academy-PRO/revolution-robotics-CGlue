@@ -78,7 +78,7 @@ class Plugin:
     def bind(self, owner):
         for plugin in self._requires:
             if plugin not in owner._plugins:
-                raise Exception('{} requires unloaded plugin {}'.format(self.name, plugin))
+                raise Exception(f'{self.name} requires unloaded plugin {plugin}')
         self._owner = owner
 
     def handle(self, event_name, args):
@@ -87,7 +87,7 @@ class Plugin:
         except KeyError:
             return
 
-        print('Running {}::{}'.format(self.name, event_name))
+        print(f'Running {self.name}::{event_name}')
         handler(self._owner, *args)
 
 
@@ -127,7 +127,7 @@ class CGlue:
                 'required_plugins': []
             }
 
-        print('Loaded configuration for {}'.format(project_config['settings']['name']))
+        print(f"Loaded configuration for {project_config['settings']['name']}")
 
         self._project_config = project_config
 
@@ -144,7 +144,7 @@ class CGlue:
         self._port_types[port_type_name] = port_type
 
     def _load_component_config(self, component_name):
-        component_config_file = '{}/{}/{}/config.json'.format(self._basedir, self.settings['components_folder'], component_name)
+        component_config_file = '/'.join([self._basedir, self.settings['components_folder'], component_name, 'config.json'])
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
             self.add_component(component_name, component_config)
@@ -154,7 +154,7 @@ class CGlue:
         self._components[component_name] = component_config
 
         if not component_config['ports']:
-            print('Warning: {} has no ports'.format(component_name))
+            print(f'Warning: {component_name} has no ports')
 
         for port_name, port_data in component_config['ports'].items():
             processed_port = self._port_types[port_data['port_type']].process_port(component_name, port_name, port_data)
@@ -222,10 +222,9 @@ class CGlue:
         types = []
 
         for t in type_names:
-            if t in visited_types:
-                continue
-            else:
+            if t not in visited_types:
                 visited_types.append(t)
+
                 deps = self._collect_type_dependencies(t)
 
                 for d in deps:
@@ -256,7 +255,7 @@ class CGlue:
         }
 
         for port_name, port_data in self._components[component_name]['ports'].items():
-            short_name = '{}/{}'.format(component_name, port_name)
+            short_name = f'{component_name}/{port_name}'
             context['functions'][short_name] = self._ports[short_name].create_component_functions()
 
         self.raise_event('before_generating_component', component_name, context)
@@ -265,7 +264,7 @@ class CGlue:
         function_implementations = []
         used_types = []
         includes = {
-            '"{}.h"'.format(component_name),
+            f'"{component_name}.h"',
             '"utils.h"'
         }
 
@@ -356,10 +355,10 @@ class CGlue:
                 inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
 
                 if len(inferred_signal_type) == 0:
-                    raise Exception('Incompatible ports: {} and {}'.format(provider_port.full_name, consumer_port.full_name))
+                    raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
                 elif len(inferred_signal_type) > 1:
-                    raise Exception('Connection type can not be inferred for {} and {}'
-                                    .format(provider_port.full_name, consumer_port.full_name))
+                    raise Exception('Connection type can not be inferred for'
+                                    f'{provider_port.full_name} and {consumer_port.full_name}')
 
                 signal_type_name = inferred_signal_type.pop()
                 signal_type = self._signal_types[signal_type_name]
@@ -373,12 +372,10 @@ class CGlue:
                     # (e.g. a runnable can be called by multiple events or calls)
 
                     if consumed_signal_types[signal_type_name] == 'single':
-                        raise Exception('{} cannot consume multiple signals'.format(consumer_port.full_name))
+                        raise Exception(f'{consumer_port.full_name} cannot consume multiple signals')
 
                 # create signal connection
-                signal_name = '{}_{}' \
-                    .format(provider_port.full_name, signal_type_name) \
-                    .replace('/', '_')
+                signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
 
                 consumer_attributes = consumer_ref.get('attributes', {})
 
@@ -421,7 +418,7 @@ class CGlue:
             all_unconnected = set(self._ports.keys()) - context['functions'].keys()
             for unconnected in sorted(all_unconnected):
                 if self.get_port(unconnected).is_consumer:
-                    print('Warning: {} port is not connected'.format(unconnected))
+                    print(f'Warning: {unconnected} port is not connected')
 
         self.raise_event('before_generating_runtime', context)
 
@@ -431,7 +428,7 @@ class CGlue:
 
         output_filename = filename[filename.rfind('/') + 1:]
         includes = context['runtime_includes']
-        includes.add('"{}.h"'.format(output_filename))
+        includes.add(f'"{output_filename}.h"')
 
         function_headers = []
         function_implementations = []
@@ -475,7 +472,7 @@ class CGlue:
             try:
                 self._plugins[plugin].handle(event_name, args)
             except Exception:
-                print('Error while processing {}/{}'.format(plugin, event_name))
+                print(f'Error while processing {plugin}/{event_name}')
                 raise
 
     @property

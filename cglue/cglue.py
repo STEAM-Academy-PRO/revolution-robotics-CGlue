@@ -94,7 +94,7 @@ class Plugin:
 class CGlue:
     def __init__(self, project_config_file):
         self._project_config_file = project_config_file
-        self._basedir = os.path.dirname(project_config_file)
+        self._basedir = os.path.dirname(project_config_file) or '.'
         self._plugins = {}
         self._defined_types = {}
         self._project_config = {}

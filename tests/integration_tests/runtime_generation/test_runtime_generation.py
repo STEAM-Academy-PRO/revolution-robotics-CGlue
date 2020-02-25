@@ -33,4 +33,3 @@ class TestRuntimeGeneration(unittest.TestCase):
         generator.load()
 
         generator.generate_runtime('runtime_file.c')
-

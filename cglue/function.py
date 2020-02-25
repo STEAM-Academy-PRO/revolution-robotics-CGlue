@@ -3,21 +3,35 @@ import chevron
 from .data_types import TypeCollection, TypeWrapper
 
 
+class MissingArgumentException(Exception):
+    pass
+
+
+class FunctionCallGenerationException(Exception):
+    pass
+
+
 class ArgumentList(dict):
     def __init__(self, args: dict = None):
         super().__init__()
 
         if args:
             for arg_name, arg_data in args.items():
-                if type(arg_data) is not dict:
-                    arg_data = {
-                        'direction': 'in',
-                        'data_type': arg_data
-                    }
-                self.add(arg_name, arg_data['direction'], arg_data['data_type'])
+                if type(arg_data) is dict:
+                    self.add(arg_name, arg_data['direction'], arg_data['data_type'])
+                else:
+                    self.add(arg_name, 'in', arg_data)
 
     def add(self, name, direction, data_type: TypeWrapper):
         self[name] = {'direction': direction, 'data_type': data_type}
+
+    def assemble(self, args: dict):
+        try:
+            return ", ".join((str(args[name]) for name in self))
+        except KeyError as e:
+            required_args = set(self.keys())
+            missing_args = required_args - args.keys()
+            raise MissingArgumentException(f'Arguments are missing: {", ".join(missing_args)}') from e
 
 
 class FunctionPrototype:
@@ -40,12 +54,10 @@ class FunctionPrototype:
         return self._return_type
 
     def generate_call(self, arguments):
-        required_args = set(self.arguments.keys())
-        missing_args = required_args - arguments.keys()
-        if missing_args:
-            raise Exception(f'Arguments are missing from call of {self.function_name}: {", ".join(missing_args)}')
-
-        return f'{self.function_name}({", ".join([str(arguments[name]) for name in self.arguments])})'
+        try:
+            return f'{self.function_name}({self.arguments.assemble(arguments)})'
+        except MissingArgumentException as e:
+            raise FunctionCallGenerationException(f'Failed to generate call for {self.function_name}') from e
 
     @property
     def referenced_types(self):

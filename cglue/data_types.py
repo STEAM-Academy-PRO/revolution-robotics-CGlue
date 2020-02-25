@@ -180,7 +180,7 @@ class TypeCollection:
             # type is not yet known, add it
             self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']])
 
-    def get(self, type_name):
+    def get(self, type_name) -> TypeWrapper:
         return self._type_data[type_name]
 
     def export(self):

@@ -775,7 +775,7 @@ class ReadQueuedValuePortType(PortType):
         function.add_input_assert('value != NULL')
         function.mark_argument_used('value')
 
-        function.set_return_statement(queue_status_type.render_value())
+        function.set_return_statement(queue_status_type.render_value(None))
 
         return {'read': function}
 

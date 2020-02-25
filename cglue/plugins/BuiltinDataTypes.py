@@ -1087,7 +1087,7 @@ def init(owner: CGlue):
     owner.add_signal_type('constant_array', ConstantArraySignal())
     owner.add_signal_type('queue', QueueSignal())
 
-    for port_type_name, port_type_class in known_port_types:
+    for port_type_name, port_type_class in known_port_types.items():
         owner.add_port_type(port_type_name, port_type_class(owner.types))
 
 

@@ -133,7 +133,7 @@ class CGlue:
 
         for plugin_name in self.settings['required_plugins']:
             if plugin_name not in self._plugins:
-                raise Exception('Project requires {} plugin, which is not loaded'.format(plugin_name))
+                raise Exception(f'Project requires {plugin_name} plugin, which is not loaded')
 
         for component_name in project_config['components']:
             self._load_component_config(component_name)
@@ -144,7 +144,8 @@ class CGlue:
         self._port_types[port_type_name] = port_type
 
     def _load_component_config(self, component_name):
-        component_config_file = '/'.join([self._basedir, self.settings['components_folder'], component_name, 'config.json'])
+        component_config_file = '/'.join((self._basedir, self.settings['components_folder'],
+                                          component_name, 'config.json'))
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
             self.add_component(component_name, component_config)
@@ -157,7 +158,8 @@ class CGlue:
             print(f'Warning: {component_name} has no ports')
 
         for port_name, port_data in component_config['ports'].items():
-            processed_port = self._port_types[port_data['port_type']].process_port(component_name, port_name, port_data)
+            port_type = self._port_types[port_data['port_type']]
+            processed_port = port_type.process_port(component_name, port_name, port_data)
 
             self._ports[processed_port.full_name] = processed_port
 
@@ -386,7 +388,8 @@ class CGlue:
                             # create new signal in all cases
                             signal_name += str(len(signals_of_current_type))
 
-                            new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name, provider_attributes)
+                            new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
+                                                                       provider_attributes)
                             new_signal.add_consumer(consumer_short_name, consumer_attributes)
 
                             signals_of_current_type.append(new_signal)
@@ -398,7 +401,8 @@ class CGlue:
                         raise Exception('Multiple consumers not allowed for {} signal (provided by {})'
                                         .format(signal_type_name, provider_port.full_name))
                 except KeyError:
-                    new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name, provider_attributes)
+                    new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
+                                                               provider_attributes)
                     new_signal.add_consumer(consumer_short_name, consumer_attributes)
 
                     if signal_type.consumers == 'multiple_signals':

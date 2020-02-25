@@ -112,7 +112,7 @@ def replace_sections_in_files(context: dict):
 def user_code_plugin():
     return Plugin("UserCodePlugin", handlers={
         'before_generating_component': add_sections_to_component,
-        'generating_component':        lambda owner, component_name, context: replace_sections_in_files(context),
-        'before_generating_runtime':   add_sections_to_runtime,
-        'after_generating_runtime':    lambda owner, context: replace_sections_in_files(context)
+        'generating_component': lambda owner, component_name, context: replace_sections_in_files(context),
+        'before_generating_runtime': add_sections_to_runtime,
+        'after_generating_runtime': lambda owner, context: replace_sections_in_files(context)
     })

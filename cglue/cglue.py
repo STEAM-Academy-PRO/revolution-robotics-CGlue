@@ -349,66 +349,8 @@ class CGlue:
             provider_signals = context['signals'][provider_port.full_name]
 
             for consumer_ref in connection['consumers']:
-                consumer_short_name = consumer_ref['short_name']
-                consumer_port = self.get_port(consumer_short_name)
-
-                # infer signal type
-                consumed_signal_types = consumer_port.port_type['consumes']
-                inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
-
-                if len(inferred_signal_type) == 0:
-                    raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
-                elif len(inferred_signal_type) > 1:
-                    raise Exception('Connection type can not be inferred for'
-                                    f'{provider_port.full_name} and {consumer_port.full_name}')
-
-                signal_type_name = inferred_signal_type.pop()
-                signal_type = self._signal_types[signal_type_name]
-
-                # create consumer function
-                if consumer_port.full_name not in context['functions']:
-                    context['functions'][consumer_port.full_name] = consumer_port.create_runtime_functions()
-                else:
-                    # this port already is the consumer of some signal
-                    # some ports can consume multiple signals, this is set in the port data
-                    # (e.g. a runnable can be called by multiple events or calls)
-
-                    if consumed_signal_types[signal_type_name] == 'single':
-                        raise Exception(f'{consumer_port.full_name} cannot consume multiple signals')
-
-                # create signal connection
-                signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
-
-                consumer_attributes = consumer_ref.get('attributes', {})
-
-                try:
-                    signals_of_current_type = provider_signals[signal_type_name]
-                    if type(signals_of_current_type) is list:
-                        if signal_type.consumers == 'multiple_signals':
-                            # create new signal in all cases
-                            signal_name += str(len(signals_of_current_type))
-
-                            new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
-                                                                       provider_attributes)
-                            new_signal.add_consumer(consumer_short_name, consumer_attributes)
-
-                            signals_of_current_type.append(new_signal)
-                        else:
-                            signals_of_current_type.add_consumer(consumer_port.full_name, consumer_attributes)
-                    elif signal_type.consumers == 'multiple':
-                        signals_of_current_type.add_consumer(consumer_port.full_name, consumer_attributes)
-                    else:
-                        raise Exception('Multiple consumers not allowed for {} signal (provided by {})'
-                                        .format(signal_type_name, provider_port.full_name))
-                except KeyError:
-                    new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
-                                                               provider_attributes)
-                    new_signal.add_consumer(consumer_short_name, consumer_attributes)
-
-                    if signal_type.consumers == 'multiple_signals':
-                        provider_signals[signal_type_name] = [new_signal]
-                    else:
-                        provider_signals[signal_type_name] = new_signal
+                self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
+                                             provider_signals)
 
         for signals in context['signals'].values():
             for signal in signals.values():
@@ -470,6 +412,61 @@ class CGlue:
         self.raise_event('after_generating_runtime', context)
 
         return context['files']
+
+    def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_port, provider_signals):
+        consumer_short_name = consumer_ref['short_name']
+        consumer_port = self.get_port(consumer_short_name)
+        # infer signal type
+        consumed_signal_types = consumer_port.port_type['consumes']
+        inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
+        if len(inferred_signal_type) == 0:
+            raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
+        elif len(inferred_signal_type) > 1:
+            raise Exception('Connection type can not be inferred for'
+                            f'{provider_port.full_name} and {consumer_port.full_name}')
+        signal_type_name = inferred_signal_type.pop()
+        signal_type = self._signal_types[signal_type_name]
+        # create consumer function
+        if consumer_port.full_name not in context['functions']:
+            context['functions'][consumer_port.full_name] = consumer_port.create_runtime_functions()
+        else:
+            # this port already is the consumer of some signal
+            # some ports can consume multiple signals, this is set in the port data
+            # (e.g. a runnable can be called by multiple events or calls)
+
+            if consumed_signal_types[signal_type_name] == 'single':
+                raise Exception(f'{consumer_port.full_name} cannot consume multiple signals')
+        # create signal connection
+        signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
+        consumer_attributes = consumer_ref.get('attributes', {})
+        try:
+            signals_of_current_type = provider_signals[signal_type_name]
+            if type(signals_of_current_type) is list:
+                if signal_type.consumers == 'multiple_signals':
+                    # create new signal in all cases
+                    signal_name += str(len(signals_of_current_type))
+
+                    new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
+                                                               provider_attributes)
+                    new_signal.add_consumer(consumer_short_name, consumer_attributes)
+
+                    signals_of_current_type.append(new_signal)
+                else:
+                    signals_of_current_type.add_consumer(consumer_port.full_name, consumer_attributes)
+            elif signal_type.consumers == 'multiple':
+                signals_of_current_type.add_consumer(consumer_port.full_name, consumer_attributes)
+            else:
+                raise Exception('Multiple consumers not allowed for {} signal (provided by {})'
+                                .format(signal_type_name, provider_port.full_name))
+        except KeyError:
+            new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
+                                                       provider_attributes)
+            new_signal.add_consumer(consumer_short_name, consumer_attributes)
+
+            if signal_type.consumers == 'multiple_signals':
+                provider_signals[signal_type_name] = [new_signal]
+            else:
+                provider_signals[signal_type_name] = new_signal
 
     def raise_event(self, event_name, *args):
         for plugin in self._plugins:

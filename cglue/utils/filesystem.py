@@ -19,43 +19,51 @@ class FileTransaction:
         backups = {}
         new_files = []
         try:
-            for folder in self._new_folders:
-                try:
-                    os.makedirs(os.path.join(self._root, folder))
-                    print(f'New folder: {folder}')
-                except OSError:
-                    print(f'Skipped folder: {folder}')
+            self._create_new_folders()
 
             for file_name, contents in self._files.items():
-                file_path = os.path.join(self._root, file_name)
-
-                result = change_file(file_path, contents)
-                if type(result) is str:
-                    print(f'Modified: {file_path}')
-                    backups[file_path] = result
-                elif result:
-                    print(f'Created: {file_path}')
-                    new_files.append(file_path)
-                else:
-                    print(f'Up to date: {file_path}')
+                self._apply_file_change(file_name, contents, backups, new_files)
 
             if delete_backups:
-                for file_name, backup in backups.items():
-                    print(f'Deleted: {backup}')
-                    delete(backup)
+                self._delete_backups(backups)
 
         except Exception:
-            for file_name in new_files:
-                delete(file_name)
-
-            for file_name, backup in backups.items():
-                delete(file_name)
-                shutil.move(backup, file_name)
-
-            for folder in self._new_folders:
-                shutil.rmtree(folder)
-
+            self._revert(backups, new_files)
             raise
+
+    def _apply_file_change(self, file_name, new_contents, backups, new_files):
+        file_path = os.path.join(self._root, file_name)
+        result = change_file(file_path, new_contents)
+        if type(result) is str:
+            print(f'Modified: {file_path}')
+            backups[file_path] = result
+        elif result:
+            print(f'Created: {file_path}')
+            new_files.append(file_path)
+        else:
+            print(f'Up to date: {file_path}')
+
+    def _delete_backups(self, backups):
+        for file_name, backup in backups.items():
+            print(f'Deleted: {backup}')
+            delete(backup)
+
+    def _create_new_folders(self):
+        for folder in self._new_folders:
+            try:
+                os.makedirs(os.path.join(self._root, folder))
+                print(f'New folder: {folder}')
+            except OSError:
+                print(f'Skipped folder: {folder}')
+
+    def _revert(self, backups, new_files):
+        for file_name in new_files:
+            delete(file_name)
+        for file_name, backup in backups.items():
+            delete(file_name)
+            shutil.move(backup, file_name)
+        for folder in self._new_folders:
+            shutil.rmtree(folder)
 
 
 def change_file(filename, contents, delete_backup=False):

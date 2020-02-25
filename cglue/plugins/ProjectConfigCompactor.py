@@ -90,6 +90,38 @@ def expand_project_config(owner, project_config):
     project_config['runtime']['port_connections'] = processed_port_connections
 
 
+def _remove_empty_attribute_list(ref):
+    if not ref['attributes']:
+        del ref['attributes']
+
+
+def _remove_empty_argument_list(ref):
+    if 'arguments' in ref['attributes']:
+        if not ref['attributes']['arguments']:
+            del ref['attributes']['arguments']
+
+
+def _ref_only_contains_default_keys(ref):
+    return not set(ref.keys()).difference(['short_name', 'component', 'port', 'runnable', 'attributes'])
+
+
+def _compact_ref(ref):
+    if type(ref) is str:
+        return ref
+
+    if 'attributes' in ref:
+        _remove_empty_argument_list(ref)
+        _remove_empty_attribute_list(ref)
+
+    if not _ref_only_contains_default_keys(ref):
+        return {key: ref[key] for key in ref if key != 'short_name'}
+
+    if 'attributes' in ref:
+        return [ref['short_name'], ref['attributes']]
+    else:
+        return ref['short_name']
+
+
 def compact_project_config(owner: CGlue, config):
     """Simplify parts that don't need to remain in their expanded forms"""
     types = {}
@@ -111,42 +143,22 @@ def compact_project_config(owner: CGlue, config):
         'port_connections': []
     }
 
-    def compact_ref(ref):
-        if type(ref) is str:
-            return ref
-        else:
-            if 'attributes' in ref:
-                if 'arguments' in ref['attributes']:
-                    if not ref['attributes']['arguments']:
-                        del ref['attributes']['arguments']
-
-                if not ref['attributes']:
-                    del ref['attributes']
-
-            if not set(ref.keys()).difference(['short_name', 'component', 'port', 'runnable', 'attributes']):
-                if 'attributes' in ref:
-                    return [ref['short_name'], ref['attributes']]
-                else:
-                    return ref['short_name']
-            else:
-                return {key: ref[key] for key in ref if key != 'short_name'}
-
     for group, runnables in expanded_runtime['runnables'].items():
-        compacted_runtime['runnables'][group] = [compact_ref(runnable) for runnable in runnables]
+        compacted_runtime['runnables'][group] = list(map(_compact_ref, runnables))
 
     for connection in expanded_runtime['port_connections']:
         compacted_connection = {
-            'provider': compact_ref(connection['provider'])
+            'provider': _compact_ref(connection['provider'])
         }
 
-        consumers = [compact_ref(port) for port in connection['consumers']]
+        consumers = list(map(_compact_ref, connection['consumers']))
         if len(consumers) == 1:
             compacted_connection['consumer'] = consumers[0]
         else:
             compacted_connection['consumers'] = consumers
 
         compacted_connection.update(
-            {key: connection[key] for key in connection if key not in ['provider', 'consumers']})
+            {key: value for key, value in connection.items() if key not in ['provider', 'consumers']})
 
         compacted_runtime['port_connections'].append(compacted_connection)
 

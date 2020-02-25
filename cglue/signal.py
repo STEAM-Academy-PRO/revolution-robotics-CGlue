@@ -29,18 +29,22 @@ class SignalConnection:
         # apply modifications
         for function_mods in function_mods_list:
             for port_name, mods in function_mods.items():
-                functions = self.context['functions'][port_name]
-                for func_type, mods in mods.items():
-                    if func_type in functions:
-                        if 'body' in mods:
-                            functions[func_type].add_body(mods['body'])
+                port_functions = self.context['functions'][port_name]
+                for func_type, mod in mods.items():
+                    if func_type in port_functions:
+                        self._apply_mod(port_functions[func_type], mod)
 
-                        if 'return_statement' in mods:
-                            functions[func_type].set_return_statement(mods['return_statement'])
+    @staticmethod
+    def _apply_mod(func, mod):
+        if 'body' in mod:
+            func.add_body(mod['body'])
 
-                        if 'used_arguments' in mods:
-                            for argument in mods['used_arguments']:
-                                functions[func_type].mark_argument_used(argument)
+        if 'return_statement' in mod:
+            func.set_return_statement(mod['return_statement'])
+
+        if 'used_arguments' in mod:
+            for argument in mod['used_arguments']:
+                func.mark_argument_used(argument)
 
 
 class SignalType:

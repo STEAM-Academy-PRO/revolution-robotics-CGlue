@@ -313,52 +313,13 @@ class CGlue:
         source_file_name = filename + '.c'
         header_file_name = filename + '.h'
 
-        default_context = {
-            'runtime':                        self,
-            'files':                          {source_file_name: '', header_file_name: ''},
-            'functions':                      {},
-            'declarations':                   [],
-            'exported_function_declarations': [],
-            'runtime_includes':               {'"utils.h"'},
-            'signals':                        {},
-            'used_types':                     []
-        }
+        context = self._prepare_context(context, header_file_name, source_file_name)
 
-        if context is None:
-            context = default_context
-        else:
-            context.update({**default_context, **context})
+        port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
+        self._functions.update(port_functions)
 
-        for short_name, port in self._ports.items():
-            self._functions[short_name] = port.create_runtime_functions()
-
-        for connection in self._project_config['runtime']['port_connections']:
-            provider_ref = connection['provider']
-            provider_short_name = provider_ref['short_name']
-            provider_port = self.get_port(provider_short_name)
-
-            if provider_port.full_name not in context['functions']:
-                context['functions'][provider_port.full_name] = provider_port.create_runtime_functions()
-
-            provider_attributes = {key: connection[key] for key in connection if
-                                   key not in ['provider', 'consumer', 'consumers']}
-
-            # create a dict to store providers signals
-            if provider_port.full_name not in context['signals']:
-                context['signals'][provider_port.full_name] = {}
-            provider_signals = context['signals'][provider_port.full_name]
-
-            for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
-                                             provider_signals)
-
-        for signals in context['signals'].values():
-            for signal in signals.values():
-                if type(signal) is list:
-                    for s in signal:
-                        s.generate()
-                else:
-                    signal.generate()
+        self._process_connections(context)
+        self._generate_signals(context['signals'])
 
         if 'unconnected_signals' in self._print_warnings:
             all_unconnected = set(self._ports.keys()) - context['functions'].keys()
@@ -413,32 +374,80 @@ class CGlue:
 
         return context['files']
 
+    def _process_connections(self, context):
+        for connection in self._project_config['runtime']['port_connections']:
+            provider_attributes, provider_port, provider_signals = self._process_provider_port(context, connection)
+
+            for consumer_ref in connection['consumers']:
+                self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
+                                             provider_signals)
+
+    def _prepare_context(self, context, header_file_name, source_file_name):
+        default_context = {
+            'runtime': self,
+            'files': {source_file_name: '', header_file_name: ''},
+            'functions': {},
+            'declarations': [],
+            'exported_function_declarations': [],
+            'runtime_includes': {'"utils.h"'},
+            'signals': {},
+            'used_types': []
+        }
+
+        if context is None:
+            context = default_context
+        else:
+            context.update({**default_context, **context})
+
+        return context
+
+    def _process_provider_port(self, context, connection):
+        provider_ref = connection['provider']
+        provider_short_name = provider_ref['short_name']
+        provider_port = self.get_port(provider_short_name)
+
+        if provider_port.full_name not in context['functions']:
+            context['functions'][provider_port.full_name] = provider_port.create_runtime_functions()
+
+        provider_attributes = self._get_connection_attributes(connection)
+
+        # create a dict to store providers signals
+        if provider_port.full_name not in context['signals']:
+            context['signals'][provider_port.full_name] = {}
+
+        provider_signals = context['signals'][provider_port.full_name]
+        return provider_attributes, provider_port, provider_signals
+
+    def _get_connection_attributes(self, connection):
+        provider_attributes = {key: connection[key] for key in connection if
+                               key not in ['provider', 'consumer', 'consumers']}
+        return provider_attributes
+
+    def _generate_signals(self, sgnls):
+        for signals in sgnls.values():
+            for signal in signals.values():
+                if type(signal) is list:
+                    for s in signal:
+                        s.generate()
+                else:
+                    signal.generate()
+
     def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_port, provider_signals):
         consumer_short_name = consumer_ref['short_name']
         consumer_port = self.get_port(consumer_short_name)
+
         # infer signal type
         consumed_signal_types = consumer_port.port_type['consumes']
-        inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
-        if len(inferred_signal_type) == 0:
-            raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
-        elif len(inferred_signal_type) > 1:
-            raise Exception('Connection type can not be inferred for'
-                            f'{provider_port.full_name} and {consumer_port.full_name}')
-        signal_type_name = inferred_signal_type.pop()
+        signal_type_name = self._infer_singal_type(provider_port, consumer_port, consumed_signal_types)
         signal_type = self._signal_types[signal_type_name]
-        # create consumer function
-        if consumer_port.full_name not in context['functions']:
-            context['functions'][consumer_port.full_name] = consumer_port.create_runtime_functions()
-        else:
-            # this port already is the consumer of some signal
-            # some ports can consume multiple signals, this is set in the port data
-            # (e.g. a runnable can be called by multiple events or calls)
 
-            if consumed_signal_types[signal_type_name] == 'single':
-                raise Exception(f'{consumer_port.full_name} cannot consume multiple signals')
+        # create consumer function
+        self._create_new_consumer_function(context, signal_type_name, consumer_port, consumed_signal_types)
+
         # create signal connection
         signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
         consumer_attributes = consumer_ref.get('attributes', {})
+
         try:
             signals_of_current_type = provider_signals[signal_type_name]
             if type(signals_of_current_type) is list:
@@ -456,8 +465,8 @@ class CGlue:
             elif signal_type.consumers == 'multiple':
                 signals_of_current_type.add_consumer(consumer_port.full_name, consumer_attributes)
             else:
-                raise Exception('Multiple consumers not allowed for {} signal (provided by {})'
-                                .format(signal_type_name, provider_port.full_name))
+                raise Exception(f'Multiple consumers not allowed for {signal_type_name}'
+                                f' signal (provided by {provider_port.full_name})')
         except KeyError:
             new_signal = signal_type.create_connection(context, signal_name, provider_port.full_name,
                                                        provider_attributes)
@@ -467,6 +476,28 @@ class CGlue:
                 provider_signals[signal_type_name] = [new_signal]
             else:
                 provider_signals[signal_type_name] = new_signal
+
+    def _create_new_consumer_function(self, context, signal_type_name, consumer_port, consumed_signal_types):
+        if consumer_port.full_name in context['functions']:
+            # this port already is the consumer of some signal
+            # some ports can consume multiple signals, this is set in the port data
+            # (e.g. a runnable can be called by multiple events or calls)
+
+            if consumed_signal_types[signal_type_name] == 'single':
+                raise Exception(f'{consumer_port.full_name} cannot consume multiple signals')
+        else:
+            context['functions'][consumer_port.full_name] = consumer_port.create_runtime_functions()
+
+    def _infer_singal_type(self, provider_port, consumer_port, consumed_signal_types):
+        inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
+        if len(inferred_signal_type) == 0:
+            raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
+        elif len(inferred_signal_type) > 1:
+            raise Exception('Connection type can not be inferred for'
+                            f'{provider_port.full_name} and {consumer_port.full_name}')
+        signal_type_name = inferred_signal_type.pop()
+
+        return signal_type_name
 
     def raise_event(self, event_name, *args):
         for plugin in self._plugins:

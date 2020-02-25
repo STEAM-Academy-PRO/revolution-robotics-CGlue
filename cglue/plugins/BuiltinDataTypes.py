@@ -327,34 +327,35 @@ class ArraySignal(SignalType):
         function = runtime.functions[consumer_name]['read']
         argument_names = list(function.arguments.keys())
 
-        mods = {
-            consumer_name: {
-                'read': {
-                    'used_arguments': []
-                }
-            }
-        }
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
 
             if 'count' not in consumer_port_data:
                 # single read, index should be next to consumer name
                 index = attributes['index']
+                used_arguments = []
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
                     raise Exception(
                         f'{consumer_name} signal count ({consumer_port_data["count"]}) '
                         f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
-                mods[consumer_name]['used_arguments'] = [argument_names[0]]
+                used_arguments = [index]
 
-            mods[consumer_name]['read']['body'] = f'{data_type} return_value = {connection.name}[{index}]{member_accessor};'
-            mods[consumer_name]['read']['return_statement'] = 'return_value'
+            mods = {
+                consumer_name: {
+                    'read': {
+                        'used_arguments': used_arguments,
+                        'body': f'{data_type} return_value = {connection.name}[{index}]{member_accessor};',
+                        'return_statement': 'return_value'
+                    }
+                }
+            }
         else:
-
             if 'count' not in consumer_port_data:
-                # single read, index should be next to consumer name
+                # single read, index should be next to consumer name in attributes
                 index = connection.attributes['index']
                 out_name = argument_names[0]
+                used_arguments = []
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
                     raise Exception(
@@ -362,9 +363,16 @@ class ArraySignal(SignalType):
                         f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
                 index = argument_names[0]
                 out_name = argument_names[1]
-                mods[consumer_name]['read']['used_arguments'] = [argument_names[0], argument_names[1]]
+                used_arguments = [index, out_name]
 
-            mods[consumer_name]['read']['body'] = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
+            mods = {
+                consumer_name: {
+                    'read': {
+                        'used_arguments': used_arguments,
+                        'body': f'*{out_name} = {connection.name}[{index}]{member_accessor};'
+                    }
+                }
+            }
 
         return mods
 
@@ -651,7 +659,8 @@ class ConstantArraySignal(SignalType):
                 }
                 mods[consumer_name]['read']['body'] = chevron.render(**ctx)
             else:
-                mods[consumer_name]['read']['body'] = constant_provider.function_call({"index": index, "value": out_name}) + ';'
+                mods[consumer_name]['read']['body'] = constant_provider.function_call({"index": index,
+                                                                                       "value": out_name}) + ';'
 
         return mods
 
@@ -1056,6 +1065,17 @@ class ConstantArrayPortType(PortType):
         return {}
 
 
+known_port_types = {
+    'ReadValue': ReadValuePortType,
+    'ReadIndexedValue': ReadIndexedValuePortType,
+    'ReadQueuedValue': ReadQueuedValuePortType,
+    'WriteData': WriteDataPortType,
+    'WriteIndexedData': WriteIndexedDataPortType,
+    'Constant': ConstantPortType,
+    'ConstantArray': ConstantArrayPortType
+}
+
+
 def init(owner: CGlue):
     owner.types.add_category(StructType(owner.types))
     owner.types.add_category(EnumType(owner.types))
@@ -1067,13 +1087,8 @@ def init(owner: CGlue):
     owner.add_signal_type('constant_array', ConstantArraySignal())
     owner.add_signal_type('queue', QueueSignal())
 
-    owner.add_port_type('ReadValue', ReadValuePortType(owner.types))
-    owner.add_port_type('ReadQueuedValue', ReadQueuedValuePortType(owner.types))
-    owner.add_port_type('ReadIndexedValue', ReadIndexedValuePortType(owner.types))
-    owner.add_port_type('WriteData', WriteDataPortType(owner.types))
-    owner.add_port_type('WriteIndexedData', WriteIndexedDataPortType(owner.types))
-    owner.add_port_type('Constant', ConstantPortType(owner.types))
-    owner.add_port_type('ConstantArray', ConstantArrayPortType(owner.types))
+    for port_type_name, port_type_class in known_port_types:
+        owner.add_port_type(port_type_name, port_type_class(owner.types))
 
 
 def add_type_def(owner: CGlue, type_name, type_data):
@@ -1103,7 +1118,7 @@ def sort_functions(owner: CGlue, context):
     def sort_by_name(fn):
         # only sort functions of known port types
         port = owner.get_port(fn)
-        if port['port_type'] in ['ReadValue', 'ReadIndexedValue', 'ReadQueuedValue', 'WriteData', 'WriteIndexedData', 'Constant', 'ConstantArray']:
+        if port['port_type'] in known_port_types:
             return fn
         else:
             return '0'
@@ -1116,7 +1131,7 @@ def sort_functions(owner: CGlue, context):
     context['functions'] = {fn: context['functions'][fn] for fn in by_port_type}
 
 
-def cleanup_component(owner: CGlue, component_name, ctx):
+def cleanup_component(owner: CGlue, _, ctx):
     sort_functions(owner, ctx)
 
 

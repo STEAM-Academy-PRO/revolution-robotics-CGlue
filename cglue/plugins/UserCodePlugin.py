@@ -4,6 +4,17 @@ from cglue.function import FunctionImplementation
 from cglue.cglue import Plugin, CGlue
 
 
+parse_section = re.compile(
+    '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/[\n]?'
+    '(?P<usercode>.*?)[\n]?(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
+    flags=re.DOTALL)
+
+fill_section = re.compile(
+    '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/'
+    '(?P<usercode>.*?)/\\* End User Code Section: (?P=secname) \\*/',
+    flags=re.DOTALL)
+
+
 def remove_indentation(text, spaces):
     """
     Remove at most n leading spaces from each line.
@@ -26,9 +37,7 @@ def get_sections(text):
     {'foobar': 'bar\\nbaz'}
     """
     # parse contents
-    matches = re.findall(
-        '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/[\n]?(?P<usercode>.*?)[\n]?(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
-        text, flags=re.DOTALL)
+    matches = parse_section.findall(text)
 
     return {secname: remove_indentation(usercode, len(indent)) for indent, secname, usercode in matches}
 
@@ -72,11 +81,7 @@ def fill_sections(source, sections):
 
         return indent + create_section(secname, code_section)
 
-    return re.sub(
-        '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/(?P<usercode>.*?)/\\* End User Code Section: (?P=secname) \\*/',
-        repl,
-        source,
-        flags=re.DOTALL)
+    return fill_section.sub(repl, source)
 
 
 def add_sections_to_component(owner: CGlue, component_name, context: dict):

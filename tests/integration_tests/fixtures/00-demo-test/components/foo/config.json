@@ -19,5 +19,9 @@
             "port_type": "Event"
         }
     },
-    "types": {}
+    "types": {
+        "Foo_t": {
+            "aliases": "uint8_t"
+        }
+    }
 }

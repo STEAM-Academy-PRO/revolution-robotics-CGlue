@@ -342,9 +342,9 @@ class CGlue:
                 type_names += f.referenced_types
                 includes.update(f.includes)
 
-        sorted_types = self._sort_types_by_dependency(type_names)
+        sorted_types = list(self._sort_types_by_dependency(type_names))
+        type_includes = set(self._get_type_includes(sorted_types))
 
-        type_includes = self._get_type_includes(sorted_types)
         typedefs = [self._types.get(t).render_typedef() for t in sorted_types]
 
         template_data = {

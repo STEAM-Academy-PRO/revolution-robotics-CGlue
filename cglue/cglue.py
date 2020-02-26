@@ -207,6 +207,11 @@ class CGlue:
             for member in type_data['members'].values():
                 yield from self._collect_type_dependencies(member)
 
+        elif type_data['type'] == TypeCollection.FUNC_PTR:
+            yield from self._collect_type_dependencies(type_data['return_type'])
+            for arg in type_data['arguments'].values():
+                yield from self._collect_type_dependencies(arg['data_type'])
+
         yield type_name
 
     def _sort_types_by_dependency(self, type_names, visited_types=None):

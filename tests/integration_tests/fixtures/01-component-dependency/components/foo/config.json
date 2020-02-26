@@ -9,7 +9,7 @@
             "return_type": "void",
             "arguments": {
                 "arg": {
-                    "data_type": "uint32_t",
+                    "data_type": "BarType_t",
                     "direction": "in"
                 }
             }

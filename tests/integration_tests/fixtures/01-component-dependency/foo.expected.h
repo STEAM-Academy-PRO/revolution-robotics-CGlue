@@ -7,8 +7,8 @@
 #include "some_header.h"
 #include <stdint.h>
 
-typedef void (*function_ptr)(uint32_t arg);
 typedef uint32_t BarType_t;
+typedef void (*function_ptr)(BarType_t arg);
 
 #endif /* COMPONENT_TYPES_FOO_H_ */
 

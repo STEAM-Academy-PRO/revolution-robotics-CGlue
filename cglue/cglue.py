@@ -280,7 +280,7 @@ class CGlue:
         for c in self._component_collection[component_name].dependencies:
             defined_type_names += self._components[c]['types'].keys()
 
-        sorted_types = set(self._sort_types_by_dependency(defined_type_names + used_types))
+        sorted_types = list(self._sort_types_by_dependency(defined_type_names + used_types))
         type_includes = set(self._get_type_includes(sorted_types))
 
         typedefs = [self._types.get(t).render_typedef() for t in sorted_types]

@@ -1,3 +1,4 @@
+from .function import ArgumentList
 from .utils.common import process_dict
 
 
@@ -81,6 +82,22 @@ class ExternalType(TypeCategory):
         pass
 
 
+class FunctionPointerType(TypeCategory):
+    def __init__(self, type_collection):
+        attributes = {
+            'required': ['return_type', 'arguments'],
+            'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
+            'static': {
+                'type': TypeCollection.FUNC_PTR
+            }
+        }
+        super().__init__(type_collection, 'func_ptr', attributes)
+
+    def render_typedef(self, type_name, type_data):
+        args = ArgumentList(type_data['arguments'])
+        return f"typedef {type_data['return_type']} (*{type_name})({args.get_argument_list()});"
+
+
 class TypeWrapper:
     def __init__(self, type_name, type_data, type_category):
         self._type_name = type_name
@@ -137,6 +154,7 @@ class TypeCollection:
     ENUM = 'enum'
     STRUCT = 'struct'
     UNION = 'union'
+    FUNC_PTR = 'func_ptr'
 
     PASS_BY_VALUE = 'value'
     PASS_BY_POINTER = 'pointer'
@@ -148,6 +166,7 @@ class TypeCollection:
         self.add_category(TypeAlias(self))
         self.add_category(BuiltinType(self))
         self.add_category(ExternalType(self))
+        self.add_category(FunctionPointerType(self))
 
         default_types = {
             'void':  {

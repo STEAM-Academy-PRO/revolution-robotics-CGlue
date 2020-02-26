@@ -1,7 +1,5 @@
 import chevron
 
-from .data_types import TypeCollection, TypeWrapper
-
 
 class MissingArgumentException(Exception):
     pass
@@ -22,7 +20,7 @@ class ArgumentList(dict):
                 else:
                     self.add(arg_name, 'in', arg_data)
 
-    def add(self, name, direction, data_type: TypeWrapper):
+    def add(self, name, direction, data_type):
         self[name] = {'direction': direction, 'data_type': data_type}
 
     def assemble(self, args: dict):
@@ -32,6 +30,33 @@ class ArgumentList(dict):
             required_args = set(self.keys())
             missing_args = required_args - args.keys()
             raise MissingArgumentException(f'Arguments are missing: {", ".join(missing_args)}') from e
+
+    def get_argument_list(self):
+        def generate_parameter(name, data):
+            from .data_types import TypeCollection
+
+            try:
+                pass_by_ptr = data['data_type']['pass_semantic'] == TypeCollection.PASS_BY_POINTER
+            except KeyError:
+                arg_is_ptr = '*' in data['data_type'].name
+                pass_by_ptr = not arg_is_ptr  # pointers can be passed by value, otherwise assume pass-by-pointer
+
+            if data['direction'] == 'in':
+                if pass_by_ptr:
+                    pattern = 'const {}* {}'
+                else:
+                    pattern = '{} {}'
+
+            elif data['direction'] in ['out', 'inout']:
+                pattern = '{}* {}'
+
+            else:
+                raise Exception('Unknown argument direction {}'.format(data['direction']))
+
+            return pattern.format(data['data_type'].name, name)
+
+        args = [generate_parameter(name, data) for name, data in self.items()]
+        return "void" if not args else ", ".join(args)
 
 
 class FunctionPrototype:
@@ -64,30 +89,7 @@ class FunctionPrototype:
         return [data['data_type'].name for data in self.arguments.values()] + [self.return_type]
 
     def generate_header(self):
-        def generate_parameter(name, data):
-
-            try:
-                pass_by_ptr = data['data_type']['pass_semantic'] == TypeCollection.PASS_BY_POINTER
-            except KeyError:
-                arg_is_ptr = '*' in data['data_type'].name
-                pass_by_ptr = not arg_is_ptr  # pointers can be passed by value, otherwise assume pass-by-pointer
-
-            if data['direction'] == 'in':
-                if pass_by_ptr:
-                    pattern = 'const {}* {}'
-                else:
-                    pattern = '{} {}'
-
-            elif data['direction'] in ['out', 'inout']:
-                pattern = '{}* {}'
-
-            else:
-                raise Exception('Unknown argument direction {}'.format(data['direction']))
-
-            return pattern.format(data['data_type'].name, name)
-
-        args = [generate_parameter(name, data) for name, data in self.arguments.items()]
-        args_list = "void" if not args else ", ".join(args)
+        args_list = self.arguments.get_argument_list()
 
         return f'{self.return_type} {self.function_name}({args_list})'
 

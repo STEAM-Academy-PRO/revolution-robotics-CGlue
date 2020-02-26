@@ -20,3 +20,20 @@ class TestComponentGeneration(unittest.TestCase):
         generator.load()
 
         generator.update_component('foo')
+
+    def test_typedefs_of_required_component_are_generated(self):
+        os.chdir(os.path.dirname(__file__))
+        root = '../fixtures/01-component-dependency'
+
+        generator = cglue.CGlue(f"{root}/project.json")
+
+        generator.add_plugin(project_config_compactor())
+        generator.add_plugin(builtin_data_types())
+        generator.add_plugin(runtime_events())
+
+        generator.load()
+
+        files = generator.update_component('foo')
+        with open(f'{root}/foo.expected.h', 'r') as f:
+            expected = f.read()
+        self.assertEqual(expected, files[f'{root}/components/foo/foo.h'])

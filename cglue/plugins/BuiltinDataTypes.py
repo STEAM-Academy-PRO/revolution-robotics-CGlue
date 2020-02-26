@@ -6,6 +6,7 @@ from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
+from cglue.component import Component
 
 
 class StructType(TypeCategory):
@@ -1101,16 +1102,14 @@ def process_project_types(owner: CGlue, project_config):
         add_type_def(owner, type_name, type_data)
 
 
-def process_component_ports_and_types(owner: CGlue, component_name, component_config):
-    print(f"Processing component: {component_name}")
-    if 'ports' not in component_config:
-        component_config['ports'] = {}
+def process_component_ports_and_types(owner: CGlue, component: Component):
+    print(f"Processing component: {component.name}")
 
     try:
-        for type_name, type_data in component_config.get('types', {}).items():
+        for type_name, type_data in component.config['types'].items():
             add_type_def(owner, type_name, type_data)
     except Exception:
-        print(f"Failed to add type definitions for {component_name}")
+        print(f"Failed to add type definitions for {component.name}")
         raise
 
 

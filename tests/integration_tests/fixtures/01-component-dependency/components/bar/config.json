@@ -1,0 +1,9 @@
+{
+    "name": "bar",
+    "requires": {},
+    "types": {
+        "BarType_t": {
+            "aliases": "uint32_t"
+        }
+    }
+}

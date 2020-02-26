@@ -4,6 +4,7 @@ from cglue.function import FunctionPrototype, FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
+from cglue.component import Component
 
 
 def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args):
@@ -249,13 +250,8 @@ def expand_runtime_events(owner: CGlue, project_config):
     runtime_config = project_config['runtime']
     events_key = 'runnables'
 
-    runtime_component = {
-        'name':         'Runtime',
-        'source_files': [],
-        'runnables':    {},
-        'ports':        {},
-        'types':        {}
-    }
+    runtime_component = Component.create_empty_config('Runtime')
+    runtime_component['source_files'] = []
 
     event_connections = []
     for event, handlers in runtime_config.get(events_key, {}).items():
@@ -268,7 +264,7 @@ def expand_runtime_events(owner: CGlue, project_config):
             'consumers': handlers
         })
 
-    owner.add_component('Runtime', runtime_component)
+    owner.add_component(Component('Runtime', runtime_component))
     runtime_config['port_connections'] += event_connections
 
 
@@ -286,9 +282,9 @@ def init(owner: CGlue):
     owner.add_port_type('ServerCall', ServerCallPortType(owner.types))
 
 
-def create_runnable_ports(owner: CGlue, component_name, component_data):
-    for runnable_name, runnable_data in component_data['runnables'].items():
-        component_data['ports'][runnable_name] = {
+def create_runnable_ports(owner: CGlue, component: Component):
+    for runnable_name, runnable_data in component.config['runnables'].items():
+        component.config['ports'][runnable_name] = {
             'port_type': 'Runnable',
             **runnable_data
         }

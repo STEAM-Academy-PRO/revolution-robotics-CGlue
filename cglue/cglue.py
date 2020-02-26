@@ -1,8 +1,10 @@
 import json
 import os
+from contextlib import suppress
 
 import chevron
 
+from .component import Component, ComponentCollection
 from .utils.common import to_underscore, list_to_chevron_list
 from .signal import SignalType
 from .data_types import TypeCollection
@@ -99,6 +101,7 @@ class CGlue:
         self._defined_types = {}
         self._project_config = {}
         self._components = {}
+        self._component_collection = ComponentCollection()
         self._types = TypeCollection()
         self._port_types = {}
         self._signal_types = {}
@@ -148,18 +151,19 @@ class CGlue:
                                           component_name, 'config.json'))
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
-            self.add_component(component_name, component_config)
+        self.add_component(Component(component_name, component_config))
 
-    def add_component(self, component_name, component_config):
-        self.raise_event('load_component_config', component_name, component_config)
-        self._components[component_name] = component_config
+    def add_component(self, component: Component):
+        self.raise_event('load_component_config', component)
+        self._components[component.name] = component.config
+        self._component_collection.add(component)
 
-        if not component_config['ports']:
-            print(f'Warning: {component_name} has no ports')
+        if not component.config['ports']:
+            print(f'Warning: {component.name} has no ports')
 
-        for port_name, port_data in component_config['ports'].items():
+        for port_name, port_data in component.config['ports'].items():
             port_type = self._port_types[port_data['port_type']]
-            processed_port = port_type.process_port(component_name, port_name, port_data)
+            processed_port = port_type.process_port(component.name, port_name, port_data)
 
             self._ports[processed_port.full_name] = processed_port
 
@@ -172,76 +176,63 @@ class CGlue:
 
         return type_name
 
-    def _get_type_includes(self, type_name) -> set:
-        if type(type_name) is list:
-            includes = set()
-            for tn in type_name:
-                inc = self._get_type_includes(tn)
-                if type(inc) is set:
-                    includes.update(inc)
-
-            return includes
-
-        else:
+    def _get_type_includes(self, type_name):
+        if type(type_name) is str:
             type_name = self._normalize_type_name(type_name)
 
-            try:
-                return {self._types.get(type_name).get_attribute('defined_in')}
-            except KeyError:
-                return set()
+            with suppress(KeyError):
+                yield self._types.get(type_name).get_attribute('defined_in')
+        else:
+            for tn in type_name:
+                yield from self._get_type_includes(tn)
 
     def _collect_type_dependencies(self, type_name):
-        defs = []
-
         type_name = self._normalize_type_name(type_name)
         type_data = self._types.get(type_name)
 
         if type_data['type'] == TypeCollection.ALIAS:
-            defs += self._collect_type_dependencies(type_data['aliases'])
+            yield from self._collect_type_dependencies(type_data['aliases'])
 
         elif type_data['type'] == TypeCollection.EXTERNAL_DEF:
             pass
 
         elif type_data['type'] == TypeCollection.STRUCT:
             for field in type_data['fields'].values():
-                defs += self._collect_type_dependencies(field)
+                yield from self._collect_type_dependencies(field)
 
         elif type_data['type'] == TypeCollection.UNION:
             for member in type_data['members'].values():
-                defs += self._collect_type_dependencies(member)
+                yield from self._collect_type_dependencies(member)
 
-        defs.append(type_name)
-
-        return defs
+        yield type_name
 
     def _sort_types_by_dependency(self, type_names, visited_types=None):
         if visited_types is None:
             visited_types = []
 
+        def _process_type(type_name):
+            if type_name not in visited_types:
+                visited_types.append(type_name)
+
+                for d in self._collect_type_dependencies(type_name):
+                    yield from self._sort_types_by_dependency(d, visited_types)
+
+                yield type_name
+
         if type(type_names) is not list:
-            type_names = [type_names]
-
-        types = []
-
-        for t in type_names:
-            if t not in visited_types:
-                visited_types.append(t)
-
-                deps = self._collect_type_dependencies(t)
-
-                for d in deps:
-                    types += self._sort_types_by_dependency(d, visited_types)
-
-                types.append(t)
-
-        return types
+            yield from _process_type(type_names)
+        else:
+            for t in type_names:
+                yield from _process_type(t)
 
     def update_component(self, component_name):
 
-        component_folder = os.path.join(self._basedir, self.settings['components_folder'], component_name)
-        source_file = os.path.join(component_folder, component_name + '.c')
-        header_file = os.path.join(component_folder, component_name + '.h')
-        config_file = os.path.join(component_folder, 'config.json')
+        self._component_collection.check_dependencies()
+
+        component_folder = '/'.join((self._basedir, self.settings['components_folder'], component_name))
+        source_file = '/'.join((component_folder, component_name + '.c'))
+        header_file = '/'.join((component_folder, component_name + '.h'))
+        config_file = '/'.join((component_folder, 'config.json'))
 
         context = {
             'runtime': self,
@@ -277,7 +268,9 @@ class CGlue:
                 used_types += func.referenced_types
                 includes.update(func.includes)
 
-        defined_type_names = list(self._components[component_name].get('types', {}).keys())
+        defined_type_names = list(self._components[component_name]['types'].keys())
+        for c in self._component_collection[component_name].dependencies:
+            defined_type_names += self._components[c]['types'].keys()
 
         sorted_types = self._sort_types_by_dependency(defined_type_names + used_types)
 
@@ -313,6 +306,8 @@ class CGlue:
         source_file_name = filename + '.c'
         header_file_name = filename + '.h'
 
+        self._component_collection.check_dependencies()
+
         context = self._prepare_context(context, header_file_name, source_file_name)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
@@ -331,7 +326,7 @@ class CGlue:
 
         type_names = context['used_types']
         for c in self._components.values():
-            type_names += c.get('types', {}).keys()
+            type_names += c['types'].keys()
 
         output_filename = filename[filename.rfind('/') + 1:]
         includes = context['runtime_includes']

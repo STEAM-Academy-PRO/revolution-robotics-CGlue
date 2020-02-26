@@ -46,3 +46,11 @@ class TestRuntimeGeneration(unittest.TestCase):
         generator = _create_generator(f"{root}/project_single_consumer.json")
 
         generator.generate_runtime('runtime_file')
+
+    def test_can_generate_runtime_with_dependent_components(self):
+        os.chdir(os.path.dirname(__file__))
+
+        root = "../fixtures/01-component-dependency"
+        generator = _create_generator(f"{root}/project.json")
+
+        generator.generate_runtime('runtime_file')

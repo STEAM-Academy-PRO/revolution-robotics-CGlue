@@ -18,5 +18,11 @@
         }
     },
     "runtime": {
+        "connections": [
+            {
+                "provider": "foo/port",
+                "consumers": []
+            }
+        ]
     }
 }

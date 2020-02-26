@@ -158,6 +158,9 @@ class CGlue:
         self._components[component.name] = component.config
         self._component_collection.add(component)
 
+        for dependency in component.dependencies:
+            self._load_component_config(dependency)
+
         if not component.config['ports']:
             print(f'Warning: {component.name} has no ports')
 

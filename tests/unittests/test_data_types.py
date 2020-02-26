@@ -17,7 +17,7 @@ class TestFunctionPointer(unittest.TestCase):
             'return_type': 'uint8_t',
             'arguments': {
                 'p': {
-                    'data_type': tc.get('uint8_t'),
+                    'data_type': 'uint8_t',
                     'direction': 'out'
                 }
             }

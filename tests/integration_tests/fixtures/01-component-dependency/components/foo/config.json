@@ -3,6 +3,18 @@
     "requires": {
         "bar": "[1.0.0,"
     },
+    "types": {
+        "function_ptr": {
+            "type": "func_ptr",
+            "return_type": "void",
+            "arguments": {
+                "arg": {
+                    "data_type": "uint32_t",
+                    "direction": "in"
+                }
+            }
+        }
+    },
     "ports": {
         "port": {
             "port_type": "WriteData",

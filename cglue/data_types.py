@@ -94,7 +94,10 @@ class FunctionPointerType(TypeCategory):
         super().__init__(type_collection, 'func_ptr', attributes)
 
     def render_typedef(self, type_name, type_data):
-        args = ArgumentList(type_data['arguments'])
+        args = ArgumentList()
+        for arg_name, arg_data in type_data['arguments'].items():
+            args.add(arg_name, arg_data['direction'], self._type_collection.get(arg_data['data_type']))
+
         return f"typedef {type_data['return_type']} (*{type_name})({args.get_argument_list()});"
 
 

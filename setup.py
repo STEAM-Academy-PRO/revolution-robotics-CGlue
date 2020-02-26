@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='CGlue',
-    version='0.1.7',
+    version='0.1.8',
     packages=['cglue', 'cglue/plugins', 'cglue/utils'],
     package_dir={'cglue': 'cglue'},
     url='https://github.com/RevolutionRobotics/CGlue',

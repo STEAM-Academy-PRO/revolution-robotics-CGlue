@@ -4,6 +4,10 @@
     "types": {
         "BarType_t": {
             "aliases": "uint32_t"
+        },
+        "BarBazType_t": {
+            "defined_in": "\"some_header.h\"",
+            "default_value": 2
         }
     }
 }

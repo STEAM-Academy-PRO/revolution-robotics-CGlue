@@ -4,6 +4,8 @@
 #ifndef COMPONENT_TYPES_FOO_H_
 #define COMPONENT_TYPES_FOO_H_
 
+#include "some_header.h"
+#include <stdint.h>
 
 typedef uint32_t BarType_t;
 

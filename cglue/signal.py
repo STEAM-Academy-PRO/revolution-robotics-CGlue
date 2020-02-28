@@ -7,7 +7,11 @@ class SignalConnection:
         self.consumers = []
         self.context = context
 
-        signal.create(context, self)
+        try:
+            signal.create(context, self)
+        except Exception:
+            print(f'Failed to generate signal implementation for {self.name}')
+            raise
 
     def add_consumer(self, consumer_name, consumer_attributes):
         self.consumers.append((consumer_name, consumer_attributes))
@@ -15,12 +19,22 @@ class SignalConnection:
     def generate(self):
         # collect implementations in a list
         function_mods_list = []
-        function_mods = self.signal.generate_provider(self.context, self, self.provider)
+        try:
+            function_mods = self.signal.generate_provider(self.context, self, self.provider)
+        except Exception:
+            print(f'Failed to generate provider implementation for {self.name}')
+            raise
+
         if function_mods:
             function_mods_list.append(function_mods)
 
         for consumer, attributes in self.consumers:
-            function_mods = self.signal.generate_consumer(self.context, self, consumer, attributes)
+            try:
+                function_mods = self.signal.generate_consumer(self.context, self, consumer, attributes)
+            except Exception:
+                print(f'Failed to generate consumer implementation for {self.name} (consumer: {consumer})')
+                raise
+
             if function_mods:
                 function_mods_list.append(function_mods)
 
@@ -45,6 +59,9 @@ class SignalConnection:
         if 'used_arguments' in mod:
             for argument in mod['used_arguments']:
                 func.mark_argument_used(argument)
+
+    def __str__(self):
+        return self.name
 
 
 class SignalType:

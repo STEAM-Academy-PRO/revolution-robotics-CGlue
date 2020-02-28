@@ -5,6 +5,7 @@ from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
+from cglue.data_types import TypeCollection
 
 
 def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args):
@@ -284,6 +285,14 @@ def init(owner: CGlue):
 
 def create_runnable_ports(owner: CGlue, component: Component):
     for runnable_name, runnable_data in component.config['runnables'].items():
+        if type(runnable_data) is str:
+            type_data = owner.types.get(runnable_data)
+            if type_data.category.name != TypeCollection.FUNC_PTR:
+                raise ValueError('Runnable config must either be an object or the name of a function pointer type')
+            runnable_data = {
+                'return_type': type_data.data['return_type'],
+                'arguments': type_data.data['arguments']
+            }
         component.config['ports'][runnable_name] = {
             'port_type': 'Runnable',
             **runnable_data

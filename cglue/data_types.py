@@ -115,6 +115,10 @@ class TypeWrapper:
     def category(self):
         return self._type_category
 
+    @property
+    def data(self):
+        return self._type_data
+
     def __getitem__(self, item):
         return self._type_data[item]
 

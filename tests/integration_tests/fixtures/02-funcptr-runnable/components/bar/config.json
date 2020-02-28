@@ -1,0 +1,23 @@
+{
+    "name": "bar",
+    "requires": {},
+    "types": {
+        "BarType_t": {
+            "aliases": "uint32_t"
+        },
+        "function_ptr": {
+            "type": "func_ptr",
+            "return_type": "void",
+            "arguments": {
+                "arg": {
+                    "data_type": "BarType_t",
+                    "direction": "in"
+                }
+            }
+        },
+        "BarBazType_t": {
+            "defined_in": "\"some_header.h\"",
+            "default_value": 2
+        }
+    }
+}

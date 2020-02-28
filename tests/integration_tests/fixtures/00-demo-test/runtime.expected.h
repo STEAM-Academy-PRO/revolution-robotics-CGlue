@@ -7,7 +7,7 @@ typedef uint8_t Foo_t;
 
 #define COMPONENT_TYPES_FOO_H_
 
-#include "components/foo/foo.h"
+#include "components_dir/foo/foo.h"
 
 void Runtime_RaiseEvent_OnInit(void);
 

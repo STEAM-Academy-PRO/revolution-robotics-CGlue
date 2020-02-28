@@ -1,7 +1,7 @@
 {
     "settings": {
         "name": "test project",
-        "components_folder": "components",
+        "components_folder": "components_dir",
         "required_plugins": []
     },
     "sources": [],

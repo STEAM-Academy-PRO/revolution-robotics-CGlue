@@ -25,7 +25,7 @@ runtime_header_template = """#ifndef GENERATED_RUNTIME_H_
 {{/ components }}
 
 {{# components }}
-#include "components/{{ name }}/{{ name }}.h"
+#include "{{ components_dir }}/{{ name }}/{{ name }}.h"
 {{/ components }}
 
 {{# function_declarations }}
@@ -357,6 +357,7 @@ class CGlue:
 
         template_data = {
             'output_filename': output_filename,
+            'components_dir': self.settings['components_folder'],
             'includes': list_to_chevron_list(sorted(includes), 'header'),
             'components': [
                 {

@@ -1,0 +1,13 @@
+{
+    "name": "foo",
+    "requires": {},
+    "types": {
+    },
+    "multiple_instances": true,
+    "instance_variables": {
+        "var1": "uint32_t"
+    },
+    "runnables": {
+        "Runnable": {}
+    }
+}

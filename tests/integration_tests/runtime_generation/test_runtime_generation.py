@@ -66,3 +66,19 @@ class TestRuntimeGeneration(unittest.TestCase):
         with open(f'{root}/runtime.expected.h', 'r') as f:
             expected = f.read()
         self.assertEqual(expected, files[f'runtime_file.h'])
+
+    def test_multiple_component_instances(self):
+        os.chdir(os.path.dirname(__file__))
+
+        root = "../fixtures/03-multiple-instance"
+        generator = _create_generator(f"{root}/project.json")
+
+        files = generator.generate_runtime('runtime')
+
+        with open(f'{root}/runtime.expected.h', 'r') as f:
+            expected_h = f.read()
+        with open(f'{root}/runtime.expected.c', 'r') as f:
+            expected_c = f.read()
+
+        self.assertEqual(expected_h, files[f'runtime.h'])
+        self.assertEqual(expected_c, files[f'runtime.c'])

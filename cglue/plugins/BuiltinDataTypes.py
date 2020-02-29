@@ -1115,10 +1115,12 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
             add_type_def(owner, type_name, type_data)
 
         if component.config['multiple_instances']:
+            instance_type_name = f'{component.name}_Instance_t'
             instance_type = {
-                'fields': component.config['instance_variables']
+                'fields': component.config['instance_variables'],
+                'pass_semantic': 'pointer'
             }
-            add_type_def(owner, f'{component.name}_Instance_t', instance_type)
+            add_type_def(owner, instance_type_name, instance_type)
     except Exception:
         print(f"Failed to add type definitions for {component.name}")
         raise

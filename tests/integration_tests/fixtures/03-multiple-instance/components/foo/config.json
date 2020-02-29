@@ -8,6 +8,16 @@
         "var1": "uint32_t"
     },
     "runnables": {
-        "Runnable": {}
+        "Runnable": {
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        }
+    },
+    "ports": {
+        "Port": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        }
     }
 }

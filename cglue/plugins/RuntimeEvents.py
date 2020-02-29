@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from cglue.function import FunctionPrototype, FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
@@ -271,6 +273,8 @@ def init(owner: CGlue):
 
 
 def create_runnable_ports(owner: CGlue, component: Component):
+    instance_type_name = f'{component.name}_Instance_t'
+
     for runnable_name, runnable_data in component.config['runnables'].items():
         if type(runnable_data) is str:
             type_data = owner.types.get(runnable_data)
@@ -280,6 +284,20 @@ def create_runnable_ports(owner: CGlue, component: Component):
                 'return_type': type_data.data['return_type'],
                 'arguments': type_data.data['arguments']
             }
+
+        if component.config['multiple_instances']:
+            args = OrderedDict()
+
+            args['instance'] = {
+                'data_type': instance_type_name,
+                'direction': 'inout'
+            }
+
+            if 'arguments' in runnable_data:
+                args.update(runnable_data['arguments'])
+
+            runnable_data['arguments'] = args
+
         component.config['ports'][runnable_name] = {
             'port_type': 'Runnable',
             **runnable_data

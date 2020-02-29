@@ -18,6 +18,8 @@ class Component:
             'version': '1.0.0',
             'requires': {},
             'source_files': [],
+            'multiple_instances': False,
+            'instance_variables': {},
             'types': {},
             'runnables': {},
             'ports': {}
@@ -32,6 +34,9 @@ class Component:
         self._version = Version(self._config['version'])
         self._dependencies = {component: VersionConstraint(constraint)
                               for component, constraint in self._config['requires'].items()}
+
+        if self._config['instance_variables'] and not self._config['multiple_instances']:
+            raise ValueError(f'Component {name} has instance variables but does not support multiple instances')
 
     @property
     def version(self):

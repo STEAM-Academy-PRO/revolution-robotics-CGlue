@@ -729,7 +729,7 @@ class ReadValuePortType(PortType):
         else:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
-            function.add_body('*value = {};'.format(default_value))
+            function.add_body(f'*value = {default_value};')
 
         return {'read': function}
 
@@ -829,7 +829,7 @@ class ReadIndexedValuePortType(PortType):
 
         function = FunctionImplementation(prototype)
         function.attributes.add('weak')
-        function.add_input_assert('index < {}'.format(port['count']))
+        function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
         default_value = data_type.render_value(port['default_value'])
@@ -838,7 +838,7 @@ class ReadIndexedValuePortType(PortType):
         else:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
-            function.add_body('*value = {};'.format(default_value))
+            function.add_body(f'*value = {default_value};')
 
         return {'read': function}
 

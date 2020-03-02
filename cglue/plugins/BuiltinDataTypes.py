@@ -209,15 +209,32 @@ class VariableSignal(SignalType):
         function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            assignment = f'{connection.name} = {argument_names[0]};'
+        used_args = argument_names
+
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
+
+        if provider_instance.component.config['multiple_instances']:
+            data_arg_name = argument_names[1]
         else:
-            assignment = f'{connection.name} = *{argument_names[0]};'
+            data_arg_name = argument_names[0]
+
+        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+            assignment = f'{connection.name} = {data_arg_name};'
+        else:
+            assignment = f'{connection.name} = *{data_arg_name};'
+
+        if provider_instance.component.config['multiple_instances']:
+            used_args.append('instance')
+            assignment = f'if (instance == &{provider_instance.instance_var_name})\n' \
+                         f'{{\n' \
+                         f'    {assignment}\n' \
+                         f'}}'
 
         return {
             provider_port_name: {
                 'write': {
-                    'used_arguments': argument_names,
+                    'used_arguments': used_args,
                     'body':           assignment
                 }
             }
@@ -242,20 +259,40 @@ class VariableSignal(SignalType):
         if data_type != source_data_type:
             raise Exception(f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
 
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
         function = runtime.functions[consumer_port_name]['read']
+        is_first_consumer = function.is_body_empty
         argument_names = list(function.arguments.keys())
         mods = {
             consumer_port_name: {'read': {}}
         }
+
+        body = []
+        used_args = []
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            return_value = f'{data_type} return_value = {connection.name}{member_accessor};'
-            mods[consumer_port_name]['read']['body'] = return_value
+            if is_first_consumer:
+                body.append(f'{data_type} return_value;')
+            read = f'return_value = {connection.name}{member_accessor};'
             mods[consumer_port_name]['read']['return_statement'] = 'return_value'
         else:
-            out_name = argument_names[0]
-            out_assignment = f'*{out_name} = {connection.name}{member_accessor};'
-            mods[consumer_port_name]['read']['used_arguments'] = [out_name]
-            mods[consumer_port_name]['read']['body'] = out_assignment
+            if consumer_instance.component.config['multiple_instances']:
+                out_name = argument_names[1]
+            else:
+                out_name = argument_names[0]
+            read = f'*{out_name} = {connection.name}{member_accessor};'
+            used_args.append(out_name)
+
+        if consumer_instance.component.config['multiple_instances']:
+            used_args.append('instance')
+            read = f'if (instance == &{consumer_instance.instance_var_name})\n' \
+                   f'{{\n' \
+                   f'    {read}\n' \
+                   f'}}'
+        body.append(read)
+        mods[consumer_port_name]['read']['body'] = body
+        mods[consumer_port_name]['read']['used_arguments'] = used_args
 
         return mods
 

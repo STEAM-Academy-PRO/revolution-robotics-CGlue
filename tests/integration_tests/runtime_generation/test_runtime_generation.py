@@ -80,5 +80,7 @@ class TestRuntimeGeneration(unittest.TestCase):
         with open(f'{root}/runtime.expected.c', 'r') as f:
             expected_c = f.read()
 
+        self.maxDiff = None
+
         self.assertEqual(expected_h, files[f'runtime.h'])
         self.assertEqual(expected_c, files[f'runtime.c'])

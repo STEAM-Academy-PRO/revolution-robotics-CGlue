@@ -26,8 +26,12 @@
         "FuncPtr": "FuncPtr_t"
     },
     "ports": {
-        "Port": {
+        "RPort": {
             "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "WPort": {
+            "port_type": "WriteData",
             "data_type": "uint32_t"
         }
     }

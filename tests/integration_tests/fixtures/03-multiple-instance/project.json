@@ -40,6 +40,12 @@
                     }
                 ]
             ]
-        }
+        },
+        "port_connections": [
+            {
+                "provider": "foo1/WPort",
+                "consumer": "foo2/RPort"
+            }
+        ]
     }
 }

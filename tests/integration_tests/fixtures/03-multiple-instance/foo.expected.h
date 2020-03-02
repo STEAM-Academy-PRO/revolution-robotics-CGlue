@@ -16,6 +16,7 @@ typedef void (*FuncPtr_t)(foo_Instance_t* instance);
 
 void foo_Run_Runnable(foo_Instance_t* instance, uint32_t arg1);
 void foo_Run_FuncPtr(foo_Instance_t* instance);
-uint32_t foo_Read_Port(foo_Instance_t* instance);
+void foo_Write_WPort(foo_Instance_t* instance, uint32_t value);
+uint32_t foo_Read_RPort(foo_Instance_t* instance);
 
 #endif /* COMPONENT_FOO_H_ */

@@ -1,4 +1,5 @@
 #include "runtime.h"
+#include "utils.h"
 
 static foo_Instance_t foo_instance_foo1;
 static foo_Instance_t foo_instance_foo2;

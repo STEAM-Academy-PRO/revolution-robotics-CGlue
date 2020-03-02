@@ -354,6 +354,10 @@ class CGlue:
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
+        instance_variables = [f'static {instance.component.instance_type} {instance.component.name}_instance_{name};'
+                              for name, instance in context['component_instances'].items()
+                              if instance.component.config['multiple_instances']]
+
         template_data = {
             'components_dir': self.settings['components_folder'],
             'includes': sorted(includes),
@@ -366,7 +370,7 @@ class CGlue:
             'type_includes': sorted(type_includes),
             'function_declarations': function_headers,
             'functions':             function_implementations,
-            'variables':             context['declarations']
+            'variables':             [*instance_variables, *context['declarations']]
         }
 
         context['files'][source_file_name] = chevron.render(source_template, template_data)

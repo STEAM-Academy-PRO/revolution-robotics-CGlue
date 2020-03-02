@@ -92,3 +92,15 @@ class ComponentInstance:
 
         if name != component.name:
             assert component.config['multiple_instances']
+
+    @property
+    def component_name(self):
+        return self._prototype.name
+
+    @property
+    def component(self):
+        return self._prototype
+
+    @property
+    def instance_var_name(self):
+        return f'{self._prototype.name}_instance_{self._name}'

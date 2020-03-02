@@ -8,8 +8,11 @@ from cglue.component import Component
 from cglue.data_types import TypeCollection
 
 
-def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args):
+def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args, manual_args=None):
     user_arguments = attributes.get('arguments', {})
+    if manual_args is None:
+        manual_args = {}
+
     for arg in user_arguments:
         if arg not in consumer_arguments:
             print(f"Warning: Runnable {consumer_name} does not have an argument named '{arg}'")
@@ -18,6 +21,9 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
     for arg_name, arg_type in consumer_arguments.items():
         if arg_name in user_arguments:
             passed_arguments[arg_name] = user_arguments[arg_name]
+
+        elif arg_name in manual_args:
+            passed_arguments[arg_name] = manual_args[arg_name]
 
         elif arg_name in caller_args:
             if arg_type != caller_args[arg_name]:
@@ -35,12 +41,18 @@ class EventSignal(SignalType):
         super().__init__(consumers='multiple')
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+        caller_fn = context.get_port(connection.provider).functions['run']
+        fn_to_call = context.get_port(consumer_name).functions['run']
 
-        caller_fn = runtime.get_port(connection.provider).functions['run']
-        fn_to_call = runtime.get_port(consumer_name).functions['run']
+        manual_args = {}
+        consumer_component_name = consumer_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_name]
+        consumer_component = consumer_instance.component
+        if consumer_component.config['multiple_instances']:
+            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
-        passed_arguments = collect_arguments(attributes, consumer_name, fn_to_call.arguments, caller_fn.arguments)
+        passed_arguments = collect_arguments(attributes, consumer_name,
+                                             fn_to_call.arguments, caller_fn.arguments, manual_args)
 
         call_code = fn_to_call.generate_call(passed_arguments)
 
@@ -63,13 +75,19 @@ class ServerCallSignal(SignalType):
         super().__init__(consumers='multiple')
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+        consumer_port_data = context.get_port(consumer_name)
+        caller_fn = consumer_port_data.functions['run']
+        fn_to_call = context.get_port(connection.provider).functions['run']
 
-        consumer_port_data = runtime.get_port(consumer_name)
-        caller_fn = runtime.get_port(consumer_name).functions['run']
-        fn_to_call = runtime.get_port(connection.provider).functions['run']
+        manual_args = {}
+        consumer_component_name = consumer_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_name]
+        consumer_component = consumer_instance.component
+        if consumer_component.config['multiple_instances']:
+            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
-        passed_arguments = collect_arguments(attributes, consumer_name, fn_to_call.arguments, caller_fn.arguments)
+        passed_arguments = collect_arguments(attributes, consumer_name,
+                                             fn_to_call.arguments, caller_fn.arguments, manual_args)
 
         call_code = fn_to_call.generate_call(passed_arguments)
 
@@ -323,7 +341,7 @@ def sort_functions(owner: CGlue, context):
         if fn.startswith('Runtime/'):
             weight = 0
         else:
-            weight = owner.get_port(fn).port_type.config.get('order', 3)
+            weight = context.get_port(fn).port_type.config.get('order', 3)
 
         return weight
 

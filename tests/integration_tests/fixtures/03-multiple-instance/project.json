@@ -23,8 +23,22 @@
     "runtime": {
         "runnables": {
             "OnInit": [
-                "foo1/Runnable",
-                "foo2/Runnable"
+                [
+                    "foo1/Runnable",
+                    {
+                        "arguments": {
+                            "arg1": 5
+                        }
+                    }
+                ],
+                [
+                    "foo2/Runnable",
+                    {
+                        "arguments": {
+                            "arg1": 6
+                        }
+                    }
+                ]
             ]
         }
     }

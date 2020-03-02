@@ -1129,14 +1129,14 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
 def sort_functions(owner: CGlue, context):
     def sort_by_name(fn):
         # only sort functions of known port types
-        port = owner.get_port(fn)
+        port = context.get_port(fn)
         if port['port_type'] in known_port_types:
             return fn
         else:
             return '0'
 
     def sort_by_port_type(fn):
-        return owner.get_port(fn).port_type.config.get('order', 0)
+        return context.get_port(fn).port_type.config.get('order', 0)
 
     by_name = sorted(context['functions'], key=sort_by_name)
     by_port_type = sorted(by_name, key=sort_by_port_type)

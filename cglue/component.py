@@ -68,6 +68,9 @@ class ComponentCollection:
     def __getitem__(self, item):
         return self._components[item]
 
+    def items(self):
+        return self._components.items()
+
     def check_dependencies(self):
         failures = []
         for component in self._components.values():
@@ -80,3 +83,12 @@ class ComponentCollection:
         if failures:
             message = '\n'.join(failures)
             raise Exception('Component dependency check failed:\n' + message)
+
+
+class ComponentInstance:
+    def __init__(self, component: Component, name):
+        self._name = name
+        self._prototype = component
+
+        if name != component.name:
+            assert component.config['multiple_instances']

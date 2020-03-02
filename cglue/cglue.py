@@ -6,7 +6,7 @@ from typing import Iterable
 
 import chevron
 
-from cglue.component import Component, ComponentCollection
+from cglue.component import Component, ComponentCollection, ComponentInstance
 from cglue.utils.common import to_underscore
 from cglue.signal import SignalType
 from cglue.data_types import TypeCollection, TypeWrapper
@@ -277,6 +277,29 @@ class CGlue:
         header_file_name = filename + '.h'
 
         self._component_collection.check_dependencies()
+
+        component_instances = {}
+        instance_variables = {}
+        component_type_instances = defaultdict(list)
+
+        def add_component_instance(inst_name, inst_component):
+            if inst_name in component_instances:
+                instance_component = component_instances[inst_name]
+                raise ValueError(f'Component instance {inst_name} already exists '
+                                 f'(instance of component {instance_component.name}')
+            component_instances[inst_name] = ComponentInstance(inst_component, inst_name)
+
+        for name, component in self._component_collection.items():
+            if not component.config['multiple_instances']:
+                add_component_instance(name, component)
+
+        for instance_name, component_name in self._project_config.get('instances', {}).items():
+            component = self._component_collection[component_name]
+            if not component.config['multiple_instances']:
+                raise ValueError(f'Component {component_name} does not support instantiating')
+            add_component_instance(instance_name, component)
+            instance_variables[instance_name] = component.instance_type
+            component_type_instances[component.name].append(instance_name)
 
         context = self._prepare_context(header_file_name, source_file_name)
 

@@ -291,8 +291,6 @@ def init(owner: CGlue):
 
 
 def create_runnable_ports(owner: CGlue, component: Component):
-    instance_type_name = f'{component.name}_Instance_t'
-
     for runnable_name, runnable_data in component.config['runnables'].items():
         if type(runnable_data) is str:
             type_data = owner.types.get(runnable_data)
@@ -307,14 +305,14 @@ def create_runnable_ports(owner: CGlue, component: Component):
             args = OrderedDict()
 
             if 'instance' in runnable_data['arguments']:
-                if runnable_data['arguments']['instance']['data_type'] != instance_type_name:
-                    instance_type = runnable_data["arguments"]["instance"]["data_type"]
+                instance_type = runnable_data["arguments"]["instance"]["data_type"]
+                if instance_type != component.instance_type:
                     raise TypeError(f'Runnable has argument named "instance" but '
                                     f'its type ({instance_type.name}) '
                                     f'does not match instance type')
             else:
                 args['instance'] = {
-                    'data_type': instance_type_name,
+                    'data_type': component.instance_type,
                     'direction': 'inout'
                 }
 

@@ -45,6 +45,10 @@
             {
                 "provider": "foo1/WPort",
                 "consumer": "foo2/RPort"
+            },
+            {
+                "provider": "foo2/WPort",
+                "consumer": "foo1/RPort"
             }
         ]
     }

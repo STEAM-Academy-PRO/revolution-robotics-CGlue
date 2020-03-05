@@ -77,6 +77,10 @@ class StructType(TypeCategory):
         else:
             return super().attribute(type_name, type_data, name)
 
+    def referenced_types(self, type_name, type_data):
+        yield from type_data['fields'].values()
+        yield from super().referenced_types(type_name, type_data)
+
 
 class EnumType(TypeCategory):
 
@@ -153,6 +157,10 @@ class UnionType(TypeCategory):
             return f'{{ {values_str} }}'
         else:
             return f'({type_name}) {{ {values_str} }}'
+
+    def referenced_types(self, type_name, type_data):
+        yield from type_data['members'].values()
+        yield from super().referenced_types(type_name, type_data)
 
 
 def lookup_member(types: TypeCollection, data_type, member_list):

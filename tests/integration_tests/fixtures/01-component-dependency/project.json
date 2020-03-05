@@ -11,6 +11,24 @@
         "bar"
     ],
     "types": {
+        "ByteArray_t": {
+            "type": "struct",
+            "pass_semantic": "value",
+            "fields": {
+                "bytes": "uint8_t*",
+                "count": "size_t"
+            }
+        },
+        "uint8_t*": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "NULL"
+        },
+        "size_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdio.h>",
+            "default_value": "0u"
+        },
         "uint32_t": {
             "pass_semantic": "value",
             "defined_in": "<stdint.h>",

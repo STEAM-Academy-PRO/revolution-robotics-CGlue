@@ -11,6 +11,10 @@
                 "arg": {
                     "data_type": "BarType_t",
                     "direction": "in"
+                },
+                "data": {
+                    "data_type": "ByteArray_t",
+                    "direction": "out"
                 }
             }
         }

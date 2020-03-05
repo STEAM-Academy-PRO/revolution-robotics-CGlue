@@ -248,7 +248,7 @@ def expand_runtime_events(owner: CGlue, project_config):
             'consumers': handlers
         } for event, handlers in runtime_runnables.items()]
 
-    owner.add_component(Component('Runtime', runtime_component))
+    owner.add_component(Component('Runtime', runtime_component, owner.types))
     runtime_config['port_connections'] += event_connections
 
 
@@ -288,10 +288,17 @@ def create_runnable_ports(owner: CGlue, component: Component):
         if component.config['multiple_instances']:
             args = OrderedDict()
 
-            args['instance'] = {
-                'data_type': instance_type_name,
-                'direction': 'inout'
-            }
+            if 'instance' in runnable_data['arguments']:
+                if runnable_data['arguments']['instance']['data_type'] != instance_type_name:
+                    instance_type = runnable_data["arguments"]["instance"]["data_type"]
+                    raise TypeError(f'Runnable has argument named "instance" but '
+                                    f'its type ({instance_type.name}) '
+                                    f'does not match instance type')
+            else:
+                args['instance'] = {
+                    'data_type': instance_type_name,
+                    'direction': 'inout'
+                }
 
             if 'arguments' in runnable_data:
                 args.update(runnable_data['arguments'])

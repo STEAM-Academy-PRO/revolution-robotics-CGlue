@@ -27,13 +27,16 @@ class Component:
         defaults.update(config)
         return defaults
 
-    def __init__(self, name, config):
+    def __init__(self, name, config, types):
         self._name = name
+        self.types = types
         self._config = self.normalize_config(config)
 
         self._version = Version(self._config['version'])
         self._dependencies = {component: VersionConstraint(constraint)
                               for component, constraint in self._config['requires'].items()}
+
+        self.instance_type = f'{name}_Instance_t'
 
         if self._config['instance_variables'] and not self._config['multiple_instances']:
             raise ValueError(f'Component {name} has instance variables but does not support multiple instances')

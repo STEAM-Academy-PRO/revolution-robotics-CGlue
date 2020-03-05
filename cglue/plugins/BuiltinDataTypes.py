@@ -1,6 +1,6 @@
 import chevron
 
-from cglue.function import FunctionPrototype, FunctionImplementation
+from cglue.function import FunctionImplementation
 from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
@@ -708,9 +708,9 @@ class ReadValuePortType(PortType):
         fn_name = f'{port.component_name}_Read_{port.port_name}'
 
         if data_type.passed_by() == 'value':
-            function = FunctionPrototype(fn_name, data_type.name)
+            function = port.declare_function(fn_name, data_type.name)
         else:
-            function = FunctionPrototype(fn_name, 'void', {
+            function = port.declare_function(fn_name, 'void', {
                 'value': {'direction': 'out', 'data_type': data_type}
             })
 
@@ -729,7 +729,7 @@ class ReadValuePortType(PortType):
         else:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
-            function.add_body(f'*value = {default_value};')
+            function.add_body('*value = {};'.format(default_value))
 
         return {'read': function}
 
@@ -761,7 +761,7 @@ class ReadQueuedValuePortType(PortType):
 
         fn_name = f'{port.component_name}_Read_{port.port_name}'
 
-        function = FunctionPrototype(fn_name, 'QueueStatus_t', {
+        function = port.declare_function(fn_name, 'QueueStatus_t', {
             'value': {'direction': 'out', 'data_type': data_type}
         })
 
@@ -812,11 +812,11 @@ class ReadIndexedValuePortType(PortType):
         fn_name = f'{port.component_name}_Read_{port.port_name}'
 
         if data_type.passed_by() == 'value':
-            function = FunctionPrototype(fn_name, data_type.name, {
+            function = port.declare_function(fn_name, data_type.name, {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')}
             })
         else:
-            function = FunctionPrototype(fn_name, 'void', {
+            function = port.declare_function(fn_name, 'void', {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')},
                 'value': {'direction': 'out', 'data_type': data_type}
             })
@@ -874,7 +874,7 @@ class WriteDataPortType(PortType):
 
         fn_name = f'{port.component_name}_Write_{port.port_name}'
 
-        function = FunctionPrototype(fn_name, 'void', {
+        function = port.declare_function(fn_name, 'void', {
             'value': {'direction': 'in', 'data_type': data_type}
         })
 
@@ -923,7 +923,7 @@ class WriteIndexedDataPortType(PortType):
 
         fn_name = f'{port.component_name}_Write_{port.port_name}'
 
-        function = FunctionPrototype(fn_name, 'void', {
+        function = port.declare_function(fn_name, 'void', {
             'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')},
             'value': {'direction': 'in', 'data_type': data_type}
         })
@@ -978,9 +978,9 @@ class ConstantPortType(PortType):
         fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
         if data_type.passed_by() == 'value':
-            function = FunctionPrototype(fn_name, data_type.name)
+            function = port.declare_function(fn_name, data_type.name)
         else:
-            function = FunctionPrototype(fn_name, 'void', {
+            function = port.declare_function(fn_name, 'void', {
                 'value': {'direction': 'out', 'data_type': data_type}
             })
 
@@ -1024,11 +1024,11 @@ class ConstantArrayPortType(PortType):
         fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
         if data_type.passed_by() == 'value':
-            function = FunctionPrototype(fn_name, data_type.name, {
+            function = port.declare_function(fn_name, data_type.name, {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')}
             })
         else:
-            function = FunctionPrototype(fn_name, 'void', {
+            function = port.declare_function(fn_name, 'void', {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')},
                 'value': {'direction': 'out', 'data_type': data_type}
             })

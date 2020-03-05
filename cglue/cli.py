@@ -170,7 +170,7 @@ def cli():
                 'source_files': [component_name + '.c'],
             }
 
-            rt.add_component(Component(component_name, component_config))
+            rt.add_component(Component(component_name, component_config, rt.types))
 
             project_config['components'].append(component_name)
             project_config['components'] = sorted(project_config['components'])

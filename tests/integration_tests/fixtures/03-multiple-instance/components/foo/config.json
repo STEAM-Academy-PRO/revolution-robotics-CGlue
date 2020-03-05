@@ -2,6 +2,16 @@
     "name": "foo",
     "requires": {},
     "types": {
+        "FuncPtr_t": {
+            "type": "func_ptr",
+            "return_type": "void",
+            "arguments": {
+                "instance": {
+                    "data_type": "foo_Instance_t",
+                    "direction": "inout"
+                }
+            }
+        }
     },
     "multiple_instances": true,
     "instance_variables": {
@@ -12,7 +22,8 @@
             "arguments": {
                 "arg1": "uint32_t"
             }
-        }
+        },
+        "FuncPtr": "FuncPtr_t"
     },
     "ports": {
         "Port": {

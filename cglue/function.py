@@ -11,6 +11,10 @@ class FunctionCallGenerationException(Exception):
     pass
 
 
+class FunctionDeclarationGenerationException(Exception):
+    pass
+
+
 class ArgumentList(dict):
     def __init__(self, args: dict = None):
         super().__init__()
@@ -35,7 +39,9 @@ class ArgumentList(dict):
 
     def get_argument_list(self):
         def generate_parameter(name, data):
-            from .data_types import TypeCollection
+            from cglue.data_types import TypeCollection, TypeWrapper
+            if type(data['data_type']) is not TypeWrapper:
+                raise TypeError(f'Type info for argument "{name}" is not a TypeWrapper object')
 
             try:
                 pass_by_ptr = data['data_type']['pass_semantic'] == TypeCollection.PASS_BY_POINTER
@@ -53,7 +59,7 @@ class ArgumentList(dict):
                 pattern = '{}* {}'
 
             else:
-                raise Exception('Unknown argument direction {}'.format(data['direction']))
+                raise Exception(f'Unknown argument direction {data["direction"]}')
 
             return pattern.format(data['data_type'].name, name)
 
@@ -90,9 +96,13 @@ class FunctionPrototype:
         return [data['data_type'].name for data in self.arguments.values()] + [self.return_type]
 
     def generate_header(self):
-        args_list = self.arguments.get_argument_list()
+        try:
+            args_list = self.arguments.get_argument_list()
 
-        return f'{self.return_type} {self.function_name}({args_list})'
+            return f'{self.return_type} {self.function_name}({args_list})'
+        except TypeError as e:
+            raise FunctionDeclarationGenerationException(
+                f'Failed to generate declaration for {self.function_name}') from e
 
 
 class FunctionImplementation:

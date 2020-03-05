@@ -376,9 +376,9 @@ class AsyncCallPortType(PortType):
         result_fn_name = f'{port.component_name}_Async_{port.port_name}_GetResult'
         cancel_fn_name = f'{port.component_name}_Async_{port.port_name}_Cancel'
 
-        call_function = FunctionPrototype(call_fn_name, 'AsyncOperationState_t')
-        result_function = FunctionPrototype(result_fn_name, 'AsyncOperationState_t')
-        cancel_function = FunctionPrototype(cancel_fn_name, 'void')
+        call_function = port.declare_function(call_fn_name, 'AsyncOperationState_t')
+        result_function = port.declare_function(result_fn_name, 'AsyncOperationState_t')
+        cancel_function = port.declare_function(cancel_fn_name, 'void')
 
         for name, arg_data in port.get('arguments', {}).items():
             if type(arg_data) is str:
@@ -433,9 +433,9 @@ class AsyncRunnablePortType(PortType):
         })
 
     def declare_functions(self, port):
-        fn_name = '{}_AsyncRunnable_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_AsyncRunnable_{port.port_name}'
 
-        function = FunctionPrototype(fn_name, 'AsyncResult_t')
+        function = port.declare_function(fn_name, 'AsyncResult_t')
 
         function.arguments.add('asyncCommand', 'in', self._types.get('AsyncCommand_t'))
 

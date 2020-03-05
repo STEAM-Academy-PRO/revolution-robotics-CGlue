@@ -1,5 +1,5 @@
-from .function import ArgumentList
-from .utils.common import process_dict
+from cglue.function import ArgumentList
+from cglue.utils.common import process_dict
 
 
 class TypeCategory:

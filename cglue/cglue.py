@@ -154,7 +154,7 @@ class CGlue:
         component_config_file = f'{self._component_dir(component_name)}/config.json'
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
-        self.add_component(Component(component_name, component_config))
+        self.add_component(Component(component_name, component_config, self.types))
 
     def add_component(self, component: Component):
         self._components[component.name] = component.config
@@ -169,7 +169,7 @@ class CGlue:
 
         for port_name, port_data in component.config['ports'].items():
             port_type = self._port_types[port_data['port_type']]
-            processed_port = port_type.process_port(component.name, port_name, port_data)
+            processed_port = port_type.process_port(component, port_name, port_data)
 
             self._ports[processed_port.full_name] = processed_port
 

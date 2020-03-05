@@ -474,7 +474,7 @@ class CGlue:
             try:
                 self._plugins[plugin].handle(event_name, args)
             except Exception:
-                print(f'Error while processing {plugin}/{event_name}')
+                print(f'Error while processing {plugin}::{event_name}')
                 raise
 
     @property

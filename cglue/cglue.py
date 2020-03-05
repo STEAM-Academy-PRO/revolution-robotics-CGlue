@@ -309,26 +309,7 @@ class CGlue:
 
         context = self._prepare_context(header_file_name, source_file_name)
 
-        context['component_instances'] = {}
-        context['component_type_instances'] = defaultdict(list)
-
-        def add_component_instance(inst_name, inst_component):
-            if inst_name in context['component_instances']:
-                instance_component = context['component_instances'][inst_name]
-                raise ValueError(f'Component instance {inst_name} already exists '
-                                 f'(instance of component {instance_component.component_name}')
-            context['component_instances'][inst_name] = ComponentInstance(inst_component, inst_name)
-
-        for name, component in self._component_collection.items():
-            if not component.config['multiple_instances']:
-                add_component_instance(name, component)
-
-        for instance_name, component_name in self._project_config.get('instances', {}).items():
-            component = self._component_collection[component_name]
-            if not component.config['multiple_instances']:
-                raise ValueError(f'Component {component_name} does not support instantiating')
-            add_component_instance(instance_name, component)
-            context['component_type_instances'][component.name].append(instance_name)
+        self._create_component_instances(context)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
         self._functions.update(port_functions)
@@ -392,6 +373,28 @@ class CGlue:
 
         return context['files']
 
+    def _create_component_instances(self, context):
+        context['component_instances'] = {}
+        context['component_type_instances'] = defaultdict(list)
+
+        def add_component_instance(inst_name, inst_component):
+            if inst_name in context['component_instances']:
+                instance_component = context['component_instances'][inst_name]
+                raise ValueError(f'Component instance {inst_name} already exists '
+                                 f'(instance of component {instance_component.component_name}')
+            context['component_instances'][inst_name] = ComponentInstance(inst_component, inst_name)
+
+        for name, component in self._component_collection.items():
+            if not component.config['multiple_instances']:
+                add_component_instance(name, component)
+
+        for instance_name, component_name in self._project_config.get('instances', {}).items():
+            component = self._component_collection[component_name]
+            if not component.config['multiple_instances']:
+                raise ValueError(f'Component {component_name} does not support instantiating')
+            add_component_instance(instance_name, component)
+            context['component_type_instances'][component.name].append(instance_name)
+
     def _process_connections(self, context):
         for connection in self._project_config['runtime']['port_connections']:
             provider_attributes, provider_port, provider_signals = self._process_provider_port(context, connection)
@@ -437,7 +440,7 @@ class CGlue:
                 for connection in connections:
                     connection.generate()
 
-    def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_short_name, provider_signals):
+    def _process_consumer_ports(self, context, consumer_ref, provider_attrs, provider_short_name, provider_signals):
         consumer_short_name = consumer_ref['short_name']
         consumer_port = context.get_port(consumer_short_name)
         provider_port = context.get_port(provider_short_name)

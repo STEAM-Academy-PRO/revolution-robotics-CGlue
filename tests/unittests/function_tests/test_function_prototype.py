@@ -13,6 +13,10 @@ class TestFunctionPrototype(unittest.TestCase):
         fp = FunctionPrototype('foonction')
         self.assertEqual('foonction()', fp.generate_call({}))
 
+    def test_generate_declaration_without_parameters_adds_void(self):
+        fp = FunctionPrototype('foonction')
+        self.assertEqual('void foonction(void)', fp.generate_header())
+
     def test_generate_call_fails_if_expected_parameter_is_not_given(self):
         fp = FunctionPrototype('foonction', args={'arg1': {'direction': 'in', 'data_type': float_type}})
         self.assertRaises(FunctionCallGenerationException, lambda: fp.generate_call({}))

@@ -460,14 +460,16 @@ class CGlue:
 
     def _infer_singal_type(self, provider_port, consumer_port, consumed_signal_types):
         inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
-        if len(inferred_signal_type) == 0:
+
+        if len(inferred_signal_type) == 1:
+            signal_type_name = inferred_signal_type.pop()
+
+            return signal_type_name
+        elif len(inferred_signal_type) == 0:
             raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
-        elif len(inferred_signal_type) > 1:
+        else:
             raise Exception('Connection type can not be inferred for'
                             f'{provider_port.full_name} and {consumer_port.full_name}')
-        signal_type_name = inferred_signal_type.pop()
-
-        return signal_type_name
 
     def raise_event(self, event_name, *args):
         for plugin in self._plugins:

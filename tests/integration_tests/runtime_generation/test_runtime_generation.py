@@ -54,3 +54,15 @@ class TestRuntimeGeneration(unittest.TestCase):
         generator = _create_generator(f"{root}/project.json")
 
         generator.generate_runtime('runtime_file')
+
+    def test_runtime_types_are_generated_in_dependency_order(self):
+        os.chdir(os.path.dirname(__file__))
+
+        root = "../fixtures/01-component-dependency"
+        generator = _create_generator(f"{root}/project.json")
+
+        files = generator.generate_runtime('runtime_file')
+
+        with open(f'{root}/runtime.expected.h', 'r') as f:
+            expected = f.read()
+        self.assertEqual(expected, files[f'runtime_file.h'])

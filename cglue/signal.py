@@ -21,32 +21,31 @@ class SignalConnection:
         function_mods_list = []
         try:
             function_mods = self.signal.generate_provider(self.context, self, self.provider)
+            function_mods_list.append(function_mods)
         except Exception:
             print(f'Failed to generate provider implementation for {self.name}')
             raise
 
-        if function_mods:
-            function_mods_list.append(function_mods)
-
         for consumer, attributes in self.consumers:
             try:
                 function_mods = self.signal.generate_consumer(self.context, self, consumer, attributes)
+                function_mods_list.append(function_mods)
             except Exception:
                 print(f'Failed to generate consumer implementation for {self.name} (consumer: {consumer})')
                 raise
 
-            if function_mods:
-                function_mods_list.append(function_mods)
-
         self.context['runtime'].raise_event('signal_generated', self, function_mods_list)
 
-        # apply modifications
+        self._apply_mods(self.context['functions'], function_mods_list)
+
+    @staticmethod
+    def _apply_mods(functions, function_mods_list):
         for function_mods in function_mods_list:
             for port_name, mods in function_mods.items():
-                port_functions = self.context['functions'][port_name]
+                port_functions = functions[port_name]
                 for func_type, mod in mods.items():
                     if func_type in port_functions:
-                        self._apply_mod(port_functions[func_type], mod)
+                        SignalConnection._apply_mod(port_functions[func_type], mod)
 
     @staticmethod
     def _apply_mod(func, mod):
@@ -80,10 +79,10 @@ class SignalType:
         pass
 
     def generate_provider(self, context, connection: SignalConnection, provider_name):
-        pass
+        return {}
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        pass
+        return {}
 
     def create_connection(self, context, name, provider, attributes):
         missing_attributes = self.required_attributes.difference(attributes.keys())

@@ -32,6 +32,9 @@ class TypeCategory:
         """Return a specific attribute of the given type"""
         return type_data[name]
 
+    def referenced_types(self, type_name, type_data):
+        yield type_name
+
 
 class TypeAlias(TypeCategory):
     def __init__(self, type_collection):
@@ -56,6 +59,10 @@ class TypeAlias(TypeCategory):
             return type_data[name]
 
         return self._type_collection.get(type_data['aliases']).get_attribute(name)
+
+    def referenced_types(self, type_name, type_data):
+        yield type_data['aliases']
+        yield from super().referenced_types(type_name, type_data)
 
 
 class BuiltinType(TypeCategory):
@@ -99,6 +106,13 @@ class FunctionPointerType(TypeCategory):
             args.add(arg_name, arg_data['direction'], self._type_collection.get(arg_data['data_type']))
 
         return f"typedef {type_data['return_type']} (*{type_name})({args.get_argument_list()});"
+
+    def referenced_types(self, type_name, type_data):
+        yield type_data['return_type']
+        for arg in type_data['arguments'].values():
+            yield arg['data_type']
+
+        yield from super().referenced_types(type_name, type_data)
 
 
 class TypeWrapper:
@@ -218,3 +232,21 @@ class TypeCollection:
             return data
 
         return {name: strip(data) for name, data in self._type_data.items() if data['type'] != TypeCollection.BUILTIN}
+
+    def collect_type_dependencies(self, type_name):
+        type_name = self.normalize_type_name(type_name)
+        type_data = self.get(type_name)
+
+        for referenced_type in type_data.category.referenced_types(type_name, type_data):
+            if referenced_type != type_name:
+                yield from self.collect_type_dependencies(referenced_type)
+            else:
+                yield referenced_type
+
+    def normalize_type_name(self, type_name):
+        try:
+            self.get(type_name)
+        except KeyError:
+            type_name = type_name.replace('const ', '').replace('*', '').replace(' ', '')
+
+        return type_name

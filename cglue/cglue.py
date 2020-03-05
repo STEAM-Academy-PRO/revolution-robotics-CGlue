@@ -170,49 +170,15 @@ class CGlue:
 
             self._ports[processed_port.full_name] = processed_port
 
-    def _normalize_type_name(self, type_name):
-
-        try:
-            self._types.get(type_name)
-        except KeyError:
-            type_name = type_name.replace('const ', '').replace('*', '').replace(' ', '')
-
-        return type_name
-
     def _get_type_includes(self, type_name):
         if type(type_name) is str:
-            type_name = self._normalize_type_name(type_name)
+            type_name = self.types.normalize_type_name(type_name)
 
             with suppress(KeyError):
                 yield self._types.get(type_name).get_attribute('defined_in')
         else:
             for tn in type_name:
                 yield from self._get_type_includes(tn)
-
-    def _collect_type_dependencies(self, type_name):
-        type_name = self._normalize_type_name(type_name)
-        type_data = self._types.get(type_name)
-
-        if type_data['type'] == TypeCollection.ALIAS:
-            yield from self._collect_type_dependencies(type_data['aliases'])
-
-        elif type_data['type'] == TypeCollection.EXTERNAL_DEF:
-            pass
-
-        elif type_data['type'] == TypeCollection.STRUCT:
-            for field in type_data['fields'].values():
-                yield from self._collect_type_dependencies(field)
-
-        elif type_data['type'] == TypeCollection.UNION:
-            for member in type_data['members'].values():
-                yield from self._collect_type_dependencies(member)
-
-        elif type_data['type'] == TypeCollection.FUNC_PTR:
-            yield from self._collect_type_dependencies(type_data['return_type'])
-            for arg in type_data['arguments'].values():
-                yield from self._collect_type_dependencies(arg['data_type'])
-
-        yield type_name
 
     def _sort_types_by_dependency(self, type_names, visited_types=None):
         if visited_types is None:
@@ -222,7 +188,7 @@ class CGlue:
             if type_name not in visited_types:
                 visited_types.append(type_name)
 
-                for d in self._collect_type_dependencies(type_name):
+                for d in self.types.collect_type_dependencies(type_name):
                     yield from self._sort_types_by_dependency(d, visited_types)
 
                 yield type_name

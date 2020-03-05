@@ -1,8 +1,5 @@
-#ifndef COMPONENT_FOO_H_
-#define COMPONENT_FOO_H_
-
-#ifndef COMPONENT_TYPES_FOO_H_
-#define COMPONENT_TYPES_FOO_H_
+#ifndef GENERATED_RUNTIME_H_
+#define GENERATED_RUNTIME_H_
 
 #include "some_header.h"
 #include <stdint.h>
@@ -16,8 +13,11 @@ typedef struct {
 } ByteArray_t;
 typedef void (*function_ptr)(BarType_t arg, ByteArray_t* data);
 
-#endif /* COMPONENT_TYPES_FOO_H_ */
+#define COMPONENT_TYPES_FOO_H_
+#define COMPONENT_TYPES_BAR_H_
 
-void foo_Write_port(BarType_t value);
+#include "components/foo/foo.h"
+#include "components/bar/bar.h"
 
-#endif /* COMPONENT_FOO_H_ */
+
+#endif /* GENERATED_RUNTIME_H */

@@ -1,5 +1,3 @@
-import chevron
-
 from cglue.function import FunctionPrototype, FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
@@ -88,16 +86,10 @@ class ServerCallSignal(SignalType):
                 raise Exception(f'Callee return type is incompatible ({consumer_port_data["return_type"]} '
                                 f'instead of {caller_fn.return_type})')
 
-            template = "{{ data_type }} return_value = {{ call_code }};"
-            data = {
-                'call_code': call_code,
-                'data_type': consumer_port_data['return_type']
-            }
-
             return {
                 consumer_name: {
                     'run': {
-                        'body':             chevron.render(template, data),
+                        'body':             f"{consumer_port_data['return_type']} return_value = {call_code};",
                         'used_arguments':   passed_arguments.keys(),
                         'return_statement': 'return_value'
                     }

@@ -13,9 +13,6 @@ class PortType:
     def __contains__(self, item):
         return item in self.config
 
-    def generate_component_function(self, port):
-        return self.create_component_functions(port)
-
     def declare_functions(self, port):
         raise NotImplementedError
 

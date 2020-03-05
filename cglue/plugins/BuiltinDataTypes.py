@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation
-from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list
+from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
@@ -185,6 +185,13 @@ def create_member_accessor(member):
     return '.' + member
 
 
+def _add_instance_check(assignment, provider_instance):
+    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+           f'{{\n' \
+           f'{indent(assignment)}\n' \
+           f'}}'
+
+
 class VariableSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple')
@@ -226,10 +233,7 @@ class VariableSignal(SignalType):
 
         if provider_instance.component.config['multiple_instances']:
             used_args.append('instance')
-            assignment = f'if (instance == &{provider_instance.instance_var_name})\n' \
-                         f'{{\n' \
-                         f'    {assignment}\n' \
-                         f'}}'
+            assignment = _add_instance_check(assignment, provider_instance)
 
         return {
             provider_port_name: {
@@ -283,10 +287,8 @@ class VariableSignal(SignalType):
 
         if consumer_instance.component.config['multiple_instances']:
             used_args.append('instance')
-            read = f'if (instance == &{consumer_instance.instance_var_name})\n' \
-                   f'{{\n' \
-                   f'    {read}\n' \
-                   f'}}'
+            read = _add_instance_check(read, consumer_instance)
+
         body.append(read)
         mods[consumer_port_name]['read']['body'] = body
         mods[consumer_port_name]['read']['used_arguments'] = used_args

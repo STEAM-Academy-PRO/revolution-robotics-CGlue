@@ -109,18 +109,16 @@ class RuntimeGeneratorContext:
     def get_port(self, short_name):
         return self._owner.get_port(self.get_component_ref(short_name))
 
+    def _split(self, short_name):
+        component_name, port_name = short_name.split('/', 2)
+        return self._context['component_instances'][component_name].component, port_name
+
     def get_component_ref(self, short_name):
-        component, private_name = short_name.split('/', 2)
-        component_name = self._context['component_instances'][component].component_name
-        return f'{component_name}/{private_name}'
+        component, port_name = self._split(short_name)
+        return f'{component.name}/{port_name}'
 
     def get_component_of(self, short_name):
-        component_name, _ = short_name.split('/', 2)
-        try:
-            component = self._context['component_instances'][component_name].component
-        except KeyError:
-            component = self._context['runtime']._component_collection[component_name]
-
+        component, _ = self._split(short_name)
         return component
 
 

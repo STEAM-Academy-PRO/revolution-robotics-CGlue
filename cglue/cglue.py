@@ -114,6 +114,15 @@ class RuntimeGeneratorContext:
         component_name = self._context['component_instances'][component].component_name
         return f'{component_name}/{private_name}'
 
+    def get_component_of(self, short_name):
+        component_name, _ = short_name.split('/', 2)
+        try:
+            component = self._context['component_instances'][component_name].component
+        except KeyError:
+            component = self._context['runtime']._component_collection[component_name]
+
+        return component
+
 
 class CGlue:
     def __init__(self, project_config_file):

@@ -263,7 +263,6 @@ class VariableSignal(SignalType):
         consumer_instance = context['component_instances'][consumer_component_instance_name]
 
         function = runtime.functions[consumer_port_name]['read']
-        is_first_consumer = function.is_body_empty
         argument_names = list(function.arguments.keys())
         mods = {
             consumer_port_name: {'read': {}}
@@ -272,10 +271,8 @@ class VariableSignal(SignalType):
         body = []
         used_args = []
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            if is_first_consumer:
-                body.append(f'{data_type} return_value;')
-            read = f'return_value = {connection.name}{member_accessor};'
-            mods[consumer_port_name]['read']['return_statement'] = 'return_value'
+            read = f'return {connection.name}{member_accessor};'
+            mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
         else:
             if consumer_instance.component.config['multiple_instances']:
                 out_name = argument_names[1]

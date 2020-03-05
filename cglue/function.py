@@ -145,12 +145,8 @@ class FunctionImplementation:
     def prepend_body(self, body):
         self._body.insert(0, body)
 
-    @property
-    def is_body_empty(self):
-        return not self._body
-
     def set_return_statement(self, statement):
-        if self._return_statement:
+        if self._return_statement and statement != self._return_statement:
             raise Exception(f'Return statement already set for {self.function_name}')
 
         if statement:

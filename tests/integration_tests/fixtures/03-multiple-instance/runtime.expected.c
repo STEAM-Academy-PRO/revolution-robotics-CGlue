@@ -26,14 +26,13 @@ void foo_Write_WPort(foo_Instance_t* instance, uint32_t value)
 
 uint32_t foo_Read_RPort(foo_Instance_t* instance)
 {
-    uint32_t return_value;
     if (instance == &foo_instance_foo2)
     {
-        return_value = foo1_WPort_variable;
+        return foo1_WPort_variable;
     }
     if (instance == &foo_instance_foo1)
     {
-        return_value = foo2_WPort_variable;
+        return foo2_WPort_variable;
     }
-    return return_value;
+    return 0u;
 }

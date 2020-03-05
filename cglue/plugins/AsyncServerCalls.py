@@ -308,6 +308,8 @@ switch ({{ signal_name }}_state)
         for arg in result_function.prototype.arguments:
             result_function.mark_argument_used(arg)
 
+        return {}
+
     def _get_consumer_call_args(self, attributes, function_prototype, provider_port, runtime):
         call_arguments = []
         missing_arguments = set()

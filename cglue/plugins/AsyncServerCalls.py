@@ -191,7 +191,7 @@ switch (command)
         }))
 
     def generate_provider(self, context, connection: SignalConnection, provider_name):
-        pass
+        return {}
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
         runtime = context['runtime']

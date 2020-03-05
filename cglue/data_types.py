@@ -218,3 +218,36 @@ class TypeCollection:
             return data
 
         return {name: strip(data) for name, data in self._type_data.items() if data['type'] != TypeCollection.BUILTIN}
+
+    def collect_type_dependencies(self, type_name):
+        type_name = self.normalize_type_name(type_name)
+        type_data = self.get(type_name)
+
+        if type_data['type'] == TypeCollection.ALIAS:
+            yield from self.collect_type_dependencies(type_data['aliases'])
+
+        elif type_data['type'] == TypeCollection.EXTERNAL_DEF:
+            pass
+
+        elif type_data['type'] == TypeCollection.STRUCT:
+            for field in type_data['fields'].values():
+                yield from self.collect_type_dependencies(field)
+
+        elif type_data['type'] == TypeCollection.UNION:
+            for member in type_data['members'].values():
+                yield from self.collect_type_dependencies(member)
+
+        elif type_data['type'] == TypeCollection.FUNC_PTR:
+            yield from self.collect_type_dependencies(type_data['return_type'])
+            for arg in type_data['arguments'].values():
+                yield from self.collect_type_dependencies(arg['data_type'])
+
+        yield type_name
+
+    def normalize_type_name(self, type_name):
+        try:
+            self.get(type_name)
+        except KeyError:
+            type_name = type_name.replace('const ', '').replace('*', '').replace(' ', '')
+
+        return type_name

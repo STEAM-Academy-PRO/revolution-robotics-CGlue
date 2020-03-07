@@ -64,4 +64,5 @@ class TestComponentGeneration(unittest.TestCase):
         with open(f'{root}/foo.expected.h', 'r') as f:
             foo_h = f.read()
 
+        self.maxDiff = None
         self.assertEqual(foo_h, files[f'{root}/components/foo/foo.h'])

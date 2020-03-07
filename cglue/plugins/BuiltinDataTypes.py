@@ -302,7 +302,7 @@ class ArraySignal(SignalType):
 
     def create(self, context, connection: SignalConnection):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(connection.provider)
+        provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         count = provider_port_data['count']
 
@@ -325,37 +325,52 @@ class ArraySignal(SignalType):
 
         context['declarations'].append(f'static {data_type_name} {connection.name}[{count}] = {{ {init_values} }};')
 
-    def generate_provider(self, context, connection: SignalConnection, provider_name):
+    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(provider_name)
+        provider_port_data = context.get_port(provider_instance_name)
+        provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = provider_port_data['data_type']
 
-        function = runtime.functions[provider_name]['write']
+        function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
-        index = argument_names[0]
-        value = argument_names[1]
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
+
+        if provider_instance.component.config['multiple_instances']:
+            index = argument_names[1]
+            value = argument_names[2]
+
+        else:
+            index = argument_names[0]
+            value = argument_names[1]
 
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             body = f'{connection.name}[{index}] = {value};'
         else:
             body = f'{connection.name}[{index}] = *{value};'
 
+        used_args = [index, value]
+        if provider_instance.component.config['multiple_instances']:
+            used_args.append('instance')
+            body = _add_instance_check(body, provider_instance)
+
         return {
-            provider_name: {
+            provider_port_name: {
                 'write': {
-                    'used_arguments': [index, value],
+                    'used_arguments': used_args,
                     'body':           body
                 }
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(connection.provider)
+        provider_port_data = context.get_port(connection.provider)
         source_data_type = provider_port_data['data_type']
 
-        consumer_port_data = runtime.get_port(consumer_name)
+        consumer_port_data = context.get_port(consumer_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
         data_type = consumer_port_data['data_type']
 
         if 'member' in attributes:
@@ -368,55 +383,72 @@ class ArraySignal(SignalType):
         if data_type != source_data_type:
             raise Exception('Port data types don\'t match')
 
-        function = runtime.functions[consumer_name]['read']
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        function = runtime.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
+        mods = {
+            consumer_port_name: {
+                'read': {}
+            }
+        }
+
+        body = []
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
 
             if 'count' not in consumer_port_data:
                 # single read, index should be next to consumer name
                 index = attributes['index']
-                used_arguments = []
+                used_args = []
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
                     raise Exception(
-                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
                         f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
-                index = argument_names[0]
-                used_arguments = [index]
 
-            mods = {
-                consumer_name: {
-                    'read': {
-                        'used_arguments': used_arguments,
-                        'body': f'{data_type} return_value = {connection.name}[{index}]{member_accessor};',
-                        'return_statement': 'return_value'
-                    }
-                }
-            }
+                if consumer_instance.component.config['multiple_instances']:
+                    index = argument_names[1]
+                else:
+                    index = argument_names[0]
+                used_args = [index]
+
+            read = f'return {connection.name}[{index}]{member_accessor};'
+            mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
         else:
             if 'count' not in consumer_port_data:
                 # single read, index should be next to consumer name in attributes
                 index = connection.attributes['index']
-                out_name = argument_names[0]
-                used_arguments = []
+                if consumer_instance.component.config['multiple_instances']:
+                    out_name = argument_names[1]
+                else:
+                    out_name = argument_names[0]
+                used_args = []
             else:
                 if consumer_port_data['count'] > provider_port_data['count']:
                     raise Exception(
-                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                        f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
                         f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
-                index = argument_names[0]
-                out_name = argument_names[1]
-                used_arguments = [index, out_name]
 
-            mods = {
-                consumer_name: {
-                    'read': {
-                        'used_arguments': used_arguments,
-                        'body': f'*{out_name} = {connection.name}[{index}]{member_accessor};'
-                    }
-                }
-            }
+                if consumer_instance.component.config['multiple_instances']:
+                    index = argument_names[1]
+                    out_name = argument_names[2]
+                else:
+                    index = argument_names[0]
+                    out_name = argument_names[1]
+
+                used_args = [index, out_name]
+
+            read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
+
+        if consumer_instance.component.config['multiple_instances']:
+            used_args.append('instance')
+            read = _add_instance_check(read, consumer_instance)
+
+        body.append(read)
+        mods[consumer_port_name]['read']['body'] = body
+        mods[consumer_port_name]['read']['used_arguments'] = used_args
 
         return mods
 

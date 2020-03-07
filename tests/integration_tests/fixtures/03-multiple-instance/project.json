@@ -49,6 +49,20 @@
             {
                 "provider": "foo2/WPort",
                 "consumer": "foo1/RPort"
+            },
+            {
+                "provider": "foo1/WIPort",
+                "consumers": [
+                    "foo2/RIPort",
+                    ["foo2/RPortFromI", {"index": 2}]
+                ]
+            },
+            {
+                "provider": "foo2/WIPort",
+                "consumers": [
+                    "foo1/RIPort",
+                    ["foo1/RPortFromI", {"index": 3}]
+                ]
             }
         ]
     }

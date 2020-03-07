@@ -30,9 +30,23 @@
             "port_type": "ReadValue",
             "data_type": "uint32_t"
         },
+        "RPortFromI": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
         "WPort": {
             "port_type": "WriteData",
             "data_type": "uint32_t"
+        },
+        "RIPort": {
+            "port_type": "ReadIndexedValue",
+            "data_type": "uint32_t",
+            "count": 3
+        },
+        "WIPort": {
+            "port_type": "WriteIndexedData",
+            "data_type": "uint32_t",
+            "count": 3
         }
     }
 }

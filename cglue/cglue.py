@@ -218,32 +218,32 @@ class CGlue:
             'folders': [component_name]
         }
 
-        for port_name, port_data in self._components[component_name]['ports'].items():
-            short_name = f'{component_name}/{port_name}'
-            context['functions'][short_name] = self._ports[short_name].create_component_functions()
+        component_object = self._component_collection[component_name]
+        port_short_names = (f'{component_name}/{port_name}' for port_name in component_object.config['ports'])
+        context['functions'].update({short_name: self._ports[short_name].create_component_functions()
+                                     for short_name in port_short_names})
 
         self.raise_event('before_generating_component', component_name, context)
 
         function_headers = []
         function_implementations = []
-        used_types = []
         includes = {
             f'"{component_name}.h"',
             '"utils.h"'
         }
 
+        type_names = list(component_object.config['types'].keys())
+        for c in component_object.dependencies:
+            type_names += self._components[c]['types'].keys()
+
         for functions in context['functions'].values():
             for func in functions.values():
                 function_headers.append(func.get_header())
                 function_implementations.append(func.get_function())
-                used_types += func.referenced_types
+                type_names += func.referenced_types
                 includes.update(func.includes)
 
-        defined_type_names = list(self._components[component_name]['types'].keys())
-        for c in self._component_collection[component_name].dependencies:
-            defined_type_names += self._components[c]['types'].keys()
-
-        sorted_type_objects = list(self._sort_types_by_dependency(defined_type_names + used_types))
+        sorted_type_objects = list(self._sort_types_by_dependency(type_names))
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 

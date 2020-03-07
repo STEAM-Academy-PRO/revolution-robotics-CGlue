@@ -245,12 +245,10 @@ class TypeCollection:
 
         return {name: strip(data) for name, data in self._type_data.items() if data['type'] != TypeCollection.BUILTIN}
 
-    def collect_type_dependencies(self, type_name):
-        type_name = self.normalize_type_name(type_name)
-        type_data = self.get(type_name)
-
-        for referenced_type in type_data.category.referenced_types(type_name, type_data):
-            if referenced_type != type_name:
+    def collect_type_dependencies(self, type_data: TypeWrapper):
+        for referenced_type_name in type_data.category.referenced_types(type_data.name, type_data):
+            referenced_type = self.get(referenced_type_name)
+            if referenced_type != type_data:
                 yield from self.collect_type_dependencies(referenced_type)
             else:
                 yield referenced_type

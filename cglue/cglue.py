@@ -178,22 +178,21 @@ class CGlue:
             with suppress(KeyError):
                 yield type_wrapper.get_attribute('defined_in')
 
-    def _sort_types_by_dependency(self, type_names, visited_types=None):
+    def _sort_types_by_dependency(self, type_objects, visited_types=None):
         if visited_types is None:
             visited_types = set()
 
-        for type_name in type_names:
-            t = self.types.get(type_name)
-            if t not in visited_types:
+        for type_obj in type_objects:
+            if type_obj not in visited_types:
                 try:
-                    visited_types.add(t)
+                    visited_types.add(type_obj)
 
-                    dependencies = self.types.collect_type_dependencies(type_name)
+                    dependencies = self.types.collect_type_dependencies(type_obj)
                     yield from self._sort_types_by_dependency(dependencies, visited_types)
 
-                    yield t
+                    yield type_obj
                 except Exception:
-                    print(f'Failed to process dependencies of {t}')
+                    print(f'Failed to process dependencies of {type_obj}')
                     raise
 
     def update_component(self, component_name):
@@ -243,7 +242,7 @@ class CGlue:
                 type_names += func.referenced_types
                 includes.update(func.includes)
 
-        sorted_type_objects = list(self._sort_types_by_dependency(type_names))
+        sorted_type_objects = list(self._sort_types_by_dependency(self.types.get(type_names)))
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
@@ -312,7 +311,7 @@ class CGlue:
                 type_names += f.referenced_types
                 includes.update(f.includes)
 
-        sorted_type_objects = list(self._sort_types_by_dependency(type_names))
+        sorted_type_objects = list(self._sort_types_by_dependency(self.types.get(type_names)))
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 

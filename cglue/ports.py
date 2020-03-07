@@ -1,8 +1,8 @@
 from collections import OrderedDict
 
-from function import FunctionPrototype
-from .utils.common import process_dict
-from .data_types import TypeCollection
+from cglue.function import FunctionPrototype
+from cglue.utils.common import process_dict
+from cglue.data_types import TypeCollection
 
 
 class PortType:

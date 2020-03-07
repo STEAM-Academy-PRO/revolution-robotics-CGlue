@@ -1,13 +1,15 @@
 import json
 import os
+from collections import defaultdict
 from contextlib import suppress
+from typing import Iterable
 
 import chevron
 
-from .component import Component, ComponentCollection
-from .utils.common import to_underscore, list_to_chevron_list
-from .signal import SignalType
-from .data_types import TypeCollection
+from cglue.component import Component, ComponentCollection
+from cglue.utils.common import to_underscore, list_to_chevron_list
+from cglue.signal import SignalType
+from cglue.data_types import TypeCollection, TypeWrapper
 
 runtime_header_template = """#ifndef GENERATED_RUNTIME_H_
 #define GENERATED_RUNTIME_H_
@@ -170,34 +172,27 @@ class CGlue:
 
             self._ports[processed_port.full_name] = processed_port
 
-    def _get_type_includes(self, type_name):
-        if type(type_name) is str:
-            type_name = self.types.normalize_type_name(type_name)
-
+    @staticmethod
+    def _get_type_includes(types: Iterable[TypeWrapper]):
+        for type_wrapper in types:
             with suppress(KeyError):
-                yield self._types.get(type_name).get_attribute('defined_in')
-        else:
-            for tn in type_name:
-                yield from self._get_type_includes(tn)
+                yield type_wrapper.get_attribute('defined_in')
 
     def _sort_types_by_dependency(self, type_names, visited_types=None):
-        if visited_types is None:
-            visited_types = []
-
         def _process_type(type_name):
             if type_name not in visited_types:
                 visited_types.append(type_name)
 
                 for d in self.types.collect_type_dependencies(type_name):
-                    yield from self._sort_types_by_dependency(d, visited_types)
+                    yield from _process_type(d)
 
                 yield type_name
 
-        if type(type_names) is not list:
-            yield from _process_type(type_names)
-        else:
-            for t in type_names:
-                yield from _process_type(t)
+        if visited_types is None:
+            visited_types = []
+
+        for t in type_names:
+            yield from _process_type(t)
 
     def update_component(self, component_name):
 
@@ -246,10 +241,10 @@ class CGlue:
         for c in self._component_collection[component_name].dependencies:
             defined_type_names += self._components[c]['types'].keys()
 
-        sorted_types = list(self._sort_types_by_dependency(defined_type_names + used_types))
-        type_includes = set(self._get_type_includes(sorted_types))
-
-        typedefs = [self._types.get(t).render_typedef() for t in sorted_types]
+        sorted_types = self._sort_types_by_dependency(defined_type_names + used_types)
+        sorted_type_objects = [self._types.get(t) for t in sorted_types]
+        type_includes = set(self._get_type_includes(sorted_type_objects))
+        typedefs = [t.render_typedef() for t in sorted_type_objects]
 
         ctx = {
             'includes': list_to_chevron_list(sorted(includes), 'header'),
@@ -316,10 +311,10 @@ class CGlue:
                 type_names += f.referenced_types
                 includes.update(f.includes)
 
-        sorted_types = list(self._sort_types_by_dependency(type_names))
-        type_includes = set(self._get_type_includes(sorted_types))
-
-        typedefs = [self._types.get(t).render_typedef() for t in sorted_types]
+        sorted_types = self._sort_types_by_dependency(type_names)
+        sorted_type_objects = [self._types.get(t) for t in sorted_types]
+        type_includes = set(self._get_type_includes(sorted_type_objects))
+        typedefs = [t.render_typedef() for t in sorted_type_objects]
 
         template_data = {
             'output_filename': output_filename,
@@ -360,7 +355,7 @@ class CGlue:
             'declarations': [],
             'exported_function_declarations': [],
             'runtime_includes': {'"utils.h"'},
-            'signals': {},
+            'signals': defaultdict(dict),
             'used_types': []
         }
 
@@ -381,11 +376,7 @@ class CGlue:
 
         provider_attributes = self._get_connection_attributes(connection)
 
-        # create a dict to store providers signals
-        if provider_port.full_name not in context['signals']:
-            context['signals'][provider_port.full_name] = {}
-
-        provider_signals = context['signals'][provider_port.full_name]
+        provider_signals = context['signals'][provider_short_name]
         return provider_attributes, provider_port, provider_signals
 
     def _get_connection_attributes(self, connection):

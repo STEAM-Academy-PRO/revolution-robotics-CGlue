@@ -566,14 +566,15 @@ class ConstantSignal(SignalType):
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             mods[consumer_name]['read']['return_statement'] = constant_provider.generate_call({}) + member_accessor
         else:
+            out_arg_name = argument_names[0]
             if member_accessor:
                 body = f"{provider_port_data['data_type']} tmp;\n" \
                        f"{constant_provider.generate_call({'value': '&tmp'})};\n" \
-                       f"{argument_names[0]} = tmp{member_accessor};"
+                       f"{out_arg_name} = tmp{member_accessor};"
             else:
-                body = constant_provider.generate_call({"value": argument_names[0]}) + ';'
+                body = constant_provider.generate_call({"value": out_arg_name}) + ';'
 
-            mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
+            mods[consumer_name]['read']['used_arguments'] = [out_arg_name]
             mods[consumer_name]['read']['body'] = body
 
         return mods
@@ -629,15 +630,8 @@ class ConstantArraySignal(SignalType):
                 index = argument_names[0]
                 mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
 
-            ctx = {
-                'template': '{{ data_type}} return_value = {{ constant_provider }}{{ member_accessor }};',
-                'data':     {
-                    'data_type':         data_type,
-                    'constant_provider': constant_provider.generate_call({'index': index}),
-                    'member_accessor':   member_accessor
-                }
-            }
-            mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+            call = constant_provider.generate_call({'index': index})
+            mods[consumer_name]['read']['body'] = f'{data_type} return_value = {call}{member_accessor};'
             mods[consumer_name]['read']['return_statement'] = 'return_value'
         else:
 
@@ -655,21 +649,14 @@ class ConstantArraySignal(SignalType):
                 mods[consumer_name]['read']['used_arguments'] = [argument_names[0], argument_names[1]]
 
             if member_accessor:
-                ctx = {
-                    'template': '{{ data_type }} tmp;\n'
-                                '{{ constant_provider }};\n'
-                                '{{ out_name }} = tmp{{ member_accessor }};',
-                    'data':     {
-                        'constant_provider': constant_provider.generate_call({'index': index, 'value': '&tmp'}),
-                        'out_name':          out_name,
-                        'member_accessor':   member_accessor,
-                        'data_type':         provider_port_data['data_type']
-                    }
-                }
-                mods[consumer_name]['read']['body'] = chevron.render(**ctx)
+                call = constant_provider.generate_call({'index': index, 'value': '&tmp'})
+                body = f'{provider_port_data["data_type"]} tmp;\n' \
+                       f'{call};\n' \
+                       f'{out_name} = tmp{member_accessor};'
             else:
-                mods[consumer_name]['read']['body'] = constant_provider.function_call({"index": index,
-                                                                                       "value": out_name}) + ';'
+                body = constant_provider.function_call({"index": index, "value": out_name}) + ';'
+
+            mods[consumer_name]['read']['body'] = body
 
         return mods
 

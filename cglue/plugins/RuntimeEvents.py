@@ -137,6 +137,18 @@ class RunnablePortType(PortType):
         return {}
 
 
+def _create_callee_function(port, types, fn_name, return_type):
+    function = FunctionPrototype(fn_name, return_type)
+
+    for name, arg_data in port.get('arguments', {}).items():
+        if type(arg_data) is str:
+            function.arguments.add(name, 'in', types.get(arg_data))
+        else:
+            function.arguments.add(name, arg_data['direction'], types.get(arg_data['data_type']))
+
+    return {'run': function}
+
+
 class EventPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
@@ -151,16 +163,7 @@ class EventPortType(PortType):
 
     def declare_functions(self, port):
         fn_name = f'{port.component_name}_RaiseEvent_{port.port_name}'
-
-        function = FunctionPrototype(fn_name, 'void')
-
-        for name, arg_data in port.get('arguments', {}).items():
-            if type(arg_data) is str:
-                function.arguments.add(name, 'in', self._types.get(arg_data))
-            else:
-                function.arguments.add(name, arg_data['direction'], self._types.get(arg_data['data_type']))
-
-        return {'run': function}
+        return _create_callee_function(port, self._types, fn_name, 'void')
 
     def create_component_functions(self, port):
         function = FunctionImplementation(port.functions['run'])
@@ -191,16 +194,7 @@ class ServerCallPortType(PortType):
 
     def declare_functions(self, port):
         fn_name = f'{port.component_name}_Call_{port.port_name}'
-
-        function = FunctionPrototype(fn_name, port['return_type'])
-
-        for name, arg_data in port.get('arguments', {}).items():
-            if type(arg_data) is str:
-                function.arguments.add(name, 'in', self._types.get(arg_data))
-            else:
-                function.arguments.add(name, arg_data['direction'], self._types.get(arg_data['data_type']))
-
-        return {'run': function}
+        return _create_callee_function(port, self._types, fn_name, port['return_type'])
 
     def create_component_functions(self, port):
         prototype = port.functions['run']
@@ -241,21 +235,16 @@ def create_port_ref(port):
 
 def expand_runtime_events(owner: CGlue, project_config):
     runtime_config = project_config['runtime']
-    events_key = 'runnables'
-
     runtime_component = Component.create_empty_config('Runtime')
     runtime_component['source_files'] = []
 
-    event_connections = []
-    for event, handlers in runtime_config.get(events_key, {}).items():
-        event_port = {
-            'port_type': 'Event'
-        }
-        runtime_component['ports'][event] = event_port
-        event_connections.append({
-            'provider':  create_port_ref(f'Runtime/{event}'),
+    runtime_runnables = runtime_config['runnables']
+
+    runtime_component['ports'] = {event: {'port_type': 'Event'} for event in runtime_runnables}
+    event_connections = [{
+            'provider': create_port_ref(f'Runtime/{event}'),
             'consumers': handlers
-        })
+        } for event, handlers in runtime_runnables.items()]
 
     owner.add_component(Component('Runtime', runtime_component))
     runtime_config['port_connections'] += event_connections
@@ -292,7 +281,7 @@ def create_runnable_ports(owner: CGlue, component: Component):
 
 
 def add_exported_declarations(owner: CGlue, context):
-    runtime_funcs = [short_name for short_name in context['functions'].keys() if short_name.startswith('Runtime/')]
+    runtime_funcs = [short_name for short_name in context['functions'] if short_name.startswith('Runtime/')]
     context['exported_function_declarations'] += runtime_funcs
 
     sort_functions(owner, context)

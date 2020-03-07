@@ -82,12 +82,9 @@ def expand_project_config(owner, project_config):
                 'attributes': runnable[1]
             })
 
-    processed_port_connections = []
-    for port_connection in raw_port_connections:
-        processed_port_connections.append(expand_port_connection(port_connection))
-
     project_config['runtime']['runnables'] = processed_runnables
-    project_config['runtime']['port_connections'] = processed_port_connections
+    project_config['runtime']['port_connections'] = [expand_port_connection(port_connection)
+                                                     for port_connection in raw_port_connections]
 
 
 def _remove_empty_attribute_list(ref):

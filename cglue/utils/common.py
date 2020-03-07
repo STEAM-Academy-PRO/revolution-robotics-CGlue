@@ -70,3 +70,20 @@ def process_dict(src, required, optional):
         raise Exception(f'Missing keys: {", ".join(missing_required)}')
 
     return {**optional, **src}
+
+
+def indent(text, spaces=4):
+    """
+    >>> indent('foobar')
+    '    foobar'
+    """
+    indent_prefix = spaces * ' '
+    return indent_prefix + text.replace('\n', f'\n{indent_prefix}')
+
+
+def remove_trailing_spaces(text):
+    """
+    >>> remove_trailing_spaces('foobar   ')
+    'foobar'
+    """
+    return '\n'.join((line.rstrip(' ') for line in text.split('\n')))

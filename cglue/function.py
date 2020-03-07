@@ -1,5 +1,7 @@
 import chevron
 
+from cglue.utils.common import indent, remove_trailing_spaces
+
 
 class MissingArgumentException(Exception):
     pass
@@ -148,32 +150,28 @@ class FunctionImplementation:
         return self._prototype.generate_header()
 
     def get_function(self):
-        body = list(sorted(self._asserts))
-        body += [chunk.replace('\n', '\n    ') for chunk in self._body]
-        if self._return_statement:
-            body.append(f'return {self._return_statement};')
-
-        def remove_trailing_spaces(l):
-            return '\n'.join((line.rstrip(' ') for line in l.split('\n')))
-
         unused_arguments = self.arguments.keys() - self._used_arguments
 
-        for arg in sorted(unused_arguments):
-            body.insert(0, f'(void) {arg};')
+        body = "\n".join([f'(void) {arg};' for arg in sorted(unused_arguments)])
+
+        if self._asserts:
+            body += "\n".join(sorted(self._asserts)) + '\n'
+
+        body += "\n".join(self._body)
+        if self._return_statement:
+            body += f'\nreturn {self._return_statement};'
 
         ctx = {
             'template': "{{# attributes }}__attribute__(({{ . }}))\n{{/ attributes }}"
                         "{{ header }}\n"
                         "{\n"
-                        "{{# body }}\n"
-                        "    {{{ . }}}\n"
-                        "{{/ body }}\n"
+                        "{{{ body }}}\n"
                         "}\n",
 
             'data': {
                 'header': self.get_header(),
                 'attributes': list(self._attributes),
-                'body': [remove_trailing_spaces(line) for line in body]
+                'body': indent(remove_trailing_spaces(body))
             }
         }
         return chevron.render(**ctx)

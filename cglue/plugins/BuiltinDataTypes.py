@@ -240,8 +240,7 @@ class VariableSignal(SignalType):
             member_accessor = ''
 
         if data_type != source_data_type:
-            raise Exception(
-                f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
+            raise Exception(f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
 
         function = runtime.functions[consumer_name]['read']
         argument_names = list(function.arguments.keys())

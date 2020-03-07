@@ -179,20 +179,17 @@ class CGlue:
                 yield type_wrapper.get_attribute('defined_in')
 
     def _sort_types_by_dependency(self, type_names, visited_types=None):
-        def _process_type(type_name):
-            if type_name not in visited_types:
-                visited_types.append(type_name)
+        if visited_types is None:
+            visited_types = set()
 
-                for d in self.types.collect_type_dependencies(type_name):
-                    yield from _process_type(d)
+        for type_name in type_names:
+            if type_name not in visited_types:
+                visited_types.add(type_name)
+
+                dependencies = self.types.collect_type_dependencies(type_name)
+                yield from self._sort_types_by_dependency(dependencies, visited_types)
 
                 yield type_name
-
-        if visited_types is None:
-            visited_types = []
-
-        for t in type_names:
-            yield from _process_type(t)
 
     def update_component(self, component_name):
 

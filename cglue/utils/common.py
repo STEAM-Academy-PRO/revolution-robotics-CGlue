@@ -72,18 +72,34 @@ def process_dict(src, required, optional):
     return {**optional, **src}
 
 
+indent_re = re.compile(r'^([ \t]*\S[^\n]*)$', flags=re.MULTILINE)
+
+
 def indent(text, spaces=4):
     """
-    >>> indent('foobar')
-    '    foobar'
+    >>> indent('')
+    ''
+    >>> indent(' ')
+    ' '
+    >>> indent('foobar', spaces=2)
+    '  foobar'
+    >>> indent(' s')
+    '     s'
+    >>> indent('f o o \\n\\nbar')
+    '    f o o \\n\\n    bar'
     """
     indent_prefix = spaces * ' '
-    return indent_prefix + text.replace('\n', f'\n{indent_prefix}')
+    return indent_re.sub(rf'{indent_prefix}\1', text)
+
+
+trailing_ws_re = re.compile(r'[ \t]+$', flags=re.MULTILINE)
 
 
 def remove_trailing_spaces(text):
     """
     >>> remove_trailing_spaces('foobar   ')
     'foobar'
+    >>> remove_trailing_spaces('foobar  \\n ')
+    'foobar\\n'
     """
-    return '\n'.join((line.rstrip(' ') for line in text.split('\n')))
+    return trailing_ws_re.sub('', text)

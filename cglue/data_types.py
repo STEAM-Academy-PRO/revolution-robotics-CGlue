@@ -170,6 +170,9 @@ class TypeWrapper:
 
         return o == self._type_data
 
+    def __hash__(self) -> int:
+        return id(self)
+
     def __str__(self):
         return f'TypeWrapper({self._type_name}, {self._type_category})'
 

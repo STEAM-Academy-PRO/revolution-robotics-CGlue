@@ -2,6 +2,7 @@ import re
 
 from cglue.function import FunctionImplementation
 from cglue.cglue import Plugin, CGlue
+from cglue.utils.common import indent
 
 
 parse_section = re.compile(
@@ -72,14 +73,10 @@ def fill_sections(source, sections):
     '    /* Begin User Code Section: foobar */\\n    barbaz\\n    /* End User Code Section: foobar */'
     """
     def repl(matches):
-        indent = matches[1]
+        indent_amt = len(matches[1])
         secname = matches[2]
 
-        lines = sections.get(secname, '').split("\n")
-        indented_lines = (indent + line if line != '' else line for line in lines)
-        code_section = "\n".join(indented_lines) + "\n" + indent  # last indent is for the closing comment
-
-        return indent + create_section(secname, code_section)
+        return indent(create_section(secname, sections.get(secname, '') + '\n'), indent_amt)
 
     return fill_section.sub(repl, source)
 

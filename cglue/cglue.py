@@ -184,12 +184,16 @@ class CGlue:
 
         for type_name in type_names:
             if type_name not in visited_types:
-                visited_types.add(type_name)
+                try:
+                    visited_types.add(type_name)
 
-                dependencies = self.types.collect_type_dependencies(type_name)
-                yield from self._sort_types_by_dependency(dependencies, visited_types)
+                    dependencies = self.types.collect_type_dependencies(type_name)
+                    yield from self._sort_types_by_dependency(dependencies, visited_types)
 
-                yield type_name
+                    yield type_name
+                except Exception:
+                    print(f'Failed to process dependencies of {type_name}')
+                    raise
 
     def update_component(self, component_name):
 
@@ -239,7 +243,7 @@ class CGlue:
             defined_type_names += self._components[c]['types'].keys()
 
         sorted_types = self._sort_types_by_dependency(defined_type_names + used_types)
-        sorted_type_objects = [self._types.get(t) for t in sorted_types]
+        sorted_type_objects = list(self._types.get(sorted_types))
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
@@ -309,7 +313,7 @@ class CGlue:
                 includes.update(f.includes)
 
         sorted_types = self._sort_types_by_dependency(type_names)
-        sorted_type_objects = [self._types.get(t) for t in sorted_types]
+        sorted_type_objects = list(self._types.get(sorted_types))
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 

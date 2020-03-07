@@ -8,6 +8,9 @@ class TypeCategory:
         self._attributes = attributes
         self._type_collection = type_collection
 
+    def __str__(self):
+        return f'TypeCategory({self._name})'
+
     def process_type(self, type_data):
         return {
             **self._attributes['static'],
@@ -167,6 +170,9 @@ class TypeWrapper:
 
         return o == self._type_data
 
+    def __str__(self):
+        return f'TypeWrapper({self._type_name}, {self._type_category})'
+
 
 class TypeCollection:
     BUILTIN = 'builtin'
@@ -220,7 +226,10 @@ class TypeCollection:
             # type is not yet known, add it
             self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']])
 
-    def get(self, type_name) -> TypeWrapper:
+    def get(self, type_name):
+        if type(type_name) is not str:
+            return (self._type_data[t] for t in type_name)
+
         return self._type_data[type_name]
 
     def export(self):
@@ -244,6 +253,9 @@ class TypeCollection:
                 yield referenced_type
 
     def normalize_type_name(self, type_name):
+        if type(type_name) is not str:
+            return (self.normalize_type_name(t) for t in type_name)
+
         try:
             self.get(type_name)
         except KeyError:

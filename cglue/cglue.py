@@ -271,13 +271,13 @@ class CGlue:
     def get_port(self, short_name):
         return self._ports[short_name]
 
-    def generate_runtime(self, filename, context=None):
+    def generate_runtime(self, filename):
         source_file_name = filename + '.c'
         header_file_name = filename + '.h'
 
         self._component_collection.check_dependencies()
 
-        context = self._prepare_context(context, header_file_name, source_file_name)
+        context = self._prepare_context(header_file_name, source_file_name)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
         self._functions.update(port_functions)
@@ -346,8 +346,8 @@ class CGlue:
                 self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
                                              provider_signals)
 
-    def _prepare_context(self, context, header_file_name, source_file_name):
-        default_context = {
+    def _prepare_context(self, header_file_name, source_file_name):
+        return {
             'runtime': self,
             'files': {source_file_name: '', header_file_name: ''},
             'functions': {},
@@ -357,13 +357,6 @@ class CGlue:
             'signals': defaultdict(lambda: defaultdict(list)),
             'used_types': []
         }
-
-        if context is None:
-            context = default_context
-        else:
-            context.update({**default_context, **context})
-
-        return context
 
     @staticmethod
     def _create_port_function(context, port):

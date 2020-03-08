@@ -162,23 +162,23 @@ class UnionType(TypeCategory):
 
 
 def lookup_member(types: TypeCollection, data_type, member_list):
-    if not member_list:
-        return data_type
-
-    type_data = types.get(data_type)
-
     keys = {
         TypeCollection.STRUCT: 'fields',
         TypeCollection.UNION: 'members'
     }
 
-    try:
-        member_key = keys[type_data['type']]
-        members = type_data[member_key]
-    except KeyError:
-        raise Exception(f'Trying to access member of non-struct type {data_type}')
+    for member in member_list:
+        type_data = types.get(data_type)
 
-    return lookup_member(types, members[member_list[0]], member_list[1:])
+        try:
+            member_key = keys[type_data['type']]
+            members = type_data[member_key]
+
+            data_type = members[member]
+        except KeyError:
+            raise Exception(f'Trying to access member of non-struct type {data_type}')
+
+    return data_type
 
 
 def create_member_accessor(member):

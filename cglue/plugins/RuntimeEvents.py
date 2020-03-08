@@ -344,7 +344,10 @@ def sort_functions(owner: CGlue, context):
             if type(context) is dict:
                 port = owner.get_port(fn)
             else:
-                port = context.get_port(fn)
+                try:
+                    port = context.get_port(fn)
+                except KeyError:
+                    port = owner.get_port(fn)
             weight = port.port_type.config.get('order', 3)
 
         return weight

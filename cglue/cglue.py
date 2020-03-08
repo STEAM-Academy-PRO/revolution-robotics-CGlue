@@ -107,9 +107,12 @@ class RuntimeGeneratorContext:
         self._context[key] = value
 
     def get_port(self, short_name):
+        return self._owner.get_port(self.get_component_ref(short_name))
+
+    def get_component_ref(self, short_name):
         component, private_name = short_name.split('/', 2)
         component_name = self._context['component_instances'][component].component_name
-        return self._owner.get_port(f'{component_name}/{private_name}')
+        return f'{component_name}/{private_name}'
 
 
 class CGlue:
@@ -385,8 +388,8 @@ class CGlue:
             provider_attributes, provider_port, provider_signals = self._process_provider_port(context, connection)
 
             for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
-                                             provider_signals)
+                self._process_consumer_ports(context, consumer_ref, provider_attributes,
+                                             connection['provider']['short_name'], provider_signals)
 
     def _prepare_context(self, header_file_name, source_file_name):
         return RuntimeGeneratorContext(self, {
@@ -415,6 +418,7 @@ class CGlue:
         provider_attributes = {key: value for key, value in connection.items()
                                if key not in ['provider', 'consumer', 'consumers']}
 
+        # create a dict to store providers signals
         provider_signals = context['signals'][provider_short_name]
         return provider_attributes, provider_port, provider_signals
 
@@ -424,9 +428,10 @@ class CGlue:
                 for connection in connections:
                     connection.generate()
 
-    def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_port, provider_signals):
+    def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_short_name, provider_signals):
         consumer_short_name = consumer_ref['short_name']
         consumer_port = context.get_port(consumer_short_name)
+        provider_port = context.get_port(provider_short_name)
 
         # infer signal type
         consumed_signal_types = consumer_port.port_type['consumes']
@@ -439,10 +444,10 @@ class CGlue:
 
         def create_new_signal(new_signal_name):
             signals_of_current_type.append(
-                signal_type.create_connection(context, new_signal_name, provider_port.full_name, provider_attributes))
+                signal_type.create_connection(context, new_signal_name, provider_short_name, provider_attrs))
 
         # create signal connection
-        signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
+        signal_name = f'{provider_short_name}_{signal_type_name}'.replace('/', '_')
 
         if not signals_of_current_type:
             create_new_signal(signal_name)
@@ -455,7 +460,8 @@ class CGlue:
                                 f' signal (provided by {provider_port.full_name})')
 
         consumer_attributes = consumer_ref.get('attributes', {})
-        signals_of_current_type[-1].add_consumer(consumer_port.full_name, consumer_attributes)
+        signals_of_current_type[-1].add_consumer(consumer_short_name, consumer_attributes)
+
     def _infer_singal_type(self, provider_port, consumer_port, consumed_signal_types):
         inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
 

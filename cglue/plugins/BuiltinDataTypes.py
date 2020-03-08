@@ -191,7 +191,7 @@ class VariableSignal(SignalType):
 
     def create(self, context, connection: SignalConnection):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(connection.provider)
+        provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         data_type = runtime.types.get(data_type_name)
         init_value = connection.attributes.get('init_value', data_type.default_value())
@@ -200,12 +200,13 @@ class VariableSignal(SignalType):
             f'static {data_type_name} {connection.name} = {rendered_init_value};'
         )
 
-    def generate_provider(self, context, connection: SignalConnection, provider_name):
+    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(provider_name)
+        provider_port_data = context.get_port(provider_instance_name)
+        provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = provider_port_data['data_type']
 
-        function = runtime.functions[provider_name]['write']
+        function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
@@ -214,7 +215,7 @@ class VariableSignal(SignalType):
             assignment = f'{connection.name} = *{argument_names[0]};'
 
         return {
-            provider_name: {
+            provider_port_name: {
                 'write': {
                     'used_arguments': argument_names,
                     'body':           assignment
@@ -222,12 +223,13 @@ class VariableSignal(SignalType):
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         runtime = context['runtime']
-        provider_port_data = runtime.get_port(connection.provider)
+        provider_port_data = context.get_port(connection.provider)
         source_data_type = provider_port_data['data_type']
 
-        consumer_port_data = runtime.get_port(consumer_name)
+        consumer_port_data = context.get_port(consumer_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
         data_type = consumer_port_data['data_type']
 
         if 'member' in attributes:
@@ -240,20 +242,20 @@ class VariableSignal(SignalType):
         if data_type != source_data_type:
             raise Exception(f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
 
-        function = runtime.functions[consumer_name]['read']
+        function = runtime.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
         mods = {
-            consumer_name: {'read': {}}
+            consumer_port_name: {'read': {}}
         }
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             return_value = f'{data_type} return_value = {connection.name}{member_accessor};'
-            mods[consumer_name]['read']['body'] = return_value
-            mods[consumer_name]['read']['return_statement'] = 'return_value'
+            mods[consumer_port_name]['read']['body'] = return_value
+            mods[consumer_port_name]['read']['return_statement'] = 'return_value'
         else:
             out_name = argument_names[0]
             out_assignment = f'*{out_name} = {connection.name}{member_accessor};'
-            mods[consumer_name]['read']['used_arguments'] = [out_name]
-            mods[consumer_name]['read']['body'] = out_assignment
+            mods[consumer_port_name]['read']['used_arguments'] = [out_name]
+            mods[consumer_port_name]['read']['body'] = out_assignment
 
         return mods
 
@@ -1132,7 +1134,10 @@ def sort_functions(owner: CGlue, context):
         if type(context) is dict:
             port = owner.get_port(fn)
         else:
-            port = context.get_port(fn)
+            try:
+                port = context.get_port(fn)
+            except KeyError:
+                port = owner.get_port(fn)
         if port['port_type'] in known_port_types:
             return fn
         else:
@@ -1142,7 +1147,10 @@ def sort_functions(owner: CGlue, context):
         if type(context) is dict:
             port = owner.get_port(fn)
         else:
-            port = context.get_port(fn)
+            try:
+                port = context.get_port(fn)
+            except KeyError:
+                port = owner.get_port(fn)
         return port.port_type.config.get('order', 0)
 
     by_name = sorted(context['functions'], key=sort_by_name)

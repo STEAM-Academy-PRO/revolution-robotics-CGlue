@@ -185,21 +185,18 @@ def create_member_accessor(member):
     return '.' + member
 
 
-def process_member_access(runtime, attributes, provider_port, consumer_port):
-    source_data_type = provider_port['data_type']
-    data_type = consumer_port['data_type']
-
+def process_member_access(types: TypeCollection, attributes, provided_data_type, consumed_data_type):
     if 'member' in attributes:
         member_list = attributes['member'].split('.')
-        source_data_type = lookup_member(runtime.types, source_data_type, member_list)
+        provided_data_type = lookup_member(types, provided_data_type, member_list)
         member_accessor = create_member_accessor(attributes['member'])
     else:
         member_accessor = ''
 
-    if data_type != source_data_type:
+    if consumed_data_type != provided_data_type:
         raise Exception('Port data types don\'t match')
 
-    return member_accessor, runtime.types.get(data_type)
+    return member_accessor, types.get(consumed_data_type)
 
 
 def _add_instance_check(assignment, provider_instance):
@@ -214,10 +211,9 @@ class VariableSignal(SignalType):
         super().__init__(consumers='multiple')
 
     def create(self, context, connection: SignalConnection):
-        runtime = context['runtime']
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
-        data_type = runtime.types.get(data_type_name)
+        data_type = context.types.get(data_type_name)
         init_value = connection.attributes.get('init_value', data_type.default_value())
         rendered_init_value = data_type.render_value(init_value, 'initialization')
         context['declarations'].append(
@@ -225,11 +221,10 @@ class VariableSignal(SignalType):
         )
 
     def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
-        runtime = context['runtime']
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
-        data_type = runtime.types.get(provider_port_data['data_type'])
-        function = runtime.functions[provider_port_name]['write']
+        data_type = context.types.get(provider_port_data['data_type'])
+        function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
@@ -260,30 +255,30 @@ class VariableSignal(SignalType):
         }
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
-        runtime = context['runtime']
-
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
 
-        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
+        member_accessor, data_type = process_member_access(context.types, attributes,
+                                                           provider_port_data['data_type'],
+                                                           consumer_port_data['data_type'])
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_instance_name]
 
-        function = runtime.functions[consumer_port_name]['read']
+        function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
         if consumer_instance.component.config['multiple_instances']:
             argument_names.pop(0)
 
-        mods = {}
         used_args = []
+        return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}{member_accessor};'
 
             if consumer_instance.component.config['multiple_instances']:
-                mods['return_statement'] = data_type.render_value(None)
+                return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
@@ -293,8 +288,12 @@ class VariableSignal(SignalType):
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
-        mods['body'] = read
-        mods['used_arguments'] = used_args
+        mods = {
+            'body': read,
+            'used_arguments': used_args
+        }
+        if return_statement:
+            mods['return_statement'] = return_statement
 
         return {
             consumer_port_name: {
@@ -308,7 +307,6 @@ class ArraySignal(SignalType):
         super().__init__(consumers='multiple')
 
     def create(self, context, connection: SignalConnection):
-        runtime = context['runtime']
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         count = provider_port_data['count']
@@ -318,7 +316,7 @@ class ArraySignal(SignalType):
             init_values = connection.attributes['init_values']
         except KeyError:
             # ... or a single one is
-            data_type = runtime.types.get(data_type_name)
+            data_type = context.types.get(data_type_name)
             default_value = data_type.default_value()
             init_value = connection.attributes.get('init_value', default_value)
             init_values = [data_type.render_value(init_value, 'initialization')] * count
@@ -333,12 +331,11 @@ class ArraySignal(SignalType):
         context['declarations'].append(f'static {data_type_name} {connection.name}[{count}] = {{ {init_values} }};')
 
     def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
-        runtime = context['runtime']
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
-        data_type = runtime.types.get(provider_port_data['data_type'])
+        data_type = context.types.get(provider_port_data['data_type'])
 
-        function = runtime.functions[provider_port_name]['write']
+        function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
@@ -369,26 +366,25 @@ class ArraySignal(SignalType):
         }
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
-        runtime = context['runtime']
-
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
 
-        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
+        member_accessor, data_type = process_member_access(context.types, attributes,
+                                                           provider_port_data['data_type'],
+                                                           consumer_port_data['data_type'])
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_instance_name]
 
-        function = runtime.functions[consumer_port_name]['read']
+        function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
         if consumer_instance.component.config['multiple_instances']:
             argument_names.pop(0)
 
-        mods = {}
         used_args = []
-
+        return_statement = None
         if 'count' not in consumer_port_data:
             # single read, index should be next to consumer name
             try:
@@ -407,7 +403,7 @@ class ArraySignal(SignalType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
             if consumer_instance.component.config['multiple_instances']:
-                mods['return_statement'] = data_type.render_value(None)
+                return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             used_args.append(out_name)
@@ -418,8 +414,12 @@ class ArraySignal(SignalType):
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
-        mods['body'] = read
-        mods['used_arguments'] = used_args
+        mods = {
+            'body': read,
+            'used_arguments': used_args
+        }
+        if return_statement:
+            mods['return_statement'] = return_statement
 
         return {
             consumer_port_name: {
@@ -445,8 +445,7 @@ class QueueSignal(SignalType):
                 "static size_t {{ signal_name}}_write_index = 0u;\n" \
                 "static bool {{ signal_name }}_overflow = false;"
 
-        runtime = context['runtime']
-        provider_port_data = runtime.get_port(connection.provider)
+        provider_port_data = context.get_port(connection.provider)
         data_type = provider_port_data['data_type']
 
         data = {
@@ -457,9 +456,8 @@ class QueueSignal(SignalType):
         context['declarations'].append(chevron.render(template, data))
 
     def generate_provider(self, context, connection: SignalConnection, provider_name):
-        runtime = context['runtime']
-        provider_port_data = runtime.get_port(provider_name)
-        data_type = runtime.types.get(provider_port_data['data_type'])
+        provider_port_data = context.get_port(provider_name)
+        data_type = context.types.get(provider_port_data['data_type'])
 
         if connection.attributes['queue_length'] == 1:
             template = \
@@ -482,7 +480,7 @@ class QueueSignal(SignalType):
                 "    {{ signal_name }}[idx] = {{ value }};\n" \
                 "}"
 
-        function = runtime.functions[provider_name]['write']
+        function = context.functions[provider_name]['write']
         argument_names = list(function.arguments.keys())
         passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
         value_arg = argument_names[0]
@@ -500,12 +498,12 @@ class QueueSignal(SignalType):
         }
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+        provider_port_data = context.get_port(connection.provider)
+        consumer_port_data = context.get_port(consumer_name)
 
-        provider_port_data = runtime.get_port(connection.provider)
-        consumer_port_data = runtime.get_port(consumer_name)
-
-        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
+        member_accessor, data_type = process_member_access(context.types, attributes,
+                                                           provider_port_data['data_type'],
+                                                           consumer_port_data['data_type'])
 
         if connection.attributes['queue_length'] == 1:
             template = \
@@ -545,7 +543,7 @@ class QueueSignal(SignalType):
                 "    }\n" \
                 "}"
 
-        function = runtime.functions[consumer_name]['read']
+        function = context.functions[consumer_name]['read']
         argument_names = list(function.arguments.keys())
         passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
         value_arg = argument_names[0]
@@ -578,21 +576,19 @@ class ConstantSignal(SignalType):
         return {}
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+        provider_port_data = context.get_port(connection.provider)
+        consumer_port_data = context.get_port(consumer_name)
 
-        provider_port_data = runtime.get_port(connection.provider)
-        consumer_port_data = runtime.get_port(consumer_name)
-
-        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
+        member_accessor, data_type = process_member_access(context.types, attributes,
+                                                           provider_port_data['data_type'],
+                                                           consumer_port_data['data_type'])
 
         function = context['functions'][consumer_name]['read']
         argument_names = list(function.arguments.keys())
 
-        constant_provider = runtime.get_port(connection.provider).functions['constant']
+        constant_provider = provider_port_data.functions['constant']
 
-        mods = {}
         used_args = []
-
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             call = constant_provider.generate_call({})
             body = f'return {call}{member_accessor};'
@@ -600,14 +596,16 @@ class ConstantSignal(SignalType):
             out_arg_name = argument_names[0]
             used_args.append(out_arg_name)
             if member_accessor:
-                body = f"{provider_port_data['data_type']} tmp;\n" \
+                body = f"{data_type.name} tmp;\n" \
                        f"{constant_provider.generate_call({'value': '&tmp'})};\n" \
                        f"{out_arg_name} = tmp{member_accessor};"
             else:
                 body = constant_provider.generate_call({"value": out_arg_name}) + ';'
 
-        mods['used_arguments'] = used_args
-        mods['body'] = body
+        mods = {
+            'used_arguments': used_args,
+            'body': body
+        }
 
         return {
             consumer_name: {
@@ -627,21 +625,19 @@ class ConstantArraySignal(SignalType):
         return {}
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+        provider_port_data = context.get_port(connection.provider)
+        consumer_port_data = context.get_port(consumer_name)
 
-        provider_port_data = runtime.get_port(connection.provider)
-        consumer_port_data = runtime.get_port(consumer_name)
-
-        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
+        member_accessor, data_type = process_member_access(context.types, attributes,
+                                                           provider_port_data['data_type'],
+                                                           consumer_port_data['data_type'])
 
         function = context['functions'][consumer_name]['read']
         argument_names = list(function.arguments.keys())
 
-        constant_provider = runtime.get_port(connection.provider).functions['constant']
+        constant_provider = provider_port_data.functions['constant']
 
-        mods = {}
         used_args = []
-
         if 'count' not in consumer_port_data:
             # single read, index should be next to consumer name
             index = attributes['index']
@@ -662,14 +658,16 @@ class ConstantArraySignal(SignalType):
 
             if member_accessor:
                 call = constant_provider.generate_call({'index': index, 'value': '&tmp'})
-                body = f'{provider_port_data["data_type"]} tmp;\n' \
+                body = f'{data_type.name} tmp;\n' \
                        f'{call};\n' \
                        f'{out_name} = tmp{member_accessor};'
             else:
                 body = constant_provider.function_call({"index": index, "value": out_name}) + ';'
 
-        mods['body'] = body
-        mods['used_arguments'] = used_args
+        mods = {
+            'body': body,
+            'used_arguments': used_args
+        }
 
         return {
             consumer_name: {

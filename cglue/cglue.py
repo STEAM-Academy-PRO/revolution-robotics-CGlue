@@ -106,6 +106,14 @@ class RuntimeGeneratorContext:
     def __setitem__(self, key, value):
         self._context[key] = value
 
+    @property
+    def types(self):
+        return self._owner.types
+
+    @property
+    def functions(self):
+        return self._owner.functions
+
     def get_port(self, short_name):
         return self._owner.get_port(self.get_component_ref(short_name))
 

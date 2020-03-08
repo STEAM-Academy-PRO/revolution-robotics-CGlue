@@ -149,10 +149,8 @@ class UnionType(TypeCategory):
             raise Exception('Only a single union member can be assigned')
 
         members = {name: self._type_collection.get(member_type) for name, member_type in type_data['members'].items()}
-        values = [f'.{name} = {members[name].render_value(value, "initialization")}'
-                  for name, value in value.items()]
-
-        values_str = ', '.join(values)
+        values_str = ', '.join(f'.{name} = {members[name].render_value(value, "initialization")}'
+                               for name, value in value.items())
         if context == 'initialization':
             return f'{{ {values_str} }}'
         else:

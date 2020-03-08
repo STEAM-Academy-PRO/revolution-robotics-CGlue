@@ -27,7 +27,7 @@ class ArgumentList(dict):
 
     def assemble(self, args: dict):
         try:
-            return ", ".join((str(args[name]) for name in self))
+            return ", ".join(str(args[name]) for name in self)
         except KeyError as e:
             required_args = set(self.keys())
             missing_args = required_args - args.keys()
@@ -57,8 +57,7 @@ class ArgumentList(dict):
 
             return pattern.format(data['data_type'].name, name)
 
-        args = [generate_parameter(name, data) for name, data in self.items()]
-        return "void" if not args else ", ".join(args)
+        return "void" if not self else ", ".join(generate_parameter(name, data) for name, data in self.items())
 
 
 class FunctionPrototype:
@@ -152,7 +151,7 @@ class FunctionImplementation:
     def get_function(self):
         unused_arguments = self.arguments.keys() - self._used_arguments
 
-        body = "\n".join([f'(void) {arg};' for arg in sorted(unused_arguments)])
+        body = "\n".join(f'(void) {arg};' for arg in sorted(unused_arguments))
 
         if self._asserts:
             body += "\n".join(sorted(self._asserts)) + '\n'

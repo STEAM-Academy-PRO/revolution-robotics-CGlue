@@ -227,7 +227,7 @@ def create_port_ref(port):
         return {
             'short_name': port['short_name'],
             'component':  port['component'],
-            'port':       port.get('runnable', port.get('port'))
+            'port':       port.get('runnable') or port.get('port')
         }
     else:
         raise TypeError("port must either be a dict or a str")
@@ -250,18 +250,24 @@ def expand_runtime_events(owner: CGlue, project_config):
     runtime_config['port_connections'] += event_connections
 
 
+known_port_types = {
+    'Runnable': RunnablePortType,
+    'Event': EventPortType,
+    'ServerCall': ServerCallPortType,
+}
+
+
 def init(owner: CGlue):
     add_event_to = ['WriteData', 'WriteIndexedData']
-    for port_type, known_port_type in owner.port_types.items():
+    for port_type, port_type_data in owner.port_types.items():
         if port_type in add_event_to:
-            known_port_type['provides'].add('event')
+            port_type_data['provides'].add('event')
 
     owner.add_signal_type('event', EventSignal())
     owner.add_signal_type('call', ServerCallSignal())
 
-    owner.add_port_type('Runnable', RunnablePortType(owner.types))
-    owner.add_port_type('Event', EventPortType(owner.types))
-    owner.add_port_type('ServerCall', ServerCallPortType(owner.types))
+    for port_type_name, port_type_class in known_port_types.items():
+        owner.add_port_type(port_type_name, port_type_class(owner.types))
 
 
 def create_runnable_ports(owner: CGlue, component: Component):

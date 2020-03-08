@@ -7,7 +7,7 @@ from typing import Iterable
 import chevron
 
 from cglue.component import Component, ComponentCollection
-from cglue.utils.common import to_underscore, list_to_chevron_list
+from cglue.utils.common import to_underscore
 from cglue.signal import SignalType
 from cglue.data_types import TypeCollection, TypeWrapper
 
@@ -15,7 +15,7 @@ runtime_header_template = """#ifndef GENERATED_RUNTIME_H_
 #define GENERATED_RUNTIME_H_
 
 {{# type_includes }}
-#include {{{ header }}}
+#include {{{ . }}}
 {{/ type_includes }}
 
 {{# types }}
@@ -44,7 +44,7 @@ component_header_template = '''#ifndef COMPONENT_{{ guard_def }}_H_
 #define COMPONENT_TYPES_{{ guard_def }}_H_
 
 {{# type_includes }}
-#include {{{ header }}}
+#include {{{ . }}}
 {{/ type_includes }}
 
 {{# types }}
@@ -61,7 +61,7 @@ component_header_template = '''#ifndef COMPONENT_{{ guard_def }}_H_
 '''
 
 source_template = '''{{# includes }}
-#include {{{ header }}}
+#include {{{ . }}}
 {{/ includes }}
 
 {{# variables }}
@@ -100,7 +100,6 @@ class CGlue:
         self._project_config_file = project_config_file
         self._basedir = os.path.dirname(project_config_file) or '.'
         self._plugins = {}
-        self._defined_types = {}
         self._project_config = {}
         self._components = {}
         self._component_collection = ComponentCollection()
@@ -148,9 +147,11 @@ class CGlue:
     def add_port_type(self, port_type_name, port_type):
         self._port_types[port_type_name] = port_type
 
+    def _component_dir(self, component_name):
+        return f'{self._basedir}/{self.settings["components_folder"]}/{component_name}'
+
     def _load_component_config(self, component_name):
-        component_config_file = '/'.join((self._basedir, self.settings['components_folder'],
-                                          component_name, 'config.json'))
+        component_config_file = f'{self._component_dir(component_name)}/config.json'
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
         self.add_component(Component(component_name, component_config))
@@ -199,10 +200,10 @@ class CGlue:
 
         self._component_collection.check_dependencies()
 
-        component_folder = '/'.join((self._basedir, self.settings['components_folder'], component_name))
-        source_file = '/'.join((component_folder, component_name + '.c'))
-        header_file = '/'.join((component_folder, component_name + '.h'))
-        config_file = '/'.join((component_folder, 'config.json'))
+        component_folder = self._component_dir(component_name)
+        source_file = f'{component_folder}/{component_name}.c'
+        header_file = f'{component_folder}/{component_name}.h'
+        config_file = f'{component_folder}/config.json'
 
         context = {
             'runtime': self,
@@ -247,12 +248,12 @@ class CGlue:
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
         ctx = {
-            'includes': list_to_chevron_list(sorted(includes), 'header'),
+            'includes': sorted(includes),
             'component_name': component_name,
             'guard_def': to_underscore(component_name).upper(),
             'variables': context['declarations'],
             'types': typedefs,
-            'type_includes': list_to_chevron_list(sorted(type_includes), 'header'),
+            'type_includes': sorted(type_includes),
             'functions': function_implementations,
             'function_headers': function_headers
         }
@@ -297,7 +298,7 @@ class CGlue:
         for c in self._components.values():
             type_names += c['types'].keys()
 
-        output_filename = filename[filename.rfind('/') + 1:]
+        output_filename = os.path.basename(filename)
         includes = context['runtime_includes']
         includes.add(f'"{output_filename}.h"')
 
@@ -316,16 +317,15 @@ class CGlue:
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
         template_data = {
-            'output_filename': output_filename,
             'components_dir': self.settings['components_folder'],
-            'includes': list_to_chevron_list(sorted(includes), 'header'),
+            'includes': sorted(includes),
             'components': [
                 {
                     'name': name,
                     'guard_def': to_underscore(name).upper()
                 } for name in self._components if name != 'Runtime'],  # TODO
             'types': typedefs,
-            'type_includes': list_to_chevron_list(sorted(type_includes), 'header'),
+            'type_includes': sorted(type_includes),
             'function_declarations': function_headers,
             'functions':             function_implementations,
             'variables':             context['declarations']

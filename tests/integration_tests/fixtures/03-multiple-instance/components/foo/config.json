@@ -23,9 +23,28 @@
                 "arg1": "uint32_t"
             }
         },
+        "RunnableWithReturnValue": {
+            "return_type": "uint32_t",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
         "FuncPtr": "FuncPtr_t"
     },
     "ports": {
+        "EventPort": {
+            "port_type": "Event",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
+        "CallPort": {
+            "port_type": "ServerCall",
+            "return_type": "uint32_t",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
         "RPort": {
             "port_type": "ReadValue",
             "data_type": "uint32_t"

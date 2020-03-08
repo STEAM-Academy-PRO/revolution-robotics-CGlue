@@ -43,6 +43,22 @@
         },
         "port_connections": [
             {
+                "provider": "foo1/EventPort",
+                "consumer": "foo2/Runnable"
+            },
+            {
+                "provider": "foo2/EventPort",
+                "consumer": "foo1/Runnable"
+            },
+            {
+                "provider": "foo2/RunnableWithReturnValue",
+                "consumer": "foo1/CallPort"
+            },
+            {
+                "provider": "foo1/RunnableWithReturnValue",
+                "consumer": "foo2/CallPort"
+            },
+            {
                 "provider": "foo1/WPort",
                 "consumer": "foo2/RPort"
             },

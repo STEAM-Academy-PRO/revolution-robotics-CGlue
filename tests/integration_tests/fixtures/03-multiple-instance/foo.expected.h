@@ -21,9 +21,12 @@ typedef enum {
 #endif /* COMPONENT_TYPES_FOO_H_ */
 
 void foo_Run_Runnable(foo_Instance_t* instance, uint32_t arg1);
+uint32_t foo_Run_RunnableWithReturnValue(foo_Instance_t* instance, uint32_t arg1);
 void foo_Run_FuncPtr(foo_Instance_t* instance);
+void foo_RaiseEvent_EventPort(foo_Instance_t* instance, uint32_t arg1);
 uint32_t foo_Constant_CAPort(foo_Instance_t* instance, uint32_t index);
 uint32_t foo_Constant_CPort(foo_Instance_t* instance);
+uint32_t foo_Call_CallPort(foo_Instance_t* instance, uint32_t arg1);
 void foo_Write_WIPort(foo_Instance_t* instance, uint32_t index, uint32_t value);
 void foo_Write_WPort(foo_Instance_t* instance, uint32_t value);
 uint32_t foo_Read_RCAPort(foo_Instance_t* instance, uint32_t index);

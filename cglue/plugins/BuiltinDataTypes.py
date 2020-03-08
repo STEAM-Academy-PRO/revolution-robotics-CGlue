@@ -464,7 +464,7 @@ class QueueSignal(SignalType):
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         runtime = context['runtime']
         provider_port_data = runtime.get_port(provider_name)
-        data_type = provider_port_data['data_type']
+        data_type = runtime.types.get(provider_port_data['data_type'])
 
         if connection.attributes['queue_length'] == 1:
             template = \
@@ -489,15 +489,16 @@ class QueueSignal(SignalType):
 
         function = runtime.functions[provider_name]['write']
         argument_names = list(function.arguments.keys())
-        passed_by_value = runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE
+        passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
+        value_arg = argument_names[0]
         return {
             connection.provider: {
                 'write': {
-                    'used_arguments': [argument_names[0]],
+                    'used_arguments': [value_arg],
                     'body':           chevron.render(template, {
                         'queue_length': connection.attributes['queue_length'],
                         'signal_name':  connection.name,
-                        'value':        argument_names[0] if passed_by_value else '*' + argument_names[0]
+                        'value':        value_arg if passed_by_value else '*' + value_arg
                     })
                 }
             }
@@ -506,7 +507,9 @@ class QueueSignal(SignalType):
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
         runtime = context['runtime']
         provider_port_data = runtime.get_port(connection.provider)
+        consumer_port_data = runtime.get_port(consumer_name)
         source_data_type = provider_port_data['data_type']
+        consumed_data_type = consumer_port_data['data_type']
 
         if 'member' in attributes:
             member_list = attributes['member'].split('.')
@@ -514,6 +517,10 @@ class QueueSignal(SignalType):
             member_accessor = create_member_accessor(attributes['member'])
         else:
             member_accessor = ''
+
+        data_type = runtime.types.get(source_data_type)
+        if consumed_data_type != source_data_type:
+            raise Exception('Port data types don\'t match')
 
         if connection.attributes['queue_length'] == 1:
             template = \
@@ -555,18 +562,19 @@ class QueueSignal(SignalType):
 
         function = runtime.functions[consumer_name]['read']
         argument_names = list(function.arguments.keys())
-        passed_by_value = runtime.types.get(source_data_type).passed_by() == TypeCollection.PASS_BY_VALUE
+        passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
+        value_arg = argument_names[0]
         data = {
             'queue_length':    connection.attributes['queue_length'],
             'signal_name':     connection.name,
-            'out_name':        argument_names[0] if passed_by_value else '*' + argument_names[0],
+            'out_name':        value_arg if passed_by_value else '*' + value_arg,
             'member_accessor': member_accessor
         }
 
         return {
             consumer_name: {
                 'read': {
-                    'used_arguments':   [argument_names[0]],
+                    'used_arguments':   [value_arg],
                     'body':             chevron.render(template, data),
                     'return_statement': 'return_value'
                 }

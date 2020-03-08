@@ -353,8 +353,8 @@ class CGlue:
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
-        instance_variables = [f'static {instance.component.instance_type} {instance.component.name}_instance_{name};'
-                              for name, instance in context['component_instances'].items()
+        instance_variables = [f'static {instance.component.instance_type} {instance.instance_var_name};'
+                              for instance in context['component_instances'].values()
                               if instance.component.config['multiple_instances']]
 
         template_data = {

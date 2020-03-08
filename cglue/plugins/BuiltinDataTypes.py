@@ -214,10 +214,10 @@ class VariableSignal(SignalType):
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         data_type = context.types.get(data_type_name)
-        init_value = connection.attributes.get('init_value', data_type.default_value())
+        init_value = connection.attributes.get('init_value')
         rendered_init_value = data_type.render_value(init_value, 'initialization')
         context['declarations'].append(
-            f'static {data_type_name} {connection.name} = {rendered_init_value};'
+            f'static {data_type.name} {connection.name} = {rendered_init_value};'
         )
 
     def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
@@ -230,7 +230,8 @@ class VariableSignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        if provider_instance.component.config['multiple_instances']:
+        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        if is_multiple_instances:
             argument_names.pop(0)
 
         data_arg_name = argument_names[0]
@@ -241,7 +242,7 @@ class VariableSignal(SignalType):
         else:
             assignment = f'{connection.name} = *{data_arg_name};'
 
-        if provider_instance.component.config['multiple_instances']:
+        if is_multiple_instances:
             used_args.append('instance')
             assignment = _add_instance_check(assignment, provider_instance)
 
@@ -269,7 +270,8 @@ class VariableSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        if consumer_instance.component.config['multiple_instances']:
+        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        if is_multiple_instances:
             argument_names.pop(0)
 
         used_args = []
@@ -277,14 +279,14 @@ class VariableSignal(SignalType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}{member_accessor};'
 
-            if consumer_instance.component.config['multiple_instances']:
+            if is_multiple_instances:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
             used_args.append(out_name)
 
-        if consumer_instance.component.config['multiple_instances']:
+        if is_multiple_instances:
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
@@ -309,6 +311,7 @@ class ArraySignal(SignalType):
     def create(self, context, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
+        data_type = context.types.get(data_type_name)
         count = provider_port_data['count']
 
         try:
@@ -316,9 +319,7 @@ class ArraySignal(SignalType):
             init_values = connection.attributes['init_values']
         except KeyError:
             # ... or a single one is
-            data_type = context.types.get(data_type_name)
-            default_value = data_type.default_value()
-            init_value = connection.attributes.get('init_value', default_value)
+            init_value = connection.attributes.get('init_value')
             init_values = [data_type.render_value(init_value, 'initialization')] * count
 
         if type(init_values) is list:
@@ -328,7 +329,7 @@ class ArraySignal(SignalType):
 
             init_values = ', '.join(init_values)
 
-        context['declarations'].append(f'static {data_type_name} {connection.name}[{count}] = {{ {init_values} }};')
+        context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{ {init_values} }};')
 
     def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)
@@ -341,7 +342,8 @@ class ArraySignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        if provider_instance.component.config['multiple_instances']:
+        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        if is_multiple_instances:
             argument_names.pop(0)
 
         index, value = argument_names
@@ -352,7 +354,7 @@ class ArraySignal(SignalType):
         else:
             body = f'{connection.name}[{index}] = *{value};'
 
-        if provider_instance.component.config['multiple_instances']:
+        if is_multiple_instances:
             used_args.append('instance')
             body = _add_instance_check(body, provider_instance)
 
@@ -380,7 +382,8 @@ class ArraySignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        if consumer_instance.component.config['multiple_instances']:
+        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        if is_multiple_instances:
             argument_names.pop(0)
 
         used_args = []
@@ -402,7 +405,7 @@ class ArraySignal(SignalType):
 
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
-            if consumer_instance.component.config['multiple_instances']:
+            if is_multiple_instances:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
@@ -410,7 +413,7 @@ class ArraySignal(SignalType):
 
             read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 
-        if consumer_instance.component.config['multiple_instances']:
+        if is_multiple_instances:
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
@@ -446,10 +449,11 @@ class QueueSignal(SignalType):
                 "static bool {{ signal_name }}_overflow = false;"
 
         provider_port_data = context.get_port(connection.provider)
-        data_type = provider_port_data['data_type']
+        data_type_name = provider_port_data['data_type']
+        data_type = context.types.get(data_type_name)
 
         data = {
-            'data_type':    data_type,
+            'data_type':    data_type.name,
             'signal_name':  connection.name,
             'queue_length': connection.attributes['queue_length']
         }

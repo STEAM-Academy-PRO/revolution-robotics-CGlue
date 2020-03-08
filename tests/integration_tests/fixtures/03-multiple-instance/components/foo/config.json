@@ -51,6 +51,26 @@
             "port_type": "WriteIndexedData",
             "data_type": "uint32_t",
             "count": 3
+        },
+        "CPort": {
+            "port_type": "Constant",
+            "data_type": "uint32_t",
+            "value": 42
+        },
+        "CAPort": {
+            "port_type": "ConstantArray",
+            "data_type": "uint32_t",
+            "value": [1, 2, 3],
+            "count": 3
+        },
+        "RCPort": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "RCAPort": {
+            "port_type": "ReadIndexedValue",
+            "data_type": "uint32_t",
+            "count": 3
         }
     }
 }

@@ -47,6 +47,22 @@
                 "consumer": "foo2/RPort"
             },
             {
+                "provider": "foo1/CPort",
+                "consumer": "foo2/RCPort"
+            },
+            {
+                "provider": "foo2/CPort",
+                "consumer": "foo1/RCPort"
+            },
+            {
+                "provider": "foo1/CAPort",
+                "consumer": "foo2/RCAPort"
+            },
+            {
+                "provider": "foo2/CAPort",
+                "consumer": "foo1/RCAPort"
+            },
+            {
                 "provider": "foo1/WPort",
                 "consumer": "foo1/RQPort",
                 "queue_length": 2

@@ -22,8 +22,12 @@ typedef enum {
 
 void foo_Run_Runnable(foo_Instance_t* instance, uint32_t arg1);
 void foo_Run_FuncPtr(foo_Instance_t* instance);
+uint32_t foo_Constant_CAPort(foo_Instance_t* instance, uint32_t index);
+uint32_t foo_Constant_CPort(foo_Instance_t* instance);
 void foo_Write_WIPort(foo_Instance_t* instance, uint32_t index, uint32_t value);
 void foo_Write_WPort(foo_Instance_t* instance, uint32_t value);
+uint32_t foo_Read_RCAPort(foo_Instance_t* instance, uint32_t index);
+uint32_t foo_Read_RCPort(foo_Instance_t* instance);
 uint32_t foo_Read_RIPort(foo_Instance_t* instance, uint32_t index);
 uint32_t foo_Read_RPort(foo_Instance_t* instance);
 uint32_t foo_Read_RPortFromI(foo_Instance_t* instance);

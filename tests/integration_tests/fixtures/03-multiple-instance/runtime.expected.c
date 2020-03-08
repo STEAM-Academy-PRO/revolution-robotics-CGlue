@@ -67,6 +67,33 @@ void foo_Write_WPort(foo_Instance_t* instance, uint32_t value)
     }
 }
 
+uint32_t foo_Read_RCAPort(foo_Instance_t* instance, uint32_t index)
+{
+    ASSERT(index < 3);
+    if (instance == &foo_instance_foo2)
+    {
+        return foo_Constant_CAPort(instance, index);
+    }
+    if (instance == &foo_instance_foo1)
+    {
+        return foo_Constant_CAPort(instance, index);
+    }
+    return 0u;
+}
+
+uint32_t foo_Read_RCPort(foo_Instance_t* instance)
+{
+    if (instance == &foo_instance_foo2)
+    {
+        return foo_Constant_CPort(instance);
+    }
+    if (instance == &foo_instance_foo1)
+    {
+        return foo_Constant_CPort(instance);
+    }
+    return 0u;
+}
+
 uint32_t foo_Read_RIPort(foo_Instance_t* instance, uint32_t index)
 {
     ASSERT(index < 3);

@@ -612,40 +612,61 @@ class ConstantSignal(SignalType):
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         return {}
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
-        consumer_port_data = context.get_port(consumer_name)
+        consumer_port_data = context.get_port(consumer_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
 
         member_accessor, data_type = process_member_access(context.types, attributes,
                                                            provider_port_data['data_type'],
                                                            consumer_port_data['data_type'])
 
-        function = context['functions'][consumer_name]['read']
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
+        is_multiple_instances = consumer_instance.component.config['multiple_instances']
         constant_provider = provider_port_data.functions['constant']
 
+        call_args = {}
+        if is_multiple_instances:
+            argument_names.pop(0)
+            call_args['instance'] = 'instance'
+
         used_args = []
+        return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
-            call = constant_provider.generate_call({})
+            call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
+            if is_multiple_instances:
+                return_statement = data_type.render_value(None)
         else:
             out_arg_name = argument_names[0]
             used_args.append(out_arg_name)
             if member_accessor:
+                call_args['value'] = '&tmp'
                 body = f"{data_type.name} tmp;\n" \
-                       f"{constant_provider.generate_call({'value': '&tmp'})};\n" \
+                       f"{constant_provider.generate_call(call_args)};\n" \
                        f"{out_arg_name} = tmp{member_accessor};"
             else:
-                body = constant_provider.generate_call({"value": out_arg_name}) + ';'
+                call_args['value'] = out_arg_name
+                body = constant_provider.generate_call(call_args) + ';'
+
+        if is_multiple_instances:
+            used_args.append('instance')
+            body = _add_instance_check(body, consumer_instance)
 
         mods = {
             'used_arguments': used_args,
             'body': body
         }
+        if return_statement:
+            mods['return_statement'] = return_statement
 
         return {
-            consumer_name: {
+            consumer_port_name: {
                 'read': mods
             }
         }
@@ -661,18 +682,28 @@ class ConstantArraySignal(SignalType):
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         return {}
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
-        consumer_port_data = context.get_port(consumer_name)
+        consumer_port_data = context.get_port(consumer_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
 
         member_accessor, data_type = process_member_access(context.types, attributes,
                                                            provider_port_data['data_type'],
                                                            consumer_port_data['data_type'])
 
-        function = context['functions'][consumer_name]['read']
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
+        is_multiple_instances = consumer_instance.component.config['multiple_instances']
         constant_provider = provider_port_data.functions['constant']
+
+        call_args = {}
+        if is_multiple_instances:
+            argument_names.pop(0)
+            call_args['instance'] = 'instance'
 
         used_args = []
         if 'count' not in consumer_port_data:
@@ -681,33 +712,46 @@ class ConstantArraySignal(SignalType):
         else:
             if consumer_port_data['count'] > provider_port_data['count']:
                 raise Exception(
-                    f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                    f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
                     f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
             index = argument_names.pop(0)
             used_args.append(index)
 
+        call_args['index'] = index
+
+        return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
-            call = constant_provider.generate_call({'index': index})
+            call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
+            if is_multiple_instances:
+                return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             used_args.append(out_name)
 
             if member_accessor:
-                call = constant_provider.generate_call({'index': index, 'value': '&tmp'})
+                call_args['value'] = '&tmp'
+                call = constant_provider.generate_call(call_args)
                 body = f'{data_type.name} tmp;\n' \
                        f'{call};\n' \
                        f'{out_name} = tmp{member_accessor};'
             else:
-                body = constant_provider.function_call({"index": index, "value": out_name}) + ';'
+                call_args['value'] = out_name
+                body = constant_provider.function_call(call_args) + ';'
+
+        if is_multiple_instances:
+            used_args.append('instance')
+            body = _add_instance_check(body, consumer_instance)
 
         mods = {
             'body': body,
             'used_arguments': used_args
         }
+        if return_statement:
+            mods['return_statement'] = return_statement
 
         return {
-            consumer_name: {
+            consumer_port_name: {
                 'read': mods
             }
         }
@@ -1098,7 +1142,7 @@ class ConstantArrayPortType(PortType):
         function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
-        constant_value = ', '.join(port['value'])
+        constant_value = ', '.join(map(data_type.render_value, port['value']))
         function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{ {constant_value} }};')
         if data_type.passed_by() == 'value':
             function.set_return_statement('constant[index]')

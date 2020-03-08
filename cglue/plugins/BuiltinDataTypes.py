@@ -459,51 +459,73 @@ class QueueSignal(SignalType):
         }
         context['declarations'].append(chevron.render(template, data))
 
-    def generate_provider(self, context, connection: SignalConnection, provider_name):
-        provider_port_data = context.get_port(provider_name)
+    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
+        provider_port_data = context.get_port(provider_instance_name)
+        provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = context.types.get(provider_port_data['data_type'])
 
         if connection.attributes['queue_length'] == 1:
+            needs_scope = False
             template = \
                 "{{ signal_name }}_overflow = {{ signal_name }}_data_valid;\n" \
                 "{{ signal_name }} = {{ value }};\n" \
                 "{{ signal_name }}_data_valid = true;"
         else:
+            needs_scope = True
             template = \
+                "if ({{ signal_name }}_count < {{ queue_length }}u)\n" \
                 "{\n" \
-                "    if ({{ signal_name }}_count < {{ queue_length }}u)\n" \
-                "    {\n" \
-                "        ++{{ signal_name }}_count;\n" \
-                "    }\n" \
-                "    else\n" \
-                "    {\n" \
-                "        {{ signal_name }}_overflow = true;\n" \
-                "    }\n" \
-                "    size_t idx = {{ signal_name }}_write_index;\n" \
-                "    {{ signal_name }}_write_index = ({{ signal_name }}_write_index + 1u) % {{ queue_length }}u;\n" \
-                "    {{ signal_name }}[idx] = {{ value }};\n" \
-                "}"
+                "    ++{{ signal_name }}_count;\n" \
+                "}\n" \
+                "else\n" \
+                "{\n" \
+                "    {{ signal_name }}_overflow = true;\n" \
+                "}\n" \
+                "size_t idx = {{ signal_name }}_write_index;\n" \
+                "{{ signal_name }}_write_index = ({{ signal_name }}_write_index + 1u) % {{ queue_length }}u;\n" \
+                "{{ signal_name }}[idx] = {{ value }};"
 
-        function = context.functions[provider_name]['write']
+        function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
+
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
+
+        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        if is_multiple_instances:
+            argument_names.pop(0)
+
         passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
         value_arg = argument_names[0]
+        used_args = [value_arg]
+
+        body = chevron.render(template, {
+            'queue_length': connection.attributes['queue_length'],
+            'signal_name':  connection.name,
+            'value':        value_arg if passed_by_value else '*' + value_arg
+        })
+
+        if is_multiple_instances:
+            used_args.append('instance')
+            body = _add_instance_check(body, provider_instance)
+        elif needs_scope:
+            body = f'{{\n' \
+                   f'{indent(body)}\n' \
+                   f'}}'
+
         return {
-            connection.provider: {
+            provider_port_name: {
                 'write': {
-                    'used_arguments': [value_arg],
-                    'body':           chevron.render(template, {
-                        'queue_length': connection.attributes['queue_length'],
-                        'signal_name':  connection.name,
-                        'value':        value_arg if passed_by_value else '*' + value_arg
-                    })
+                    'used_arguments': used_args,
+                    'body':           body
                 }
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
-        consumer_port_data = context.get_port(consumer_name)
+        consumer_port_data = context.get_port(consumer_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
 
         member_accessor, data_type = process_member_access(context.types, attributes,
                                                            provider_port_data['data_type'],
@@ -511,7 +533,6 @@ class QueueSignal(SignalType):
 
         if connection.attributes['queue_length'] == 1:
             template = \
-                "QueueStatus_t return_value = QueueStatus_Empty;\n" \
                 "bool was_overflow = {{ signal_name }}_overflow;\n" \
                 "if ({{ signal_name }}_data_valid)\n" \
                 "{\n" \
@@ -520,16 +541,15 @@ class QueueSignal(SignalType):
                 "    {{ signal_name }}_data_valid = false;\n" \
                 "    if (was_overflow)\n" \
                 "    {\n" \
-                "        return_value = QueueStatus_Overflow;\n" \
+                "        return QueueStatus_Overflow;\n" \
                 "    }\n" \
                 "    else\n" \
                 "    {\n" \
-                "        return_value = QueueStatus_Ok;\n" \
+                "        return QueueStatus_Ok;\n" \
                 "    }\n" \
                 "}"
         else:
             template = \
-                "QueueStatus_t return_value = QueueStatus_Empty;\n" \
                 "if ({{ signal_name }}_count > 0u)\n" \
                 "{\n" \
                 "    size_t idx = ({{ signal_name }}_write_index - {{ signal_name }}_count) % {{ queue_length }}u;\n" \
@@ -539,31 +559,44 @@ class QueueSignal(SignalType):
                 "    if ({{ signal_name }}_overflow)\n" \
                 "    {\n" \
                 "        {{ signal_name }}_overflow = false;\n" \
-                "        return_value = QueueStatus_Overflow;\n" \
+                "        return QueueStatus_Overflow;\n" \
                 "    }\n" \
                 "    else\n" \
                 "    {\n" \
-                "        return_value = QueueStatus_Ok;\n" \
+                "        return QueueStatus_Ok;\n" \
                 "    }\n" \
                 "}"
 
-        function = context.functions[consumer_name]['read']
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
-        passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
+
+        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        if is_multiple_instances:
+            argument_names.pop(0)
+
         value_arg = argument_names[0]
         data = {
             'queue_length':    connection.attributes['queue_length'],
             'signal_name':     connection.name,
-            'out_name':        value_arg if passed_by_value else '*' + value_arg,
+            'out_name':        '*' + value_arg,
             'member_accessor': member_accessor
         }
 
+        read = chevron.render(template, data)
+        used_args = [value_arg]
+        if is_multiple_instances:
+            used_args.append('instance')
+            read = _add_instance_check(read, consumer_instance)
+
         return {
-            consumer_name: {
+            consumer_port_name: {
                 'read': {
-                    'used_arguments':   [value_arg],
-                    'body':             chevron.render(template, data),
-                    'return_statement': 'return_value'
+                    'used_arguments': used_args,
+                    'body': read,
+                    'return_statement': 'QueueStatus_Empty'
                 }
             }
         }

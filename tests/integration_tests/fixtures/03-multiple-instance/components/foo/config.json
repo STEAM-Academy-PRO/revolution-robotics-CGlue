@@ -43,6 +43,10 @@
             "data_type": "uint32_t",
             "count": 3
         },
+        "RQPort": {
+            "port_type": "ReadQueuedValue",
+            "data_type": "uint32_t"
+        },
         "WIPort": {
             "port_type": "WriteIndexedData",
             "data_type": "uint32_t",

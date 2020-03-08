@@ -47,6 +47,16 @@
                 "consumer": "foo2/RPort"
             },
             {
+                "provider": "foo1/WPort",
+                "consumer": "foo1/RQPort",
+                "queue_length": 2
+            },
+            {
+                "provider": "foo2/WPort",
+                "consumer": "foo2/RQPort",
+                "queue_length": 1
+            },
+            {
                 "provider": "foo2/WPort",
                 "consumer": "foo1/RPort"
             },

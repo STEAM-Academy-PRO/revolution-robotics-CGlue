@@ -9,6 +9,12 @@ typedef struct {
 } foo_Instance_t;
 typedef void (*FuncPtr_t)(foo_Instance_t* instance);
 
+typedef enum {
+    QueueStatus_Empty,
+    QueueStatus_Ok,
+    QueueStatus_Overflow
+} QueueStatus_t;
+
 #define COMPONENT_TYPES_FOO_H_
 
 #include "components/foo/foo.h"

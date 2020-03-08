@@ -216,15 +216,14 @@ class VariableSignal(SignalType):
         function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
-        used_args = argument_names
-
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
         if provider_instance.component.config['multiple_instances']:
-            data_arg_name = argument_names[1]
-        else:
-            data_arg_name = argument_names[0]
+            argument_names.pop(0)
+
+        data_arg_name = argument_names[0]
+        used_args = [data_arg_name]
 
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             assignment = f'{connection.name} = {data_arg_name};'
@@ -268,6 +267,10 @@ class VariableSignal(SignalType):
 
         function = runtime.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
+
+        if consumer_instance.component.config['multiple_instances']:
+            argument_names.pop(0)
+
         mods = {
             consumer_port_name: {'read': {}}
         }
@@ -278,10 +281,7 @@ class VariableSignal(SignalType):
             read = f'return {connection.name}{member_accessor};'
             mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
         else:
-            if consumer_instance.component.config['multiple_instances']:
-                out_name = argument_names[1]
-            else:
-                out_name = argument_names[0]
+            out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
             used_args.append(out_name)
 
@@ -338,19 +338,16 @@ class ArraySignal(SignalType):
         provider_instance = context['component_instances'][provider_component_instance_name]
 
         if provider_instance.component.config['multiple_instances']:
-            index = argument_names[1]
-            value = argument_names[2]
+            argument_names.pop(0)
 
-        else:
-            index = argument_names[0]
-            value = argument_names[1]
+        index, value = argument_names
+        used_args = [index, value]
 
         if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             body = f'{connection.name}[{index}] = {value};'
         else:
             body = f'{connection.name}[{index}] = *{value};'
 
-        used_args = [index, value]
         if provider_instance.component.config['multiple_instances']:
             used_args.append('instance')
             body = _add_instance_check(body, provider_instance)
@@ -389,6 +386,9 @@ class ArraySignal(SignalType):
         function = runtime.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
+        if consumer_instance.component.config['multiple_instances']:
+            argument_names.pop(0)
+
         mods = {
             consumer_port_name: {
                 'read': {}
@@ -396,49 +396,29 @@ class ArraySignal(SignalType):
         }
 
         body = []
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+        used_args = []
 
-            if 'count' not in consumer_port_data:
-                # single read, index should be next to consumer name
+        if 'count' not in consumer_port_data:
+            # single read, index should be next to consumer name
+            try:
                 index = attributes['index']
-                used_args = []
-            else:
-                if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception(
-                        f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
-                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
+            except KeyError:
+                raise Exception(f'{consumer_instance_name} tries to read from an array without specifying the element')
+        else:
+            if consumer_port_data['count'] > provider_port_data['count']:
+                raise Exception(
+                    f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
+                    f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
 
-                if consumer_instance.component.config['multiple_instances']:
-                    index = argument_names[1]
-                else:
-                    index = argument_names[0]
-                used_args = [index]
+            index = argument_names.pop(0)
+            used_args.append(index)
 
+        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
             mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
         else:
-            if 'count' not in consumer_port_data:
-                # single read, index should be next to consumer name in attributes
-                index = connection.attributes['index']
-                if consumer_instance.component.config['multiple_instances']:
-                    out_name = argument_names[1]
-                else:
-                    out_name = argument_names[0]
-                used_args = []
-            else:
-                if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception(
-                        f'{consumer_instance_name} signal count ({consumer_port_data["count"]}) '
-                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
-
-                if consumer_instance.component.config['multiple_instances']:
-                    index = argument_names[1]
-                    out_name = argument_names[2]
-                else:
-                    index = argument_names[0]
-                    out_name = argument_names[1]
-
-                used_args = [index, out_name]
+            out_name = argument_names[0]
+            used_args.append(out_name)
 
             read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 

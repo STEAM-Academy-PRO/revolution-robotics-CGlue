@@ -1080,8 +1080,21 @@ def init(owner: CGlue):
     owner.add_signal_type('constant_array', ConstantArraySignal())
     owner.add_signal_type('queue', QueueSignal())
 
+    types = owner.types
+    types.add(
+        'QueueStatus_t',
+        types.category('enum').process_type({
+            'values': [
+                'QueueStatus_Empty',
+                'QueueStatus_Ok',
+                'QueueStatus_Overflow'
+            ],
+            'default_value': 'QueueStatus_Empty'
+        })
+    )
+
     for port_type_name, port_type_class in known_port_types.items():
-        owner.add_port_type(port_type_name, port_type_class(owner.types))
+        owner.add_port_type(port_type_name, port_type_class(types))
 
 
 def add_type_def(owner: CGlue, type_name, type_data):

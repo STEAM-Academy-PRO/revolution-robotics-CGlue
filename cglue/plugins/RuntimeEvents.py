@@ -44,34 +44,35 @@ def _add_instance_check(assignment, provider_instance):
            f'}}'
 
 
+def _port_component_is_instanced(context, port_name):
+    component_instance_name = port_name.split('/', 2)[0]
+    component_instance = context['component_instances'][component_instance_name]
+
+    return component_instance.component.config['multiple_instances']
+
+
 class EventSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple')
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         caller_fn = context.get_port(connection.provider).functions['run']
-        fn_to_call = context.get_port(consumer_name).functions['run']
+        fn_to_call = context.get_port(consumer_instance_name).functions['run']
 
         manual_args = {}
-        consumer_component_name = consumer_name.split('/', 2)[0]
+        consumer_component_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_name]
-        consumer_component = consumer_instance.component
 
-        is_multiple_instance = consumer_component.config['multiple_instances']
-
-        provider_component_name = connection.provider.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_name]
-        provider_is_multiple_instance = provider_instance.component.config['multiple_instances']
+        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instance:
             manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
-        passed_arguments = collect_arguments(attributes, consumer_name,
+        passed_arguments = collect_arguments(attributes, consumer_instance_name,
                                              fn_to_call.arguments, caller_fn.arguments, manual_args)
 
-        call_code = fn_to_call.generate_call(passed_arguments)
-
         provider_port_name = context.get_component_ref(connection.provider)
-        body = call_code + ';'
+        body = fn_to_call.generate_call(passed_arguments) + ';'
 
         if provider_is_multiple_instance:
             body = _add_instance_check(body, consumer_instance)
@@ -102,23 +103,16 @@ class ServerCallSignal(SignalType):
         manual_args = {}
         consumer_component_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_name]
-        consumer_component = consumer_instance.component
 
-        is_multiple_instance = consumer_component.config['multiple_instances']
-
-        provider_component_name = connection.provider.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_name]
-        provider_is_multiple_instance = provider_instance.component.config['multiple_instances']
+        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instance:
             manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
                                              fn_to_call.arguments, caller_fn.arguments, manual_args)
 
-        call_code = fn_to_call.generate_call(passed_arguments)
-
         consumer_port_name = context.get_component_ref(consumer_instance_name)
-        body = call_code + ';'
 
         return_statement = None
         if caller_fn.return_type != 'void':
@@ -126,9 +120,11 @@ class ServerCallSignal(SignalType):
                 raise Exception(f'Callee return type is incompatible ({consumer_port_data["return_type"]} '
                                 f'instead of {caller_fn.return_type})')
 
-            body = f"return {call_code};"
+            body = f"return {fn_to_call.generate_call(passed_arguments)};"
             if provider_is_multiple_instance:
                 return_statement = context.types.get(caller_fn.return_type).render_value(None)
+        else:
+            body = fn_to_call.generate_call(passed_arguments) + ';'
 
         if provider_is_multiple_instance:
             body = _add_instance_check(body, consumer_instance)

@@ -97,11 +97,11 @@ uint32_t foo_Read_RCAPort(foo_Instance_t* instance, uint32_t index)
     ASSERT(index < 3);
     if (instance == &foo_instance_foo2)
     {
-        return foo_Constant_CAPort(instance, index);
+        return foo_Constant_CAPort(&foo_instance_foo2, index);
     }
     if (instance == &foo_instance_foo1)
     {
-        return foo_Constant_CAPort(instance, index);
+        return foo_Constant_CAPort(&foo_instance_foo1, index);
     }
     return 0u;
 }
@@ -110,11 +110,11 @@ uint32_t foo_Read_RCPort(foo_Instance_t* instance)
 {
     if (instance == &foo_instance_foo2)
     {
-        return foo_Constant_CPort(instance);
+        return foo_Constant_CPort(&foo_instance_foo2);
     }
     if (instance == &foo_instance_foo1)
     {
-        return foo_Constant_CPort(instance);
+        return foo_Constant_CPort(&foo_instance_foo1);
     }
     return 0u;
 }

@@ -206,6 +206,13 @@ def _add_instance_check(assignment, provider_instance):
            f'}}'
 
 
+def _port_component_is_instanced(context, port_name):
+    component_instance_name = port_name.split('/', 2)[0]
+    component_instance = context['component_instances'][component_instance_name]
+
+    return component_instance.component.config['multiple_instances']
+
+
 class VariableSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple')
@@ -230,7 +237,7 @@ class VariableSignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -270,7 +277,8 @@ class VariableSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -279,14 +287,14 @@ class VariableSignal(SignalType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}{member_accessor};'
 
-            if is_multiple_instances:
+            if provider_is_multiple_instance:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
             used_args.append(out_name)
 
-        if is_multiple_instances:
+        if provider_is_multiple_instance:
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
@@ -342,7 +350,7 @@ class ArraySignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -382,7 +390,8 @@ class ArraySignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -405,7 +414,7 @@ class ArraySignal(SignalType):
 
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
-            if is_multiple_instances:
+            if provider_is_multiple_instance:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
@@ -413,7 +422,7 @@ class ArraySignal(SignalType):
 
             read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 
-        if is_multiple_instances:
+        if provider_is_multiple_instance:
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
@@ -491,7 +500,8 @@ class QueueSignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        is_multiple_instances = provider_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
+        provider_is_multiple_instances = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -505,7 +515,7 @@ class QueueSignal(SignalType):
             'value':        value_arg if passed_by_value else '*' + value_arg
         })
 
-        if is_multiple_instances:
+        if provider_is_multiple_instances:
             used_args.append('instance')
             body = _add_instance_check(body, provider_instance)
         elif needs_scope:
@@ -573,7 +583,8 @@ class QueueSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instances = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -587,7 +598,7 @@ class QueueSignal(SignalType):
 
         read = chevron.render(template, data)
         used_args = [value_arg]
-        if is_multiple_instances:
+        if provider_is_multiple_instances:
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
@@ -627,20 +638,21 @@ class ConstantSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instances = _port_component_is_instanced(context, connection.provider)
         constant_provider = provider_port_data.functions['constant']
 
         call_args = {}
         if is_multiple_instances:
             argument_names.pop(0)
-            call_args['instance'] = 'instance'
+            call_args['instance'] = '&' + consumer_instance.instance_var_name
 
         used_args = []
         return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
-            if is_multiple_instances:
+            if provider_is_multiple_instances:
                 return_statement = data_type.render_value(None)
         else:
             out_arg_name = argument_names[0]
@@ -654,7 +666,7 @@ class ConstantSignal(SignalType):
                 call_args['value'] = out_arg_name
                 body = constant_provider.generate_call(call_args) + ';'
 
-        if is_multiple_instances:
+        if provider_is_multiple_instances:
             used_args.append('instance')
             body = _add_instance_check(body, consumer_instance)
 
@@ -697,13 +709,14 @@ class ConstantArraySignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = consumer_instance.component.config['multiple_instances']
+        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instances = _port_component_is_instanced(context, connection.provider)
         constant_provider = provider_port_data.functions['constant']
 
         call_args = {}
         if is_multiple_instances:
             argument_names.pop(0)
-            call_args['instance'] = 'instance'
+            call_args['instance'] = '&' + consumer_instance.instance_var_name
 
         used_args = []
         if 'count' not in consumer_port_data:
@@ -723,7 +736,7 @@ class ConstantArraySignal(SignalType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
-            if is_multiple_instances:
+            if provider_is_multiple_instances:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
@@ -739,7 +752,7 @@ class ConstantArraySignal(SignalType):
                 call_args['value'] = out_name
                 body = constant_provider.function_call(call_args) + ';'
 
-        if is_multiple_instances:
+        if provider_is_multiple_instances:
             used_args.append('instance')
             body = _add_instance_check(body, consumer_instance)
 

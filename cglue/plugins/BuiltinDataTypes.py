@@ -185,6 +185,23 @@ def create_member_accessor(member):
     return '.' + member
 
 
+def process_member_access(runtime, attributes, provider_port, consumer_port):
+    source_data_type = provider_port['data_type']
+    data_type = consumer_port['data_type']
+
+    if 'member' in attributes:
+        member_list = attributes['member'].split('.')
+        source_data_type = lookup_member(runtime.types, source_data_type, member_list)
+        member_accessor = create_member_accessor(attributes['member'])
+    else:
+        member_accessor = ''
+
+    if data_type != source_data_type:
+        raise Exception('Port data types don\'t match')
+
+    return member_accessor, runtime.types.get(data_type)
+
+
 def _add_instance_check(assignment, provider_instance):
     return f'if (instance == &{provider_instance.instance_var_name})\n' \
            f'{{\n' \
@@ -211,8 +228,7 @@ class VariableSignal(SignalType):
         runtime = context['runtime']
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
-        data_type = provider_port_data['data_type']
-
+        data_type = runtime.types.get(provider_port_data['data_type'])
         function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
@@ -225,7 +241,7 @@ class VariableSignal(SignalType):
         data_arg_name = argument_names[0]
         used_args = [data_arg_name]
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             assignment = f'{connection.name} = {data_arg_name};'
         else:
             assignment = f'{connection.name} = *{data_arg_name};'
@@ -245,22 +261,12 @@ class VariableSignal(SignalType):
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         runtime = context['runtime']
-        provider_port_data = context.get_port(connection.provider)
-        source_data_type = provider_port_data['data_type']
 
+        provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
-        data_type = consumer_port_data['data_type']
 
-        if 'member' in attributes:
-            member_list = attributes['member'].split('.')
-            source_data_type = lookup_member(runtime.types, source_data_type, member_list)
-            member_accessor = create_member_accessor(attributes['member'])
-        else:
-            member_accessor = ''
-
-        if data_type != source_data_type:
-            raise Exception(f'Port data types don\'t match (Provider: {source_data_type} Consumer: {data_type})')
+        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_instance_name]
@@ -271,15 +277,13 @@ class VariableSignal(SignalType):
         if consumer_instance.component.config['multiple_instances']:
             argument_names.pop(0)
 
-        mods = {
-            consumer_port_name: {'read': {}}
-        }
-
-        body = []
+        mods = {}
         used_args = []
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}{member_accessor};'
-            mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
+
+            if consumer_instance.component.config['multiple_instances']:
+                mods['return_statement'] = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
@@ -289,11 +293,14 @@ class VariableSignal(SignalType):
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
-        body.append(read)
-        mods[consumer_port_name]['read']['body'] = body
-        mods[consumer_port_name]['read']['used_arguments'] = used_args
+        mods['body'] = read
+        mods['used_arguments'] = used_args
 
-        return mods
+        return {
+            consumer_port_name: {
+                'read': mods
+            }
+        }
 
 
 class ArraySignal(SignalType):
@@ -329,7 +336,7 @@ class ArraySignal(SignalType):
         runtime = context['runtime']
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
-        data_type = provider_port_data['data_type']
+        data_type = runtime.types.get(provider_port_data['data_type'])
 
         function = runtime.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
@@ -343,7 +350,7 @@ class ArraySignal(SignalType):
         index, value = argument_names
         used_args = [index, value]
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             body = f'{connection.name}[{index}] = {value};'
         else:
             body = f'{connection.name}[{index}] = *{value};'
@@ -363,22 +370,12 @@ class ArraySignal(SignalType):
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         runtime = context['runtime']
-        provider_port_data = context.get_port(connection.provider)
-        source_data_type = provider_port_data['data_type']
 
+        provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
-        data_type = consumer_port_data['data_type']
 
-        if 'member' in attributes:
-            member_list = attributes['member'].split('.')
-            source_data_type = lookup_member(runtime.types, source_data_type, member_list)
-            member_accessor = create_member_accessor(attributes['member'])
-        else:
-            member_accessor = ''
-
-        if data_type != source_data_type:
-            raise Exception('Port data types don\'t match')
+        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_instance_name]
@@ -389,13 +386,7 @@ class ArraySignal(SignalType):
         if consumer_instance.component.config['multiple_instances']:
             argument_names.pop(0)
 
-        mods = {
-            consumer_port_name: {
-                'read': {}
-            }
-        }
-
-        body = []
+        mods = {}
         used_args = []
 
         if 'count' not in consumer_port_data:
@@ -413,9 +404,10 @@ class ArraySignal(SignalType):
             index = argument_names.pop(0)
             used_args.append(index)
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
-            mods[consumer_port_name]['read']['return_statement'] = runtime.types.get(data_type).render_value(None)
+            if consumer_instance.component.config['multiple_instances']:
+                mods['return_statement'] = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             used_args.append(out_name)
@@ -426,11 +418,14 @@ class ArraySignal(SignalType):
             used_args.append('instance')
             read = _add_instance_check(read, consumer_instance)
 
-        body.append(read)
-        mods[consumer_port_name]['read']['body'] = body
-        mods[consumer_port_name]['read']['used_arguments'] = used_args
+        mods['body'] = read
+        mods['used_arguments'] = used_args
 
-        return mods
+        return {
+            consumer_port_name: {
+                'read': mods
+            }
+        }
 
 
 class QueueSignal(SignalType):
@@ -506,21 +501,11 @@ class QueueSignal(SignalType):
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
         runtime = context['runtime']
+
         provider_port_data = runtime.get_port(connection.provider)
         consumer_port_data = runtime.get_port(consumer_name)
-        source_data_type = provider_port_data['data_type']
-        consumed_data_type = consumer_port_data['data_type']
 
-        if 'member' in attributes:
-            member_list = attributes['member'].split('.')
-            source_data_type = lookup_member(runtime.types, source_data_type, member_list)
-            member_accessor = create_member_accessor(attributes['member'])
-        else:
-            member_accessor = ''
-
-        data_type = runtime.types.get(source_data_type)
-        if consumed_data_type != source_data_type:
-            raise Exception('Port data types don\'t match')
+        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
 
         if connection.attributes['queue_length'] == 1:
             template = \
@@ -594,34 +579,26 @@ class ConstantSignal(SignalType):
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
         runtime = context['runtime']
+
         provider_port_data = runtime.get_port(connection.provider)
-        source_data_type = provider_port_data['data_type']
-
         consumer_port_data = runtime.get_port(consumer_name)
-        data_type = consumer_port_data['data_type']
 
-        if 'member' in attributes:
-            member_list = attributes['member'].split('.')
-            source_data_type = lookup_member(runtime.types, source_data_type, member_list)
-            member_accessor = create_member_accessor(attributes['member'])
-        else:
-            member_accessor = ''
-
-        if data_type != source_data_type:
-            raise Exception('Port data types don\'t match')
+        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
 
         function = context['functions'][consumer_name]['read']
         argument_names = list(function.arguments.keys())
 
         constant_provider = runtime.get_port(connection.provider).functions['constant']
-        mods = {
-            consumer_name: {'read': {}}
-        }
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-            mods[consumer_name]['read']['return_statement'] = constant_provider.generate_call({}) + member_accessor
+        mods = {}
+        used_args = []
+
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
+            call = constant_provider.generate_call({})
+            body = f'return {call}{member_accessor};'
         else:
             out_arg_name = argument_names[0]
+            used_args.append(out_arg_name)
             if member_accessor:
                 body = f"{provider_port_data['data_type']} tmp;\n" \
                        f"{constant_provider.generate_call({'value': '&tmp'})};\n" \
@@ -629,10 +606,14 @@ class ConstantSignal(SignalType):
             else:
                 body = constant_provider.generate_call({"value": out_arg_name}) + ';'
 
-            mods[consumer_name]['read']['used_arguments'] = [out_arg_name]
-            mods[consumer_name]['read']['body'] = body
+        mods['used_arguments'] = used_args
+        mods['body'] = body
 
-        return mods
+        return {
+            consumer_name: {
+                'read': mods
+            }
+        }
 
 
 class ConstantArraySignal(SignalType):
@@ -647,61 +628,37 @@ class ConstantArraySignal(SignalType):
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
         runtime = context['runtime']
+
         provider_port_data = runtime.get_port(connection.provider)
-        source_data_type = provider_port_data['data_type']
-
         consumer_port_data = runtime.get_port(consumer_name)
-        data_type = consumer_port_data['data_type']
 
-        if 'member' in attributes:
-            member_list = attributes['member'].split('.')
-            source_data_type = lookup_member(runtime.types, source_data_type, member_list)
-            member_accessor = create_member_accessor(attributes['member'])
-        else:
-            member_accessor = ''
-
-        if data_type != source_data_type:
-            raise Exception('Port data types don\'t match')
+        member_accessor, data_type = process_member_access(runtime, attributes, provider_port_data, consumer_port_data)
 
         function = context['functions'][consumer_name]['read']
         argument_names = list(function.arguments.keys())
 
         constant_provider = runtime.get_port(connection.provider).functions['constant']
 
-        mods = {
-            consumer_name: {'read': {}}
-        }
+        mods = {}
+        used_args = []
 
-        if runtime.types.get(data_type).passed_by() == TypeCollection.PASS_BY_VALUE:
-
-            if 'count' not in consumer_port_data:
-                # single read, index should be next to consumer name
-                index = attributes['index']
-            else:
-                if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception(
-                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
-                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
-                index = argument_names[0]
-                mods[consumer_name]['read']['used_arguments'] = [argument_names[0]]
-
-            call = constant_provider.generate_call({'index': index})
-            mods[consumer_name]['read']['body'] = f'{data_type} return_value = {call}{member_accessor};'
-            mods[consumer_name]['read']['return_statement'] = 'return_value'
+        if 'count' not in consumer_port_data:
+            # single read, index should be next to consumer name
+            index = attributes['index']
         else:
+            if consumer_port_data['count'] > provider_port_data['count']:
+                raise Exception(
+                    f'{consumer_name} signal count ({consumer_port_data["count"]}) '
+                    f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
+            index = argument_names.pop(0)
+            used_args.append(index)
 
-            if 'count' not in consumer_port_data:
-                # single read, index should be next to consumer name
-                index = connection.attributes['index']
-                out_name = argument_names[0]
-            else:
-                if consumer_port_data['count'] > provider_port_data['count']:
-                    raise Exception(
-                        f'{consumer_name} signal count ({consumer_port_data["count"]}) '
-                        f'is incompatible with {connection.provider} ({provider_port_data["count"]})')
-                index = argument_names[0]
-                out_name = argument_names[1]
-                mods[consumer_name]['read']['used_arguments'] = [argument_names[0], argument_names[1]]
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
+            call = constant_provider.generate_call({'index': index})
+            body = f'return {call}{member_accessor};'
+        else:
+            out_name = argument_names[0]
+            used_args.append(out_name)
 
             if member_accessor:
                 call = constant_provider.generate_call({'index': index, 'value': '&tmp'})
@@ -711,9 +668,14 @@ class ConstantArraySignal(SignalType):
             else:
                 body = constant_provider.function_call({"index": index, "value": out_name}) + ';'
 
-            mods[consumer_name]['read']['body'] = body
+        mods['body'] = body
+        mods['used_arguments'] = used_args
 
-        return mods
+        return {
+            consumer_name: {
+                'read': mods
+            }
+        }
 
 
 def process_type_def(types: TypeCollection, type_name, type_def):

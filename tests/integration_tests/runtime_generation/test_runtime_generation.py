@@ -19,68 +19,41 @@ def _create_generator(project_config_path):
 
 
 class TestRuntimeGeneration(unittest.TestCase):
-    def test_expected_header_is_generated(self):
+
+    def _test_generated_files(self, project_file, expectations):
         os.chdir(os.path.dirname(__file__))
 
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_consumer_list.json")
-
-        files = generator.generate_runtime('runtime_file')
-
-        with open(f'{root}/runtime.expected.h', 'r') as f:
-            expected = f.read()
-        self.assertEqual(expected, files[f'runtime_file.h'])
-
-    def test_complex_connection_does_not_cause_error_when_consumer_is_in_list(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_consumer_list.json")
-
-        generator.generate_runtime('runtime_file')
-
-    def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_single_consumer.json")
-
-        generator.generate_runtime('runtime_file')
-
-    def test_can_generate_runtime_with_dependent_components(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/01-component-dependency"
-        generator = _create_generator(f"{root}/project.json")
-
-        generator.generate_runtime('runtime_file')
-
-    def test_runtime_types_are_generated_in_dependency_order(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/01-component-dependency"
-        generator = _create_generator(f"{root}/project.json")
-
-        files = generator.generate_runtime('runtime_file')
-
-        with open(f'{root}/runtime.expected.h', 'r') as f:
-            expected = f.read()
-        self.assertEqual(expected, files[f'runtime_file.h'])
-
-    def test_multiple_component_instances(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/03-multiple-instance"
-        generator = _create_generator(f"{root}/project.json")
+        root = os.path.dirname(project_file)
+        generator = _create_generator(project_file)
 
         files = generator.generate_runtime('runtime')
 
-        with open(f'{root}/runtime.expected.h', 'r') as f:
-            expected_h = f.read()
-        with open(f'{root}/runtime.expected.c', 'r') as f:
-            expected_c = f.read()
-
         self.maxDiff = None
 
-        self.assertEqual(expected_h, files[f'runtime.h'])
-        self.assertEqual(expected_c, files[f'runtime.c'])
+        for generated_file, expected_file in expectations.items():
+            with open(f'{root}/{expected_file}', 'r') as f:
+                file_contents = f.read()
+
+            self.assertEqual(file_contents, files[generated_file])
+
+    def test_expected_header_is_generated(self):
+        self._test_generated_files("../fixtures/00-demo-test/project_consumer_list.json", {
+            'runtime.h': 'runtime.expected.h'
+        })
+
+    def test_complex_connection_does_not_cause_error_when_consumer_is_in_list(self):
+        self._test_generated_files("../fixtures/00-demo-test/project_consumer_list.json", {})
+
+    def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):
+        self._test_generated_files("../fixtures/00-demo-test/project_single_consumer.json", {})
+
+    def test_runtime_types_are_generated_in_dependency_order(self):
+        self._test_generated_files("../fixtures/01-component-dependency/project.json", {
+            'runtime.h': 'runtime.expected.h'
+        })
+
+    def test_multiple_component_instances(self):
+        self._test_generated_files("../fixtures/03-multiple-instance/project.json", {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })

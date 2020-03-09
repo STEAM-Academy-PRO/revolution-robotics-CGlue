@@ -23,8 +23,8 @@ class TestRuntimeGeneration(unittest.TestCase):
     def _test_generated_files(self, project_file, expectations):
         os.chdir(os.path.dirname(__file__))
 
-        root = os.path.dirname(project_file)
-        generator = _create_generator(project_file)
+        root = os.path.dirname('../fixtures/' + project_file)
+        generator = _create_generator('../fixtures/' + project_file)
 
         files = generator.generate_runtime('runtime')
 
@@ -37,20 +37,20 @@ class TestRuntimeGeneration(unittest.TestCase):
             self.assertEqual(file_contents, files[generated_file])
 
     def test_expected_header_is_generated(self):
-        self._test_generated_files("../fixtures/00-demo-test/project_consumer_list.json", {
+        self._test_generated_files("00-demo-test/project_consumer_list.json", {
             'runtime.h': 'runtime.expected.h'
         })
 
     def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):
-        self._test_generated_files("../fixtures/00-demo-test/project_single_consumer.json", {})
+        self._test_generated_files("00-demo-test/project_single_consumer.json", {})
 
     def test_runtime_types_are_generated_in_dependency_order(self):
-        self._test_generated_files("../fixtures/01-component-dependency/project.json", {
+        self._test_generated_files("01-component-dependency/project.json", {
             'runtime.h': 'runtime.expected.h'
         })
 
     def test_multiple_component_instances(self):
-        self._test_generated_files("../fixtures/03-multiple-instance/project.json", {
+        self._test_generated_files("03-multiple-instance/project.json", {
             'runtime.h': 'runtime.expected.h',
             'runtime.c': 'runtime.expected.c'
         })

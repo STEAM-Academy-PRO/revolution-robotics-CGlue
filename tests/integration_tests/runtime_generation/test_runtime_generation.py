@@ -5,6 +5,7 @@ from cglue import cglue
 from cglue.plugins.BuiltinDataTypes import builtin_data_types
 from cglue.plugins.RuntimeEvents import runtime_events
 from cglue.plugins.ProjectConfigCompactor import project_config_compactor
+from cglue.plugins.AsyncServerCalls import async_server_calls
 
 
 def _create_generator(project_config_path):
@@ -13,6 +14,7 @@ def _create_generator(project_config_path):
     generator.add_plugin(project_config_compactor())
     generator.add_plugin(builtin_data_types())
     generator.add_plugin(runtime_events())
+    generator.add_plugin(async_server_calls())
 
     generator.load()
     return generator
@@ -51,6 +53,12 @@ class TestRuntimeGeneration(unittest.TestCase):
 
     def test_multiple_component_instances(self):
         self._test_generated_files("03-multiple-instance/project.json", {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })
+
+    def test_single_instance_async_implementations(self):
+        self._test_generated_files('00-async-calls/project.json', {
             'runtime.h': 'runtime.expected.h',
             'runtime.c': 'runtime.expected.c'
         })

@@ -41,9 +41,6 @@ class TestRuntimeGeneration(unittest.TestCase):
             'runtime.h': 'runtime.expected.h'
         })
 
-    def test_complex_connection_does_not_cause_error_when_consumer_is_in_list(self):
-        self._test_generated_files("../fixtures/00-demo-test/project_consumer_list.json", {})
-
     def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):
         self._test_generated_files("../fixtures/00-demo-test/project_single_consumer.json", {})
 

@@ -151,7 +151,7 @@ class FunctionImplementation:
     def get_function(self):
         unused_arguments = self.arguments.keys() - self._used_arguments
 
-        body = "\n".join(f'(void) {arg};' for arg in sorted(unused_arguments))
+        body = ''.join(f'(void) {arg};\n' for arg in sorted(unused_arguments))
 
         if self._asserts:
             body += "\n".join(sorted(self._asserts)) + '\n'

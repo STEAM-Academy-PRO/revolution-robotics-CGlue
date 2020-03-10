@@ -253,11 +253,13 @@ switch (command)
             cancel_mods['used_arguments'].append('instance')
             get_result_mods['used_arguments'].append('instance')
 
+            busy_value = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+
             cancel_mods['body'] = _add_instance_check(cancel_mods['body'], consumer_instance)
             call_mods['body'] = _add_instance_check(call_mods['body'], consumer_instance)
-            call_mods['return_statement'] = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+            call_mods['return_statement'] = busy_value
             get_result_mods['body'] = _add_instance_check(get_result_mods['body'], consumer_instance)
-            get_result_mods['return_statement'] = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+            get_result_mods['return_statement'] = busy_value
 
         return {
             connection.attributes['update_on']: {

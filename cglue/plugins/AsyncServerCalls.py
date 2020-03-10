@@ -35,8 +35,7 @@ class AsyncServerCallSignal(SignalType):
         update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
 
         # create updater function
-        provider_name = context.get_component_ref(connection.provider)
-        context['functions'][provider_name]['update'] = update_function
+        context['functions'][connection.provider] = {'update': update_function}
 
         stored_arguments = []
         callee_arguments = {}
@@ -222,7 +221,7 @@ switch (command)
 
         call_function = port_functions['async_call']
         result_function = port_functions['get_result']
-        update_function = context['functions'][provider_port_name]['update']
+        update_function = context['functions'][connection.provider]['update']
 
         lock, unlock = self._get_lock_impl(connection)
 

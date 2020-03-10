@@ -214,7 +214,6 @@ switch (command)
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         provider_instance_name = connection.provider
         provider_port = context.get_port(provider_instance_name)
-        provider_port_name = context.get_component_ref(provider_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
 
         port_functions = context['functions'][consumer_port_name]
@@ -228,8 +227,6 @@ switch (command)
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context['component_instances'][consumer_component_instance_name]
 
-        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_instance_name]
         consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
 

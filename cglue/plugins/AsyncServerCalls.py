@@ -1,6 +1,6 @@
 import chevron
 
-from cglue.function import FunctionPrototype, FunctionImplementation
+from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
@@ -14,11 +14,13 @@ class AsyncServerCallSignal(SignalType):
         super().__init__('single', {'update_on'})
 
     def create(self, context, connection: SignalConnection):
-        port = context['runtime'].get_port(connection.provider)
+        port = context.get_port(connection.provider)
 
-        update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
+        update_function = FunctionImplementation(port.declare_function(connection.name + '_Update', 'void'))
 
-        context['functions'][connection.provider]['update'] = update_function
+        # create updater function
+        provider_name = context.get_component_ref(connection.provider)
+        context['functions'][provider_name]['update'] = update_function
 
         stored_arguments = []
         callee_arguments = {}
@@ -26,10 +28,10 @@ class AsyncServerCallSignal(SignalType):
         for name, arg_data in port.get('arguments', {}).items():
             if type(arg_data) is str:
                 arg_dir = 'in'
-                arg_type = context['runtime'].types.get(arg_data)
+                arg_type = context.types.get(arg_data)
             else:
                 arg_dir = arg_data['direction']
-                arg_type = context['runtime'].types.get(arg_data['data_type'])
+                arg_type = context.types.get(arg_data['data_type'])
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
@@ -194,24 +196,22 @@ switch (command)
         return {}
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
-        provider_port = runtime.get_port(connection.provider)
+        provider_port = context.get_port(connection.provider)
         port_functions = context['functions'][consumer_name]
 
         call_function = port_functions['async_call']
-        cancel_function = port_functions['cancel']
         result_function = port_functions['get_result']
         update_function = context['functions'][connection.provider]['update']
 
         lock, unlock = self._get_lock_impl(connection)
 
         # generate the caller functions
-        for arg in attributes.get('arguments', {}):
-            if arg not in provider_port['arguments']:
-                print(f'Warning: extra argument "{arg}" on signal {connection.provider}, consumed by {consumer_name}')
+        extra_args = set(attributes.get('arguments', {}).keys()) - provider_port['arguments'].keys()
+        for arg in extra_args:
+            print(f'Warning: extra argument "{arg}" on signal {connection.provider}, consumed by {consumer_name}')
 
         call_arguments, missing_arguments = self._get_consumer_call_args(attributes, call_function.prototype,
-                                                                         provider_port, runtime)
+                                                                         provider_port, context.types)
 
         if missing_arguments:
             raise Exception(f'{consumer_name} does not provide {connection.provider} with'
@@ -245,31 +245,20 @@ else
             }
         }))
 
-        for arg in call_function.prototype.arguments:
-            call_function.mark_argument_used(arg)
-        call_function.set_return_statement('returned_state')
-
-        # canceller
-        cancel_function.add_body(f'{connection.name}_command = AsyncCommand_Cancel;')
-
-        # update event
-        # FIXME: add a proper event maybe?
-        update_call = update_function.prototype.generate_call({})
-        update_event_function = context['functions'][connection.attributes['update_on']]['run']
-        update_event_function.add_body(f'{update_call};')
-
         # get result
         # if the provider doesn't have an out arg, the default value for the type is passed back
         result_arguments = []
-        for arg in result_function.arguments:
-            if arg not in call_function.arguments:
-                value = f'{connection.name}_argument_{arg}'
+        used_arguments = []
+        for arg_name, arg in result_function.arguments.items():
+            if arg_name not in call_function.arguments:
+                value = f'{connection.name}_argument_{arg_name}'
             else:
-                value = result_function.arguments[arg]['data_type'].render_value(None)
+                value = arg['data_type'].render_value(None)
 
-            result_arguments.append({'name': arg, 'value': value})
+            used_arguments.append(arg_name)
+            result_arguments.append({'name': arg_name, 'value': value})
 
-        result_function.add_body(chevron.render(**{
+        result_body = chevron.render(**{
             'template': '''AsyncOperationState_t returned_state;
 {{ lock }}
 switch ({{ signal_name }}_state)
@@ -302,19 +291,36 @@ switch ({{ signal_name }}_state)
                 'unlock': unlock,
                 'arguments': result_arguments
             }
-        }))
-        result_function.set_return_statement('returned_state')
+        })
 
-        for arg in result_function.prototype.arguments:
-            result_function.mark_argument_used(arg)
+        return {
+            connection.attributes['update_on']: {
+                'run': {
+                    'body': update_function.prototype.generate_call({}) + ';'
+                }
+            },
+            consumer_name: {
+                'cancel': {
+                    'body': f'{connection.name}_command = AsyncCommand_Cancel;'
+                },
+                'get_result': {
+                    'return_statement': 'returned_state',
+                    'used_arguments': used_arguments,
+                    'body': result_body
+                },
+                'async_call': {
+                    'return_statement': 'returned_state',
+                    'used_arguments': call_function.prototype.arguments
+                }
+            }
+        }
 
-        return {}
-
-    def _get_consumer_call_args(self, attributes, function_prototype, provider_port, runtime):
+    @staticmethod
+    def _get_consumer_call_args(attributes, function_prototype, provider_port, types):
         call_arguments = []
         missing_arguments = set()
         for arg, data in provider_port['arguments'].items():
-            arg_type = runtime.types.get(data['data_type'])
+            arg_type = types.get(data['data_type'])
 
             if data['direction'] == 'in':
                 if arg in attributes.get('arguments', {}):
@@ -349,7 +355,8 @@ switch ({{ signal_name }}_state)
 
         return call_arguments, missing_arguments
 
-    def _get_lock_impl(self, connection):
+    @staticmethod
+    def _get_lock_impl(connection):
         if 'no_locks' not in connection.attributes or not connection.attributes['no_locks']:
             lock = '__disable_irq();'
             unlock = '__enable_irq();'

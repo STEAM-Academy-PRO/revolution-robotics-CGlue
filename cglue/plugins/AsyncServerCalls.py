@@ -231,14 +231,18 @@ switch (command)
 
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
+        consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
 
         call_mods = self.generate_call_function(
             context.types, attributes.get('arguments', {}), call_function.prototype.arguments, connection,
             consumer_instance_name, provider_instance_name, provider_port['arguments'], lock, unlock)
 
-        get_result_mods = self.generate_get_result_function(call_function, connection, result_function, lock, unlock)
-        consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
+        result_arg_names = list(result_function.arguments.keys())
+        if provider_is_multiple_instance:
+            result_arg_names.pop(0)
+
+        get_result_mods = self.generate_get_result_function(call_function, connection, result_arg_names, lock, unlock)
 
         cancel_mods = {
             'body': f'{connection.name}_command = AsyncCommand_Cancel;',
@@ -265,16 +269,16 @@ switch (command)
         }
 
     @staticmethod
-    def generate_get_result_function(call_function, connection, result_function, lock, unlock):
+    def generate_get_result_function(call_function, connection, result_arg_names, lock, unlock):
         # get result
         # if the provider doesn't have an out arg, the default value for the type is passed back
         result_arguments = []
         used_arguments = []
-        for arg_name, arg in result_function.arguments.items():
+        for arg_name in result_arg_names:
             if arg_name not in call_function.arguments:
                 value = f'{connection.name}_argument_{arg_name}'
             else:
-                value = arg['data_type'].render_value(None)
+                value = call_function.arguments[arg_name]['data_type'].render_value(None)
 
             used_arguments.append(arg_name)
             result_arguments.append({'name': arg_name, 'value': value})

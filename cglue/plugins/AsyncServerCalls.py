@@ -1,6 +1,6 @@
 import chevron
 
-from cglue.function import FunctionImplementation
+from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
@@ -31,7 +31,8 @@ class AsyncServerCallSignal(SignalType):
     def create(self, context, connection: SignalConnection):
         port = context.get_port(connection.provider)
 
-        update_function = FunctionImplementation(port.declare_function(connection.name + '_Update', 'void'))
+        # updater function is unique for each signal, no need for instance argument
+        update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
 
         # create updater function
         provider_name = context.get_component_ref(connection.provider)
@@ -73,6 +74,7 @@ class AsyncServerCallSignal(SignalType):
         }))
         context['used_types'].append('AsyncOperationState_t')
         context['used_types'].append('AsyncCommand_t')
+        context['used_types'].append(port._owner.instance_type)
 
         # generate the updater function
         if 'run' in port.functions:
@@ -224,28 +226,36 @@ switch (command)
 
         lock, unlock = self._get_lock_impl(connection)
 
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
+
         call_mods = self.generate_call_function(
             context.types, attributes.get('arguments', {}), call_function.prototype.arguments, connection,
             consumer_instance_name, provider_instance_name, provider_port['arguments'], lock, unlock)
 
         get_result_mods = self.generate_get_result_function(call_function, connection, result_function, lock, unlock)
+        consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
+
         cancel_mods = {
-            'body': f'{connection.name}_command = AsyncCommand_Cancel;'
+            'body': f'{connection.name}_command = AsyncCommand_Cancel;',
+            'used_arguments': []
         }
 
-        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
-
-        update_args = {}
-        if _port_component_is_instanced(context, consumer_instance_name):
-            update_args['instance'] = '&' + consumer_instance.instance_var_name
-
-        update_mods = {
-            'body': update_function.prototype.generate_call(update_args) + ';'
+        update_call_mods = {
+            'body': update_function.prototype.generate_call({}) + ';'
         }
+
+        if consumer_is_multiple_instance:
+            cancel_mods['used_arguments'].append('instance')
+            cancel_mods['body'] = _add_instance_check(cancel_mods['body'], consumer_instance)
+
         return {
             connection.attributes['update_on']: {
-                'run': update_mods
+                'run': update_call_mods
             },
             consumer_port_name: {
                 'cancel': cancel_mods,

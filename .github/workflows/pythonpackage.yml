@@ -31,4 +31,5 @@ jobs:
       run: |
         python setup.py test
     - name: Upload coverage to Codecov  
+      run: |
         codecov

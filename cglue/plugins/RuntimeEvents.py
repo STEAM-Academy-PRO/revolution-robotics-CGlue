@@ -330,7 +330,7 @@ def create_runnable_ports(owner: CGlue, component: Component):
         if component.config['multiple_instances']:
             args = OrderedDict()
 
-            if 'instance' in runnable_data['arguments']:
+            if 'instance' in runnable_data.get('arguments', {}):
                 instance_type = runnable_data["arguments"]["instance"]["data_type"]
                 if instance_type != component.instance_type:
                     raise TypeError(f'Runnable has argument named "instance" but '

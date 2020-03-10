@@ -1,0 +1,71 @@
+{
+    "settings": {
+        "name": "test project",
+        "components_folder": "components",
+        "required_plugins": []
+    },
+    "sources": [],
+    "includes": [],
+    "components": [
+        "foo",
+        "bar"
+    ],
+    "instances": {
+        "foo1": "foo",
+        "foo2": "foo",
+        "bar1": "bar",
+        "bar2": "bar"
+    },
+    "types": {
+        "ByteArray_t": {
+            "type": "struct",
+            "pass_semantic": "value",
+            "fields": {
+                "bytes": "uint8_t*",
+                "count": "size_t"
+            }
+        },
+        "uint8_t*": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "NULL"
+        },
+        "size_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdio.h>",
+            "default_value": "0u"
+        },
+        "uint32_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "0u"
+        }
+    },
+    "runtime": {
+        "runnables": {
+            "loop": []
+        },
+        "port_connections": [
+            {
+                "provider": "bar1/no_args",
+                "consumer": "foo1/no_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar1/with_args",
+                "consumer": "foo1/with_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar2/no_args",
+                "consumer": "foo2/no_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar2/with_args",
+                "consumer": "foo2/with_args",
+                "update_on": "Runtime/loop"
+            }
+        ]
+    }
+}

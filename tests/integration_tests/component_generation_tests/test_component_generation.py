@@ -60,3 +60,11 @@ class TestComponentGeneration(unittest.TestCase):
         self._test_generated_files('03-multiple-instance/project.json', 'foo', {
             'foo.h': 'foo.expected.h'
         })
+
+    def test_multiple_instance_async(self):
+        self._test_generated_files('03-multiple-instance-async/project.json', 'foo', {
+            'foo.h': 'foo.expected.h'
+        })
+        self._test_generated_files('03-multiple-instance-async/project.json', 'bar', {
+            'bar.h': 'bar.expected.h'
+        })

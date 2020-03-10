@@ -6,7 +6,7 @@ from typing import Iterable
 
 import chevron
 
-from cglue.component import Component, ComponentCollection
+from cglue.component import Component, ComponentCollection, ComponentInstance
 from cglue.utils.common import to_underscore
 from cglue.signal import SignalType
 from cglue.data_types import TypeCollection, TypeWrapper
@@ -95,6 +95,41 @@ class Plugin:
         handler(self._owner, *args)
 
 
+class RuntimeGeneratorContext:
+    def __init__(self, owner, config: dict):
+        self._context = config
+        self._owner = owner
+
+    def __getitem__(self, item):
+        return self._context[item]
+
+    def __setitem__(self, key, value):
+        self._context[key] = value
+
+    @property
+    def types(self):
+        return self._owner.types
+
+    @property
+    def functions(self):
+        return self._owner.functions
+
+    def get_port(self, short_name):
+        return self._owner.get_port(self.get_component_ref(short_name))
+
+    def _split(self, short_name):
+        component_name, port_name = short_name.split('/', 2)
+        return self._context['component_instances'][component_name].component, port_name
+
+    def get_component_ref(self, short_name):
+        component, port_name = self._split(short_name)
+        return f'{component.name}/{port_name}'
+
+    def get_component_of(self, short_name):
+        component, _ = self._split(short_name)
+        return component
+
+
 class CGlue:
     def __init__(self, project_config_file):
         self._project_config_file = project_config_file
@@ -154,7 +189,7 @@ class CGlue:
         component_config_file = f'{self._component_dir(component_name)}/config.json'
         with open(component_config_file, "r") as file:
             component_config = json.load(file)
-        self.add_component(Component(component_name, component_config))
+        self.add_component(Component(component_name, component_config, self.types))
 
     def add_component(self, component: Component):
         self._components[component.name] = component.config
@@ -169,7 +204,7 @@ class CGlue:
 
         for port_name, port_data in component.config['ports'].items():
             port_type = self._port_types[port_data['port_type']]
-            processed_port = port_type.process_port(component.name, port_name, port_data)
+            processed_port = port_type.process_port(component, port_name, port_data)
 
             self._ports[processed_port.full_name] = processed_port
 
@@ -280,6 +315,8 @@ class CGlue:
 
         context = self._prepare_context(header_file_name, source_file_name)
 
+        self._create_component_instances(context)
+
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
         self._functions.update(port_functions)
 
@@ -316,6 +353,10 @@ class CGlue:
         type_includes = set(self._get_type_includes(sorted_type_objects))
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
+        instance_variables = [f'static {instance.component.instance_type} {instance.instance_var_name};'
+                              for instance in context['component_instances'].values()
+                              if instance.component.config['multiple_instances']]
+
         template_data = {
             'components_dir': self.settings['components_folder'],
             'includes': sorted(includes),
@@ -328,7 +369,7 @@ class CGlue:
             'type_includes': sorted(type_includes),
             'function_declarations': function_headers,
             'functions':             function_implementations,
-            'variables':             context['declarations']
+            'variables':             [*instance_variables, *context['declarations']]
         }
 
         context['files'][source_file_name] = chevron.render(source_template, template_data)
@@ -338,16 +379,38 @@ class CGlue:
 
         return context['files']
 
+    def _create_component_instances(self, context):
+        context['component_instances'] = {}
+        context['component_type_instances'] = defaultdict(list)
+
+        def add_component_instance(inst_name, inst_component):
+            if inst_name in context['component_instances']:
+                instance_component = context['component_instances'][inst_name]
+                raise ValueError(f'Component instance {inst_name} already exists '
+                                 f'(instance of component {instance_component.component_name}')
+            context['component_instances'][inst_name] = ComponentInstance(inst_component, inst_name)
+
+        for name, component in self._component_collection.items():
+            if not component.config['multiple_instances']:
+                add_component_instance(name, component)
+
+        for instance_name, component_name in self._project_config.get('instances', {}).items():
+            component = self._component_collection[component_name]
+            if not component.config['multiple_instances']:
+                raise ValueError(f'Component {component_name} does not support instantiating')
+            add_component_instance(instance_name, component)
+            context['component_type_instances'][component.name].append(instance_name)
+
     def _process_connections(self, context):
         for connection in self._project_config['runtime']['port_connections']:
             provider_attributes, provider_port, provider_signals = self._process_provider_port(context, connection)
 
             for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, provider_attributes, provider_port,
-                                             provider_signals)
+                self._process_consumer_ports(context, consumer_ref, provider_attributes,
+                                             connection['provider']['short_name'], provider_signals)
 
     def _prepare_context(self, header_file_name, source_file_name):
-        return {
+        return RuntimeGeneratorContext(self, {
             'runtime': self,
             'files': {source_file_name: '', header_file_name: ''},
             'functions': {},
@@ -356,7 +419,7 @@ class CGlue:
             'runtime_includes': {'"utils.h"'},
             'signals': defaultdict(lambda: defaultdict(list)),
             'used_types': []
-        }
+        })
 
     @staticmethod
     def _create_port_function(context, port):
@@ -366,13 +429,14 @@ class CGlue:
     def _process_provider_port(self, context, connection):
         provider_ref = connection['provider']
         provider_short_name = provider_ref['short_name']
-        provider_port = self.get_port(provider_short_name)
+        provider_port = context.get_port(provider_short_name)
 
         self._create_port_function(context, provider_port)
 
         provider_attributes = {key: value for key, value in connection.items()
                                if key not in ['provider', 'consumer', 'consumers']}
 
+        # create a dict to store providers signals
         provider_signals = context['signals'][provider_short_name]
         return provider_attributes, provider_port, provider_signals
 
@@ -382,9 +446,10 @@ class CGlue:
                 for connection in connections:
                     connection.generate()
 
-    def _process_consumer_ports(self, context, consumer_ref, provider_attributes, provider_port, provider_signals):
+    def _process_consumer_ports(self, context, consumer_ref, provider_attrs, provider_short_name, provider_signals):
         consumer_short_name = consumer_ref['short_name']
-        consumer_port = self.get_port(consumer_short_name)
+        consumer_port = context.get_port(consumer_short_name)
+        provider_port = context.get_port(provider_short_name)
 
         # infer signal type
         consumed_signal_types = consumer_port.port_type['consumes']
@@ -397,10 +462,10 @@ class CGlue:
 
         def create_new_signal(new_signal_name):
             signals_of_current_type.append(
-                signal_type.create_connection(context, new_signal_name, provider_port.full_name, provider_attributes))
+                signal_type.create_connection(context, new_signal_name, provider_short_name, provider_attrs))
 
         # create signal connection
-        signal_name = f'{provider_port.full_name}_{signal_type_name}'.replace('/', '_')
+        signal_name = f'{provider_short_name}_{signal_type_name}'.replace('/', '_')
 
         if not signals_of_current_type:
             create_new_signal(signal_name)
@@ -413,7 +478,7 @@ class CGlue:
                                 f' signal (provided by {provider_port.full_name})')
 
         consumer_attributes = consumer_ref.get('attributes', {})
-        signals_of_current_type[-1].add_consumer(consumer_port.full_name, consumer_attributes)
+        signals_of_current_type[-1].add_consumer(consumer_short_name, consumer_attributes)
 
     def _infer_singal_type(self, provider_port, consumer_port, consumed_signal_types):
         inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)

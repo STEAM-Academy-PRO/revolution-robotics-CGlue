@@ -18,6 +18,8 @@ class Component:
             'version': '1.0.0',
             'requires': {},
             'source_files': [],
+            'multiple_instances': False,
+            'instance_variables': {},
             'types': {},
             'runnables': {},
             'ports': {}
@@ -25,13 +27,17 @@ class Component:
         defaults.update(config)
         return defaults
 
-    def __init__(self, name, config):
+    def __init__(self, name, config, types):
         self._name = name
+        self.types = types
         self._config = self.normalize_config(config)
 
         self._version = Version(self._config['version'])
         self._dependencies = {component: VersionConstraint(constraint)
                               for component, constraint in self._config['requires'].items()}
+
+        if self._config['instance_variables'] and not self._config['multiple_instances']:
+            raise ValueError(f'Component {name} has instance variables but does not support multiple instances')
 
     @property
     def version(self):
@@ -49,6 +55,11 @@ class Component:
     def dependencies(self):
         return self._dependencies
 
+    @property
+    def instance_type(self):
+        assert self._config['multiple_instances'], 'Component has no instance variable'
+        return f'{self._name}_Instance_t'
+
 
 class ComponentCollection:
     def __init__(self):
@@ -59,6 +70,9 @@ class ComponentCollection:
 
     def __getitem__(self, item):
         return self._components[item]
+
+    def items(self):
+        return self._components.items()
 
     def check_dependencies(self):
         failures = []
@@ -72,3 +86,25 @@ class ComponentCollection:
         if failures:
             message = '\n'.join(failures)
             raise Exception('Component dependency check failed:\n' + message)
+
+
+class ComponentInstance:
+    def __init__(self, component: Component, name):
+        self._name = name
+        self._prototype = component
+
+        if name != component.name:
+            assert component.config['multiple_instances']
+
+    @property
+    def component_name(self):
+        return self._prototype.name
+
+    @property
+    def component(self):
+        return self._prototype
+
+    @property
+    def instance_var_name(self):
+        assert self._prototype.config['multiple_instances'], 'Component has no instance variable'
+        return f'{self._prototype.name}_instance_{self._name}'

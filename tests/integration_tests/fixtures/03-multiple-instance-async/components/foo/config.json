@@ -1,0 +1,27 @@
+{
+    "name": "foo",
+    "requires": {
+        "bar": "[1.0.0,"
+    },
+    "types": {},
+    "multiple_instances": true,
+    "instance_variables": {},
+    "ports": {
+        "no_args": {
+            "port_type": "AsyncServerCall"
+        },
+        "with_args": {
+            "port_type": "AsyncServerCall",
+            "arguments": {
+                "arg": {
+                    "data_type": "uint32_t",
+                    "direction": "in"
+                },
+                "result": {
+                    "data_type": "BarType_t",
+                    "direction": "out"
+                }
+            }
+        }
+    }
+}

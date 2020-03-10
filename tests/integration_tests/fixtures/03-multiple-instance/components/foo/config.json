@@ -1,0 +1,95 @@
+{
+    "name": "foo",
+    "requires": {},
+    "types": {
+        "FuncPtr_t": {
+            "type": "func_ptr",
+            "return_type": "void",
+            "arguments": {
+                "instance": {
+                    "data_type": "foo_Instance_t",
+                    "direction": "inout"
+                }
+            }
+        }
+    },
+    "multiple_instances": true,
+    "instance_variables": {
+        "var1": "uint32_t"
+    },
+    "runnables": {
+        "Runnable": {
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
+        "RunnableWithReturnValue": {
+            "return_type": "uint32_t",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
+        "FuncPtr": "FuncPtr_t"
+    },
+    "ports": {
+        "EventPort": {
+            "port_type": "Event",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
+        "CallPort": {
+            "port_type": "ServerCall",
+            "return_type": "uint32_t",
+            "arguments": {
+                "arg1": "uint32_t"
+            }
+        },
+        "RPort": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "RPortFromI": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "WPort": {
+            "port_type": "WriteData",
+            "data_type": "uint32_t"
+        },
+        "RIPort": {
+            "port_type": "ReadIndexedValue",
+            "data_type": "uint32_t",
+            "count": 3
+        },
+        "RQPort": {
+            "port_type": "ReadQueuedValue",
+            "data_type": "uint32_t"
+        },
+        "WIPort": {
+            "port_type": "WriteIndexedData",
+            "data_type": "uint32_t",
+            "count": 3
+        },
+        "CPort": {
+            "port_type": "Constant",
+            "data_type": "uint32_t",
+            "value": 42
+        },
+        "CAPort": {
+            "port_type": "ConstantArray",
+            "data_type": "uint32_t",
+            "value": [1, 2, 3],
+            "count": 3
+        },
+        "RCPort": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "RCAPort": {
+            "port_type": "ReadIndexedValue",
+            "data_type": "uint32_t",
+            "count": 3
+        }
+    }
+}

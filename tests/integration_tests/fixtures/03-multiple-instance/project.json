@@ -1,0 +1,111 @@
+{
+    "settings": {
+        "name": "test project",
+        "components_folder": "components",
+        "required_plugins": []
+    },
+    "sources": [],
+    "includes": [],
+    "components": [
+        "foo"
+    ],
+    "instances": {
+        "foo1": "foo",
+        "foo2": "foo"
+    },
+    "types": {
+        "uint32_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "0u"
+        }
+    },
+    "runtime": {
+        "runnables": {
+            "OnInit": [
+                [
+                    "foo1/Runnable",
+                    {
+                        "arguments": {
+                            "arg1": 5
+                        }
+                    }
+                ],
+                [
+                    "foo2/Runnable",
+                    {
+                        "arguments": {
+                            "arg1": 6
+                        }
+                    }
+                ]
+            ]
+        },
+        "port_connections": [
+            {
+                "provider": "foo1/EventPort",
+                "consumer": "foo2/Runnable"
+            },
+            {
+                "provider": "foo2/EventPort",
+                "consumer": "foo1/Runnable"
+            },
+            {
+                "provider": "foo2/RunnableWithReturnValue",
+                "consumer": "foo1/CallPort"
+            },
+            {
+                "provider": "foo1/RunnableWithReturnValue",
+                "consumer": "foo2/CallPort"
+            },
+            {
+                "provider": "foo1/WPort",
+                "consumer": "foo2/RPort"
+            },
+            {
+                "provider": "foo1/CPort",
+                "consumer": "foo2/RCPort"
+            },
+            {
+                "provider": "foo2/CPort",
+                "consumer": "foo1/RCPort"
+            },
+            {
+                "provider": "foo1/CAPort",
+                "consumer": "foo2/RCAPort"
+            },
+            {
+                "provider": "foo2/CAPort",
+                "consumer": "foo1/RCAPort"
+            },
+            {
+                "provider": "foo1/WPort",
+                "consumer": "foo1/RQPort",
+                "queue_length": 2
+            },
+            {
+                "provider": "foo2/WPort",
+                "consumer": "foo2/RQPort",
+                "queue_length": 1
+            },
+            {
+                "provider": "foo2/WPort",
+                "consumer": "foo1/RPort"
+            },
+            {
+                "provider": "foo1/WIPort",
+                "consumers": [
+                    "foo2/RIPort",
+                    ["foo2/RPortFromI", {"index": 2}]
+                ]
+            },
+            {
+                "provider": "foo2/WIPort",
+                "consumers": [
+                    "foo1/RIPort",
+                    ["foo1/RPortFromI", {"index": 3}]
+                ]
+            }
+        ]
+    }
+}

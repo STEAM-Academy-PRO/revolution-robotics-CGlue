@@ -1,0 +1,24 @@
+{
+    "name": "bar",
+    "requires": {},
+    "types": {
+        "BarType_t": {
+            "aliases": "uint32_t"
+        }
+    },
+    "runnables": {
+        "no_args": {},
+        "with_args": {
+            "arguments": {
+                "arg": {
+                    "data_type": "uint32_t",
+                    "direction": "in"
+                },
+                "result": {
+                    "data_type": "BarType_t",
+                    "direction": "out"
+                }
+            }
+        }
+    }
+}

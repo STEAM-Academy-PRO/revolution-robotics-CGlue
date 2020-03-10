@@ -1,13 +1,19 @@
+from collections import OrderedDict
+
 from cglue.function import FunctionPrototype, FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
 from cglue.data_types import TypeCollection
+from cglue.utils.common import indent
 
 
-def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args):
+def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args, manual_args=None):
     user_arguments = attributes.get('arguments', {})
+    if manual_args is None:
+        manual_args = {}
+
     for arg in user_arguments:
         if arg not in consumer_arguments:
             print(f"Warning: Runnable {consumer_name} does not have an argument named '{arg}'")
@@ -16,6 +22,9 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
     for arg_name, arg_type in consumer_arguments.items():
         if arg_name in user_arguments:
             passed_arguments[arg_name] = user_arguments[arg_name]
+
+        elif arg_name in manual_args:
+            passed_arguments[arg_name] = manual_args[arg_name]
 
         elif arg_name in caller_args:
             if arg_type != caller_args[arg_name]:
@@ -28,28 +37,54 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
     return passed_arguments
 
 
+def _add_instance_check(assignment, provider_instance):
+    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+           f'{{\n' \
+           f'{indent(assignment)}\n' \
+           f'}}'
+
+
+def _port_component_is_instanced(context, port_name):
+    component_instance_name = port_name.split('/', 2)[0]
+    component_instance = context['component_instances'][component_instance_name]
+
+    return component_instance.component.config['multiple_instances']
+
+
 class EventSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple')
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+        caller_fn = context.get_port(connection.provider).functions['run']
+        fn_to_call = context.get_port(consumer_instance_name).functions['run']
 
-        caller_fn = runtime.get_port(connection.provider).functions['run']
-        fn_to_call = runtime.get_port(consumer_name).functions['run']
+        manual_args = {}
+        consumer_component_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_name]
 
-        passed_arguments = collect_arguments(attributes, consumer_name, fn_to_call.arguments, caller_fn.arguments)
+        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
+        if is_multiple_instance:
+            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
-        call_code = fn_to_call.generate_call(passed_arguments)
+        passed_arguments = collect_arguments(attributes, consumer_instance_name,
+                                             fn_to_call.arguments, caller_fn.arguments, manual_args)
+
+        provider_port_name = context.get_component_ref(connection.provider)
+        body = fn_to_call.generate_call(passed_arguments) + ';'
+
+        if provider_is_multiple_instance:
+            body = _add_instance_check(body, consumer_instance)
 
         return {
-            connection.provider: {
+            provider_port_name: {
                 'run': {
-                    'body': call_code + ';',
+                    'body': body,
                     'used_arguments': passed_arguments.keys()
                 },
                 'write': {
-                    'body': call_code + ';',
+                    'body': body,
                     'used_arguments': passed_arguments.keys()
                 }
             }
@@ -60,41 +95,52 @@ class ServerCallSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple')
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+        consumer_port_data = context.get_port(consumer_instance_name)
+        caller_fn = consumer_port_data.functions['run']
+        fn_to_call = context.get_port(connection.provider).functions['run']
 
-        consumer_port_data = runtime.get_port(consumer_name)
-        caller_fn = runtime.get_port(consumer_name).functions['run']
-        fn_to_call = runtime.get_port(connection.provider).functions['run']
+        manual_args = {}
+        consumer_component_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_name]
 
-        passed_arguments = collect_arguments(attributes, consumer_name, fn_to_call.arguments, caller_fn.arguments)
+        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
+        if is_multiple_instance:
+            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
-        call_code = fn_to_call.generate_call(passed_arguments)
+        passed_arguments = collect_arguments(attributes, consumer_instance_name,
+                                             fn_to_call.arguments, caller_fn.arguments, manual_args)
 
-        if caller_fn.return_type == 'void':
-            return {
-                consumer_name: {
-                    'run': {
-                        'body': call_code + ';',
-                        'used_arguments': passed_arguments.keys()
-                    }
-                }
-            }
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
 
-        else:
+        return_statement = None
+        if caller_fn.return_type != 'void':
             if caller_fn.return_type != fn_to_call.return_type:
                 raise Exception(f'Callee return type is incompatible ({consumer_port_data["return_type"]} '
                                 f'instead of {caller_fn.return_type})')
 
-            return {
-                consumer_name: {
-                    'run': {
-                        'body':             f"{consumer_port_data['return_type']} return_value = {call_code};",
-                        'used_arguments':   passed_arguments.keys(),
-                        'return_statement': 'return_value'
-                    }
-                }
+            body = f"return {fn_to_call.generate_call(passed_arguments)};"
+            if provider_is_multiple_instance:
+                return_statement = context.types.get(caller_fn.return_type).render_value(None)
+        else:
+            body = fn_to_call.generate_call(passed_arguments) + ';'
+
+        if provider_is_multiple_instance:
+            body = _add_instance_check(body, consumer_instance)
+
+        mod = {
+            'body': body,
+            'used_arguments': passed_arguments.keys()
+        }
+        if return_statement:
+            mod['return_statement'] = return_statement
+
+        return {
+            consumer_port_name: {
+                'run': mod
             }
+        }
 
 
 class RunnablePortType(PortType):
@@ -138,7 +184,7 @@ class RunnablePortType(PortType):
 
 
 def _create_callee_function(port, types, fn_name, return_type):
-    function = FunctionPrototype(fn_name, return_type)
+    function = port.declare_function(fn_name, return_type)
 
     for name, arg_data in port.get('arguments', {}).items():
         if type(arg_data) is str:
@@ -246,7 +292,7 @@ def expand_runtime_events(owner: CGlue, project_config):
             'consumers': handlers
         } for event, handlers in runtime_runnables.items()]
 
-    owner.add_component(Component('Runtime', runtime_component))
+    owner.add_component(Component('Runtime', runtime_component, owner.types))
     runtime_config['port_connections'] += event_connections
 
 
@@ -280,6 +326,27 @@ def create_runnable_ports(owner: CGlue, component: Component):
                 'return_type': type_data.data['return_type'],
                 'arguments': type_data.data['arguments']
             }
+
+        if component.config['multiple_instances']:
+            args = OrderedDict()
+
+            if 'instance' in runnable_data.get('arguments', {}):
+                instance_type = runnable_data["arguments"]["instance"]["data_type"]
+                if instance_type != component.instance_type:
+                    raise TypeError(f'Runnable has argument named "instance" but '
+                                    f'its type ({instance_type.name}) '
+                                    f'does not match instance type')
+            else:
+                args['instance'] = {
+                    'data_type': component.instance_type,
+                    'direction': 'inout'
+                }
+
+            if 'arguments' in runnable_data:
+                args.update(runnable_data['arguments'])
+
+            runnable_data['arguments'] = args
+
         component.config['ports'][runnable_name] = {
             'port_type': 'Runnable',
             **runnable_data
@@ -298,7 +365,14 @@ def sort_functions(owner: CGlue, context):
         if fn.startswith('Runtime/'):
             weight = 0
         else:
-            weight = owner.get_port(fn).port_type.config.get('order', 3)
+            if type(context) is dict:
+                port = owner.get_port(fn)
+            else:
+                try:
+                    port = context.get_port(fn)
+                except KeyError:
+                    port = owner.get_port(fn)
+            weight = port.port_type.config.get('order', 3)
 
         return weight
 

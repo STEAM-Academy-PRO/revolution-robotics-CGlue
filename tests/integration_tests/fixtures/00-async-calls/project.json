@@ -36,10 +36,19 @@
         }
     },
     "runtime": {
+        "runnables": {
+            "loop": []
+        },
         "port_connections": [
             {
-                "provider": "foo/port",
-                "consumers": []
+                "provider": "bar/no_args",
+                "consumer": "foo/no_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar/with_args",
+                "consumer": "foo/with_args",
+                "update_on": "Runtime/loop"
             }
         ]
     }

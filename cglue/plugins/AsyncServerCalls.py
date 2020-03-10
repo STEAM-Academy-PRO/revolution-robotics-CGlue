@@ -1,9 +1,24 @@
 import chevron
 
-from cglue.function import FunctionPrototype, FunctionImplementation
+from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
+from cglue.utils.common import indent
+
+
+def _add_instance_check(assignment, provider_instance):
+    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+           f'{{\n' \
+           f'{indent(assignment)}\n' \
+           f'}}'
+
+
+def _port_component_is_instanced(context, port_name):
+    component_instance_name = port_name.split('/', 2)[0]
+    component_instance = context['component_instances'][component_instance_name]
+
+    return component_instance.component.config['multiple_instances']
 
 
 # FIXME clean up implementation
@@ -14,30 +29,44 @@ class AsyncServerCallSignal(SignalType):
         super().__init__('single', {'update_on'})
 
     def create(self, context, connection: SignalConnection):
-        port = context['runtime'].get_port(connection.provider)
+        provider_instance_name = connection.provider
+        port = context.get_port(provider_instance_name)
 
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
+
+        # updater function is unique for each signal, no need for instance argument
         update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
 
-        context['functions'][connection.provider]['update'] = update_function
+        # create updater function
+        context['functions'][provider_instance_name] = {'update': update_function}
 
         stored_arguments = []
         callee_arguments = {}
 
-        for name, arg_data in port.get('arguments', {}).items():
+        indentation = ' ' * 12
+        arg_prefix = '\n' + indentation
+
+        port_args = port.get('arguments', {}).copy()
+        if _port_component_is_instanced(context, provider_instance_name):
+            callee_arguments['instance'] = arg_prefix + '&' + provider_instance.instance_var_name
+            del port_args['instance']
+            context['used_types'].append(port._owner.instance_type)
+
+        for name, arg_data in port_args.items():
             if type(arg_data) is str:
                 arg_dir = 'in'
-                arg_type = context['runtime'].types.get(arg_data)
+                arg_type = context.types.get(arg_data)
             else:
                 arg_dir = arg_data['direction']
-                arg_type = context['runtime'].types.get(arg_data['data_type'])
+                arg_type = context.types.get(arg_data['data_type'])
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
-            indent = ' ' * 12
             if arg_dir == 'out' or arg_type.passed_by() == 'pointer':
-                callee_arguments[name] = f'\n{indent}&{connection.name}_argument_{name}'
+                callee_arguments[name] = f'{arg_prefix}&{connection.name}_argument_{name}'
             else:
-                callee_arguments[name] = f'\n{indent}{connection.name}_argument_{name}'
+                callee_arguments[name] = f'{arg_prefix}{connection.name}_argument_{name}'
 
         context['declarations'].append(chevron.render(**{
             'template':
@@ -193,83 +222,83 @@ switch (command)
     def generate_provider(self, context, connection: SignalConnection, provider_name):
         return {}
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
-        runtime = context['runtime']
-        provider_port = runtime.get_port(connection.provider)
-        port_functions = context['functions'][consumer_name]
+    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+        provider_instance_name = connection.provider
+        provider_port = context.get_port(provider_instance_name)
+        consumer_port_name = context.get_component_ref(consumer_instance_name)
+
+        port_functions = context['functions'][consumer_port_name]
 
         call_function = port_functions['async_call']
-        cancel_function = port_functions['cancel']
         result_function = port_functions['get_result']
         update_function = context['functions'][connection.provider]['update']
 
         lock, unlock = self._get_lock_impl(connection)
 
-        # generate the caller functions
-        for arg in attributes.get('arguments', {}):
-            if arg not in provider_port['arguments']:
-                print(f'Warning: extra argument "{arg}" on signal {connection.provider}, consumed by {consumer_name}')
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
 
-        call_arguments, missing_arguments = self._get_consumer_call_args(attributes, call_function.prototype,
-                                                                         provider_port, runtime)
+        consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
+        provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
 
-        if missing_arguments:
-            raise Exception(f'{consumer_name} does not provide {connection.provider} with'
-                            f' the following in-arguments: {", ".join(missing_arguments)}')
+        call_mods = self.generate_call_function(
+            context.types, attributes.get('arguments', {}), call_function.prototype.arguments, connection,
+            consumer_instance_name, provider_instance_name, provider_port['arguments'], lock, unlock)
 
-        call_function.add_body(chevron.render(**{
-            'template': '''AsyncOperationState_t returned_state = AsyncState_Busy;
-{{ signal_name }}_command = AsyncCommand_None;
-{{ lock }}
-if ({{ signal_name}}_state == AsyncState_Idle || {{ signal_name}}_state == AsyncState_Done)
-{
-    {{ signal_name}}_state = AsyncState_Started;
-    {{ unlock }}
+        result_arg_names = list(result_function.arguments.keys())
+        if provider_is_multiple_instance:
+            result_arg_names.pop(0)
 
-{{# arguments }}
-    {{ signal_name }}_argument_{{ name }} = {{# by_pointer }}*{{/ by_pointer }}{{ value }};
-{{/ arguments }}
+        get_result_mods = self.generate_get_result_function(call_function, connection, result_arg_names, lock, unlock)
 
-    returned_state = AsyncState_Started;
-    {{ signal_name }}_command = AsyncCommand_Start;
-}
-else
-{
-    {{ unlock }}
-}''',
-            'data': {
-                'signal_name': connection.name,
-                'lock': lock,
-                'unlock': unlock,
-                'arguments': call_arguments
+        cancel_mods = {
+            'body': f'{connection.name}_command = AsyncCommand_Cancel;',
+            'used_arguments': []
+        }
+
+        update_call_mods = {
+            'body': update_function.prototype.generate_call({}) + ';'
+        }
+
+        if consumer_is_multiple_instance:
+            cancel_mods['used_arguments'].append('instance')
+            get_result_mods['used_arguments'].append('instance')
+
+            busy_value = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+
+            cancel_mods['body'] = _add_instance_check(cancel_mods['body'], consumer_instance)
+            call_mods['body'] = _add_instance_check(call_mods['body'], consumer_instance)
+            call_mods['return_statement'] = busy_value
+            get_result_mods['body'] = _add_instance_check(get_result_mods['body'], consumer_instance)
+            get_result_mods['return_statement'] = busy_value
+
+        return {
+            connection.attributes['update_on']: {
+                'run': update_call_mods
+            },
+            consumer_port_name: {
+                'cancel': cancel_mods,
+                'get_result': get_result_mods,
+                'async_call': call_mods
             }
-        }))
+        }
 
-        for arg in call_function.prototype.arguments:
-            call_function.mark_argument_used(arg)
-        call_function.set_return_statement('returned_state')
-
-        # canceller
-        cancel_function.add_body(f'{connection.name}_command = AsyncCommand_Cancel;')
-
-        # update event
-        # FIXME: add a proper event maybe?
-        update_call = update_function.prototype.generate_call({})
-        update_event_function = context['functions'][connection.attributes['update_on']]['run']
-        update_event_function.add_body(f'{update_call};')
-
+    @staticmethod
+    def generate_get_result_function(call_function, connection, result_arg_names, lock, unlock):
         # get result
         # if the provider doesn't have an out arg, the default value for the type is passed back
         result_arguments = []
-        for arg in result_function.arguments:
-            if arg not in call_function.arguments:
-                value = f'{connection.name}_argument_{arg}'
+        used_arguments = []
+        for arg_name in result_arg_names:
+            if arg_name not in call_function.arguments:
+                value = f'{connection.name}_argument_{arg_name}'
             else:
-                value = result_function.arguments[arg]['data_type'].render_value(None)
+                value = call_function.arguments[arg_name]['data_type'].render_value(None)
 
-            result_arguments.append({'name': arg, 'value': value})
+            used_arguments.append(arg_name)
+            result_arguments.append({'name': arg_name, 'value': value})
 
-        result_function.add_body(chevron.render(**{
+        result_body = chevron.render(**{
             'template': '''AsyncOperationState_t returned_state;
 {{ lock }}
 switch ({{ signal_name }}_state)
@@ -295,34 +324,83 @@ switch ({{ signal_name }}_state)
         {{ unlock }}
         returned_state = {{ signal_name }}_state;
         break;
-}''',
+}
+return returned_state;''',
             'data': {
                 'signal_name': connection.name,
                 'lock': lock,
                 'unlock': unlock,
                 'arguments': result_arguments
             }
-        }))
-        result_function.set_return_statement('returned_state')
+        })
+        return {
+            'body': result_body,
+            'used_arguments': used_arguments
+        }
 
-        for arg in result_function.prototype.arguments:
-            result_function.mark_argument_used(arg)
+    @staticmethod
+    def generate_call_function(types, signal_args, call_function_args, connection, consumer_instance_name,
+                               provider_instance_name, provider_args, lock, unlock):
+        # generate the caller functions
+        extra_args = set(signal_args.keys()) - provider_args.keys()
+        if extra_args:
+            print(f'Warning: extra argument "{", ".join(extra_args)}" on signal'
+                  f' {provider_instance_name}, consumed by {consumer_instance_name}')
 
-        return {}
+        call_arguments, missing_arguments = AsyncServerCallSignal._get_consumer_call_args(
+            signal_args, call_function_args, provider_args, types)
 
-    def _get_consumer_call_args(self, attributes, function_prototype, provider_port, runtime):
+        if missing_arguments:
+            raise Exception(f'{consumer_instance_name} does not provide {provider_instance_name} with'
+                            f' the following in-arguments: {", ".join(missing_arguments)}')
+
+        call_body = chevron.render(**{
+            'template': '''AsyncOperationState_t returned_state = AsyncState_Busy;
+{{ signal_name }}_command = AsyncCommand_None;
+{{ lock }}
+if ({{ signal_name}}_state == AsyncState_Idle || {{ signal_name}}_state == AsyncState_Done)
+{
+    {{ signal_name}}_state = AsyncState_Started;
+    {{ unlock }}
+
+{{# arguments }}
+    {{ signal_name }}_argument_{{ name }} = {{# by_pointer }}*{{/ by_pointer }}{{ value }};
+{{/ arguments }}
+
+    returned_state = AsyncState_Started;
+    {{ signal_name }}_command = AsyncCommand_Start;
+}
+else
+{
+    {{ unlock }}
+}
+return returned_state;''',
+            'data': {
+                'signal_name': connection.name,
+                'lock': lock,
+                'unlock': unlock,
+                'arguments': call_arguments
+            }
+        })
+        return {
+            'body': call_body,
+            'used_arguments': call_function_args
+        }
+
+    @staticmethod
+    def _get_consumer_call_args(signal_arguments, function_args, provider_port_args, types):
         call_arguments = []
         missing_arguments = set()
-        for arg, data in provider_port['arguments'].items():
-            arg_type = runtime.types.get(data['data_type'])
+        for arg, data in provider_port_args.items():
+            arg_type = types.get(data['data_type'])
 
             if data['direction'] == 'in':
-                if arg in attributes.get('arguments', {}):
+                if arg in signal_arguments:
                     # there is a config entry in the runtime config for this argument
-                    config_value = attributes['arguments'][arg]
-                    if config_value in function_prototype.arguments:
+                    config_value = signal_arguments[arg]
+                    if config_value in function_args:
                         # argument remapping (different names, same types)
-                        if arg_type != function_prototype.arguments[config_value]['data_type']:
+                        if arg_type != function_args[config_value]['data_type']:
                             raise Exception('Incompatible port types')
 
                         call_arguments.append({
@@ -337,7 +415,7 @@ switch ({{ signal_name }}_state)
                             'value': arg_type.render_value(config_value),
                             'by_pointer': False
                         })
-                elif arg in function_prototype.arguments:
+                elif arg in function_args:
                     # connect arguments by name
                     call_arguments.append({
                         'name': arg,
@@ -349,7 +427,8 @@ switch ({{ signal_name }}_state)
 
         return call_arguments, missing_arguments
 
-    def _get_lock_impl(self, connection):
+    @staticmethod
+    def _get_lock_impl(connection):
         if 'no_locks' not in connection.attributes or not connection.attributes['no_locks']:
             lock = '__disable_irq();'
             unlock = '__enable_irq();'
@@ -376,9 +455,9 @@ class AsyncCallPortType(PortType):
         result_fn_name = f'{port.component_name}_Async_{port.port_name}_GetResult'
         cancel_fn_name = f'{port.component_name}_Async_{port.port_name}_Cancel'
 
-        call_function = FunctionPrototype(call_fn_name, 'AsyncOperationState_t')
-        result_function = FunctionPrototype(result_fn_name, 'AsyncOperationState_t')
-        cancel_function = FunctionPrototype(cancel_fn_name, 'void')
+        call_function = port.declare_function(call_fn_name, 'AsyncOperationState_t')
+        result_function = port.declare_function(result_fn_name, 'AsyncOperationState_t')
+        cancel_function = port.declare_function(cancel_fn_name, 'void')
 
         for name, arg_data in port.get('arguments', {}).items():
             if type(arg_data) is str:
@@ -433,9 +512,9 @@ class AsyncRunnablePortType(PortType):
         })
 
     def declare_functions(self, port):
-        fn_name = '{}_AsyncRunnable_{}'.format(port.component_name, port.port_name)
+        fn_name = f'{port.component_name}_AsyncRunnable_{port.port_name}'
 
-        function = FunctionPrototype(fn_name, 'AsyncResult_t')
+        function = port.declare_function(fn_name, 'AsyncResult_t')
 
         function.arguments.add('asyncCommand', 'in', self._types.get('AsyncCommand_t'))
 

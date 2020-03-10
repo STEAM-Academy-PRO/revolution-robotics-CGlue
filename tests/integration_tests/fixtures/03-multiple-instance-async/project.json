@@ -10,6 +10,12 @@
         "foo",
         "bar"
     ],
+    "instances": {
+        "foo1": "foo",
+        "foo2": "foo",
+        "bar1": "bar",
+        "bar2": "bar"
+    },
     "types": {
         "ByteArray_t": {
             "type": "struct",
@@ -36,10 +42,29 @@
         }
     },
     "runtime": {
+        "runnables": {
+            "loop": []
+        },
         "port_connections": [
             {
-                "provider": "foo/port",
-                "consumers": []
+                "provider": "bar1/no_args",
+                "consumer": "foo1/no_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar1/with_args",
+                "consumer": "foo1/with_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar2/no_args",
+                "consumer": "foo2/no_args",
+                "update_on": "Runtime/loop"
+            },
+            {
+                "provider": "bar2/with_args",
+                "consumer": "foo2/with_args",
+                "update_on": "Runtime/loop"
             }
         ]
     }

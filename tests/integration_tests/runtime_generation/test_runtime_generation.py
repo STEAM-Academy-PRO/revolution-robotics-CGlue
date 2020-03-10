@@ -5,6 +5,7 @@ from cglue import cglue
 from cglue.plugins.BuiltinDataTypes import builtin_data_types
 from cglue.plugins.RuntimeEvents import runtime_events
 from cglue.plugins.ProjectConfigCompactor import project_config_compactor
+from cglue.plugins.AsyncServerCalls import async_server_calls
 
 
 def _create_generator(project_config_path):
@@ -13,56 +14,57 @@ def _create_generator(project_config_path):
     generator.add_plugin(project_config_compactor())
     generator.add_plugin(builtin_data_types())
     generator.add_plugin(runtime_events())
+    generator.add_plugin(async_server_calls())
 
     generator.load()
     return generator
 
 
 class TestRuntimeGeneration(unittest.TestCase):
+
+    def _test_generated_files(self, project_file, expectations):
+        os.chdir(os.path.dirname(__file__))
+
+        root = os.path.dirname('../fixtures/' + project_file)
+        generator = _create_generator('../fixtures/' + project_file)
+
+        files = generator.generate_runtime('runtime')
+
+        self.maxDiff = None
+
+        for generated_file, expected_file in expectations.items():
+            with open(f'{root}/{expected_file}', 'r') as f:
+                file_contents = f.read()
+
+            self.assertEqual(file_contents, files[generated_file])
+
     def test_expected_header_is_generated(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_consumer_list.json")
-
-        files = generator.generate_runtime('runtime_file')
-
-        with open(f'{root}/runtime.expected.h', 'r') as f:
-            expected = f.read()
-        self.assertEqual(expected, files[f'runtime_file.h'])
-
-    def test_complex_connection_does_not_cause_error_when_consumer_is_in_list(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_consumer_list.json")
-
-        generator.generate_runtime('runtime_file')
+        self._test_generated_files("00-demo-test/project_consumer_list.json", {
+            'runtime.h': 'runtime.expected.h'
+        })
 
     def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/00-demo-test"
-        generator = _create_generator(f"{root}/project_single_consumer.json")
-
-        generator.generate_runtime('runtime_file')
-
-    def test_can_generate_runtime_with_dependent_components(self):
-        os.chdir(os.path.dirname(__file__))
-
-        root = "../fixtures/01-component-dependency"
-        generator = _create_generator(f"{root}/project.json")
-
-        generator.generate_runtime('runtime_file')
+        self._test_generated_files("00-demo-test/project_single_consumer.json", {})
 
     def test_runtime_types_are_generated_in_dependency_order(self):
-        os.chdir(os.path.dirname(__file__))
+        self._test_generated_files("01-component-dependency/project.json", {
+            'runtime.h': 'runtime.expected.h'
+        })
 
-        root = "../fixtures/01-component-dependency"
-        generator = _create_generator(f"{root}/project.json")
+    def test_multiple_component_instances(self):
+        self._test_generated_files("03-multiple-instance/project.json", {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })
 
-        files = generator.generate_runtime('runtime_file')
+    def test_single_instance_async_implementations(self):
+        self._test_generated_files('00-async-calls/project.json', {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })
 
-        with open(f'{root}/runtime.expected.h', 'r') as f:
-            expected = f.read()
-        self.assertEqual(expected, files[f'runtime_file.h'])
+    def test_multiple_instance_async_implementations(self):
+        self._test_generated_files('03-multiple-instance-async/project.json', {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })

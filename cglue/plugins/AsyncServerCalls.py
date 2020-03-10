@@ -254,7 +254,13 @@ switch (command)
 
         if consumer_is_multiple_instance:
             cancel_mods['used_arguments'].append('instance')
+            get_result_mods['used_arguments'].append('instance')
+
             cancel_mods['body'] = _add_instance_check(cancel_mods['body'], consumer_instance)
+            call_mods['body'] = _add_instance_check(call_mods['body'], consumer_instance)
+            call_mods['return_statement'] = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+            get_result_mods['body'] = _add_instance_check(get_result_mods['body'], consumer_instance)
+            get_result_mods['return_statement'] = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
 
         return {
             connection.attributes['update_on']: {
@@ -308,7 +314,8 @@ switch ({{ signal_name }}_state)
         {{ unlock }}
         returned_state = {{ signal_name }}_state;
         break;
-}''',
+}
+return returned_state;''',
             'data': {
                 'signal_name': connection.name,
                 'lock': lock,
@@ -357,7 +364,8 @@ if ({{ signal_name}}_state == AsyncState_Idle || {{ signal_name}}_state == Async
 else
 {
     {{ unlock }}
-}''',
+}
+return returned_state;''',
             'data': {
                 'signal_name': connection.name,
                 'lock': lock,
@@ -367,7 +375,6 @@ else
         })
         return {
             'body': call_body,
-            'return_statement': 'returned_state',
             'used_arguments': call_function_args
         }
 

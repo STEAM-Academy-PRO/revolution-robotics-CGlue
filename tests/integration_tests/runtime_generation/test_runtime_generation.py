@@ -62,3 +62,9 @@ class TestRuntimeGeneration(unittest.TestCase):
             'runtime.h': 'runtime.expected.h',
             'runtime.c': 'runtime.expected.c'
         })
+
+    def test_multiple_instance_async_implementations(self):
+        self._test_generated_files('03-multiple-instance-async/project.json', {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })

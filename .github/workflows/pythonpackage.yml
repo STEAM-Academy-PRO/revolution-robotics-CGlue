@@ -30,3 +30,6 @@ jobs:
     - name: Test with setup.py
       run: |
         python setup.py test
+    - name: Upload coverage to Codecov  
+      run: |
+        codecov -t ${{ secrets.CODECOV_TOKEN }}

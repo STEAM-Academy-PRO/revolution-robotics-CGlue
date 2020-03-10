@@ -4,6 +4,21 @@ from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
+from cglue.utils.common import indent
+
+
+def _add_instance_check(assignment, provider_instance):
+    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+           f'{{\n' \
+           f'{indent(assignment)}\n' \
+           f'}}'
+
+
+def _port_component_is_instanced(context, port_name):
+    component_instance_name = port_name.split('/', 2)[0]
+    component_instance = context['component_instances'][component_instance_name]
+
+    return component_instance.component.config['multiple_instances']
 
 
 # FIXME clean up implementation
@@ -35,11 +50,11 @@ class AsyncServerCallSignal(SignalType):
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
-            indent = ' ' * 12
+            indentation = ' ' * 12
             if arg_dir == 'out' or arg_type.passed_by() == 'pointer':
-                callee_arguments[name] = f'\n{indent}&{connection.name}_argument_{name}'
+                callee_arguments[name] = f'\n{indentation}&{connection.name}_argument_{name}'
             else:
-                callee_arguments[name] = f'\n{indent}{connection.name}_argument_{name}'
+                callee_arguments[name] = f'\n{indentation}{connection.name}_argument_{name}'
 
         context['declarations'].append(chevron.render(**{
             'template':
@@ -217,14 +232,22 @@ switch (command)
         cancel_mods = {
             'body': f'{connection.name}_command = AsyncCommand_Cancel;'
         }
+
+        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+        consumer_instance = context['component_instances'][consumer_component_instance_name]
+
+        update_args = {}
+        if _port_component_is_instanced(context, consumer_instance_name):
+            update_args['instance'] = '&' + consumer_instance.instance_var_name
+
         update_mods = {
-            'body': update_function.prototype.generate_call({}) + ';'
+            'body': update_function.prototype.generate_call(update_args) + ';'
         }
         return {
             connection.attributes['update_on']: {
                 'run': update_mods
             },
-            consumer_instance_name: {
+            consumer_port_name: {
                 'cancel': cancel_mods,
                 'get_result': get_result_mods,
                 'async_call': call_mods

@@ -9,13 +9,11 @@ static bar_Instance_t bar_instance_bar2;
 /* bar1_no_args_async_call */
 static AsyncOperationState_t bar1_no_args_async_call_state = AsyncState_Idle;
 static AsyncCommand_t bar1_no_args_async_call_command = AsyncCommand_None;
-static bar_Instance_t bar1_no_args_async_call_argument_instance;
 static void bar1_no_args_async_call_Update(void);
 
 /* bar1_with_args_async_call */
 static AsyncOperationState_t bar1_with_args_async_call_state = AsyncState_Idle;
 static AsyncCommand_t bar1_with_args_async_call_command = AsyncCommand_None;
-static bar_Instance_t bar1_with_args_async_call_argument_instance;
 static uint32_t bar1_with_args_async_call_argument_arg;
 static BarType_t bar1_with_args_async_call_argument_result;
 static void bar1_with_args_async_call_Update(void);
@@ -23,13 +21,11 @@ static void bar1_with_args_async_call_Update(void);
 /* bar2_no_args_async_call */
 static AsyncOperationState_t bar2_no_args_async_call_state = AsyncState_Idle;
 static AsyncCommand_t bar2_no_args_async_call_command = AsyncCommand_None;
-static bar_Instance_t bar2_no_args_async_call_argument_instance;
 static void bar2_no_args_async_call_Update(void);
 
 /* bar2_with_args_async_call */
 static AsyncOperationState_t bar2_with_args_async_call_state = AsyncState_Idle;
 static AsyncCommand_t bar2_with_args_async_call_command = AsyncCommand_None;
-static bar_Instance_t bar2_with_args_async_call_argument_instance;
 static uint32_t bar2_with_args_async_call_argument_arg;
 static BarType_t bar2_with_args_async_call_argument_result;
 static void bar2_with_args_async_call_Update(void);
@@ -47,7 +43,7 @@ void bar1_no_args_async_call_Update(void)
             __enable_irq();
 
             bar_Run_no_args(
-                &bar1_no_args_async_call_argument_instance);
+                &bar_instance_bar1);
 
             bar1_no_args_async_call_state = AsyncState_Done;
             break;
@@ -76,7 +72,7 @@ void bar1_with_args_async_call_Update(void)
             __enable_irq();
 
             bar_Run_with_args(
-                &bar1_with_args_async_call_argument_instance,
+                &bar_instance_bar1,
                 bar1_with_args_async_call_argument_arg,
                 &bar1_with_args_async_call_argument_result);
 
@@ -107,7 +103,7 @@ void bar2_no_args_async_call_Update(void)
             __enable_irq();
 
             bar_Run_no_args(
-                &bar2_no_args_async_call_argument_instance);
+                &bar_instance_bar2);
 
             bar2_no_args_async_call_state = AsyncState_Done;
             break;
@@ -136,7 +132,7 @@ void bar2_with_args_async_call_Update(void)
             __enable_irq();
 
             bar_Run_with_args(
-                &bar2_with_args_async_call_argument_instance,
+                &bar_instance_bar2,
                 bar2_with_args_async_call_argument_arg,
                 &bar2_with_args_async_call_argument_result);
 

@@ -4,6 +4,9 @@
 #include <stdint.h>
 
 
+typedef struct {
+} bar_Instance_t;
+
 typedef enum {
     AsyncState_Idle,
     AsyncState_Started,
@@ -17,9 +20,6 @@ typedef enum {
     AsyncCommand_Continue,
     AsyncCommand_Cancel
 } AsyncCommand_t;
-
-typedef struct {
-} bar_Instance_t;
 typedef uint32_t BarType_t;
 
 typedef struct {

@@ -36,8 +36,6 @@ class Component:
         self._dependencies = {component: VersionConstraint(constraint)
                               for component, constraint in self._config['requires'].items()}
 
-        self.instance_type = f'{name}_Instance_t'
-
         if self._config['instance_variables'] and not self._config['multiple_instances']:
             raise ValueError(f'Component {name} has instance variables but does not support multiple instances')
 
@@ -56,6 +54,11 @@ class Component:
     @property
     def dependencies(self):
         return self._dependencies
+
+    @property
+    def instance_type(self):
+        assert self._config['multiple_instances'], 'Component has no instance variable'
+        return f'{self._name}_Instance_t'
 
 
 class ComponentCollection:
@@ -103,4 +106,5 @@ class ComponentInstance:
 
     @property
     def instance_var_name(self):
+        assert self._prototype.config['multiple_instances'], 'Component has no instance variable'
         return f'{self._prototype.name}_instance_{self._name}'

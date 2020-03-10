@@ -29,18 +29,31 @@ class AsyncServerCallSignal(SignalType):
         super().__init__('single', {'update_on'})
 
     def create(self, context, connection: SignalConnection):
-        port = context.get_port(connection.provider)
+        provider_instance_name = connection.provider
+        port = context.get_port(provider_instance_name)
+
+        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+        provider_instance = context['component_instances'][provider_component_instance_name]
 
         # updater function is unique for each signal, no need for instance argument
         update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
 
         # create updater function
-        context['functions'][connection.provider] = {'update': update_function}
+        context['functions'][provider_instance_name] = {'update': update_function}
 
         stored_arguments = []
         callee_arguments = {}
 
-        for name, arg_data in port.get('arguments', {}).items():
+        indentation = ' ' * 12
+        arg_prefix = '\n' + indentation
+
+        port_args = port.get('arguments', {}).copy()
+        if _port_component_is_instanced(context, provider_instance_name):
+            callee_arguments['instance'] = arg_prefix + '&' + provider_instance.instance_var_name
+            del port_args['instance']
+            context['used_types'].append(port._owner.instance_type)
+
+        for name, arg_data in port_args.items():
             if type(arg_data) is str:
                 arg_dir = 'in'
                 arg_type = context.types.get(arg_data)
@@ -50,11 +63,10 @@ class AsyncServerCallSignal(SignalType):
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
-            indentation = ' ' * 12
             if arg_dir == 'out' or arg_type.passed_by() == 'pointer':
-                callee_arguments[name] = f'\n{indentation}&{connection.name}_argument_{name}'
+                callee_arguments[name] = f'{arg_prefix}&{connection.name}_argument_{name}'
             else:
-                callee_arguments[name] = f'\n{indentation}{connection.name}_argument_{name}'
+                callee_arguments[name] = f'{arg_prefix}{connection.name}_argument_{name}'
 
         context['declarations'].append(chevron.render(**{
             'template':
@@ -73,7 +85,6 @@ class AsyncServerCallSignal(SignalType):
         }))
         context['used_types'].append('AsyncOperationState_t')
         context['used_types'].append('AsyncCommand_t')
-        context['used_types'].append(port._owner.instance_type)
 
         # generate the updater function
         if 'run' in port.functions:
@@ -324,7 +335,6 @@ return returned_state;''',
         })
         return {
             'body': result_body,
-            'return_statement': 'returned_state',
             'used_arguments': used_arguments
         }
 

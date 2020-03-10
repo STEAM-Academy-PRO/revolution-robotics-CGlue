@@ -1,4 +1,4 @@
-CGlue ![Python package](https://github.com/RevolutionRobotics/CGlue/workflows/Python%20package/badge.svg)
+CGlue ![Python package](https://github.com/RevolutionRobotics/CGlue/workflows/Python%20package/badge.svg) [![codecov](https://codecov.io/gh/RevolutionRobotics/CGlue/branch/master/graph/badge.svg)](https://codecov.io/gh/RevolutionRobotics/CGlue)
 =====
 
 __CGlue is in its early stages of development. It is not recommended for use in

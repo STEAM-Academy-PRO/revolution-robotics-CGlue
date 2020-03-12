@@ -230,7 +230,8 @@ class TypeCollection:
             # if the type is already known, check if the definitions are compatible
             existing_type = self.get(type_name)
 
-            print(f'Duplicate type {type_name} defined in {defined_by}, already added from {existing_type.defined_by}')
+            print(f'Warning: Duplicate type {type_name} defined in {defined_by}, '
+                  f'already added from {existing_type.defined_by}')
 
             if info != existing_type:
                 raise Exception(f'Conflicting definitions exist for {type_name}')

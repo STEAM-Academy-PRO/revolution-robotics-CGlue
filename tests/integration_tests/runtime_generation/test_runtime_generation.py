@@ -68,3 +68,9 @@ class TestRuntimeGeneration(unittest.TestCase):
             'runtime.h': 'runtime.expected.h',
             'runtime.c': 'runtime.expected.c'
         })
+
+    def test_multiple_instance_with_non_instanced(self):
+        self._test_generated_files('03-multiple-instance-mixed/project.json', {
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
+        })

@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from cglue.function import ArgumentList
 from cglue.utils.common import process_dict
 
@@ -55,17 +57,21 @@ class TypeAlias(TypeCategory):
 
     def render_value(self, type_name, type_data, value, context='assignment'):
         # call the render of aliased type
-        return self._type_collection.get(type_data['aliases']).render_value(value, context)
+        return self.aliased_type(type_data).render_value(value, context)
 
     def attribute(self, type_name, type_data, name):
-        if name in type_data and type_data[name]:
-            return type_data[name]
+        with suppress(KeyError):
+            if type_data[name] is not None:
+                return type_data[name]
 
-        return self._type_collection.get(type_data['aliases']).get_attribute(name)
+        return self.aliased_type(type_data).get_attribute(name)
 
     def referenced_types(self, type_name, type_data):
         yield type_data['aliases']
         yield from super().referenced_types(type_name, type_data)
+
+    def aliased_type(self, type_data):
+        return self._type_collection.get(type_data['aliases'])
 
 
 class BuiltinType(TypeCategory):
@@ -248,7 +254,7 @@ class TypeCollection:
     def export(self):
         def strip(data):
             data = data._type_data.copy()
-            if data['type'] in [TypeCollection.ALIAS, TypeCollection.EXTERNAL_DEF]:
+            if data['type'] in (TypeCollection.ALIAS, TypeCollection.EXTERNAL_DEF):
                 del data['type']
 
             return data

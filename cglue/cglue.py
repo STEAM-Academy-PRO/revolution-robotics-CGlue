@@ -153,7 +153,6 @@ class CGlue:
         self._port_types = {}
         self._signal_types = {}
         self._functions = {}
-
         self._ports = {}
 
         self._print_warnings = ['unconnected_signals']
@@ -197,10 +196,11 @@ class CGlue:
         return f'{self._basedir}/{self.settings["components_folder"]}/{component_name}'
 
     def _load_component_config(self, component_name):
-        component_config_file = f'{self._component_dir(component_name)}/config.json'
-        with open(component_config_file, "r") as file:
-            component_config = json.load(file)
-        self.add_component(Component(component_name, component_config, self.types))
+        if component_name not in self._components:
+            component_config_file = f'{self._component_dir(component_name)}/config.json'
+            with open(component_config_file, "r") as file:
+                component_config = json.load(file)
+            self.add_component(Component(component_name, component_config, self.types))
 
     def add_component(self, component: Component):
         if component.name not in self._components:
@@ -320,10 +320,9 @@ class CGlue:
         return self._ports[short_name]
 
     def get_project_structure(self):
+        context = RuntimeGeneratorContext(self)
+
         self._component_collection.check_dependencies()
-
-        context = self._prepare_context()
-
         self._create_component_instances(context)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
@@ -345,10 +344,9 @@ class CGlue:
         self._generate_signals(context['signals'])
 
         if 'unconnected_signals' in self._print_warnings:
-            all_unconnected = set(self._ports.keys()) - context['functions'].keys()
-            for unconnected in sorted(all_unconnected):
-                if self.get_port(unconnected).is_consumer:
-                    print(f'Warning: {unconnected} port is not connected')
+            for name, port in self._ports.items():
+                if port.is_consumer and name not in context['functions']:
+                    print(f'Warning: {name} port is not connected')
 
         self.raise_event('before_generating_runtime', context)
 
@@ -363,8 +361,9 @@ class CGlue:
         function_headers = []
         function_implementations = []
         for port_name, funcs in context['functions'].items():
+            export_functions = port_name in context['exported_function_declarations']
             for f in funcs.values():
-                if port_name in context['exported_function_declarations']:
+                if export_functions:
                     function_headers.append(f.get_header())
                 function_implementations.append(f.get_function())
                 type_names += f.referenced_types
@@ -421,48 +420,54 @@ class CGlue:
 
     def _process_connections(self, context):
         for connection in self._project_config['runtime']['port_connections']:
-            provider_attributes, provider_port, provider_signals = self._process_provider_port(context, connection)
+            provider_name, port, attributes, signals = self._process_provider_port(context, connection)
 
             for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, provider_attributes,
-                                             connection['provider']['short_name'], provider_signals)
-
-    def _prepare_context(self):
-        return RuntimeGeneratorContext(self)
+                self._process_consumer_ports(context, consumer_ref, port, attributes, provider_name, signals)
 
     @staticmethod
     def _create_port_function(context, port):
         if port.full_name not in context['functions']:
             context['functions'][port.full_name] = port.create_runtime_functions()
 
-    def _process_provider_port(self, context, connection):
+    @staticmethod
+    def _process_provider_port(context, connection):
         provider_ref = connection['provider']
         provider_short_name = provider_ref['short_name']
-        provider_port = context.get_port(provider_short_name)
 
-        self._create_port_function(context, provider_port)
+        provider_port = context.get_port(provider_short_name)
+        provider_signals = context['signals'][provider_short_name]
+
+        CGlue._create_port_function(context, provider_port)
 
         provider_attributes = {key: value for key, value in connection.items()
-                               if key not in ['provider', 'consumer', 'consumers']}
+                               if key not in ('provider', 'consumer', 'consumers')}
 
-        # create a dict to store providers signals
-        provider_signals = context['signals'][provider_short_name]
-        return provider_attributes, provider_port, provider_signals
+        return provider_short_name, provider_port, provider_attributes, provider_signals
 
-    def _generate_signals(self, sgnls):
+    @staticmethod
+    def _generate_signals(sgnls):
         for signals in sgnls.values():
             for connections in signals.values():
                 for connection in connections:
                     connection.generate()
 
-    def _process_consumer_ports(self, context, consumer_ref, provider_attrs, provider_short_name, provider_signals):
+    def _process_consumer_ports(self, context, consumer_ref, provider_port, attrs, provider_name, provider_signals):
         consumer_short_name = consumer_ref['short_name']
         consumer_port = context.get_port(consumer_short_name)
-        provider_port = context.get_port(provider_short_name)
 
         # infer signal type
         consumed_signal_types = consumer_port.port_type['consumes']
-        signal_type_name = self._infer_singal_type(provider_port, consumer_port, consumed_signal_types)
+        inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
+
+        if len(inferred_signal_type) == 1:
+            signal_type_name = inferred_signal_type.pop()
+        elif len(inferred_signal_type) == 0:
+            raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
+        else:
+            raise Exception("Connection type can't be inferred for " +
+                            f"{provider_port.full_name} and {consumer_port.full_name}")
+
         signal_type = self._signal_types[signal_type_name]
         signals_of_current_type = provider_signals[signal_type_name]
 
@@ -471,10 +476,10 @@ class CGlue:
 
         def create_new_signal(new_signal_name):
             signals_of_current_type.append(
-                signal_type.create_connection(context, new_signal_name, provider_short_name, provider_attrs))
+                signal_type.create_connection(context, new_signal_name, provider_name, attrs))
 
         # create signal connection
-        signal_name = f'{provider_short_name}_{signal_type_name}'.replace('/', '_')
+        signal_name = f'{provider_name}_{signal_type_name}'.replace('/', '_')
 
         if not signals_of_current_type:
             create_new_signal(signal_name)
@@ -488,19 +493,6 @@ class CGlue:
 
         consumer_attributes = consumer_ref.get('attributes', {})
         signals_of_current_type[-1].add_consumer(consumer_short_name, consumer_attributes)
-
-    def _infer_singal_type(self, provider_port, consumer_port, consumed_signal_types):
-        inferred_signal_type = provider_port.port_type['provides'].intersection(consumed_signal_types)
-
-        if len(inferred_signal_type) == 1:
-            signal_type_name = inferred_signal_type.pop()
-
-            return signal_type_name
-        elif len(inferred_signal_type) == 0:
-            raise Exception(f'Incompatible ports: {provider_port.full_name} and {consumer_port.full_name}')
-        else:
-            raise Exception('Connection type can not be inferred for'
-                            f'{provider_port.full_name} and {consumer_port.full_name}')
 
     def raise_event(self, event_name, *args):
         for plugin in self._plugins.values():

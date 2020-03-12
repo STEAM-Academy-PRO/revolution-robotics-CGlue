@@ -1,0 +1,21 @@
+{
+    "name": "foo",
+    "requires": {},
+    "types": {},
+    "multiple_instances": true,
+    "instance_variables": {
+        "var1": "uint32_t"
+    },
+    "runnables": {
+    },
+    "ports": {
+        "read": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        },
+        "write": {
+            "port_type": "WriteData",
+            "data_type": "uint32_t"
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "name": "bar",
+    "requires": {},
+    "types": {},
+    "ports": {
+        "write": {
+            "port_type": "WriteData",
+            "data_type": "uint32_t"
+        },
+        "read": {
+            "port_type": "ReadValue",
+            "data_type": "uint32_t"
+        }
+    }
+}

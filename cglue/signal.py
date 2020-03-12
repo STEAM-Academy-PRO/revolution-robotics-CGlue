@@ -18,10 +18,8 @@ class SignalConnection:
 
     def generate(self):
         # collect implementations in a list
-        function_mods_list = []
         try:
-            function_mods = self.signal.generate_provider(self.context, self, self.provider)
-            function_mods_list.append(function_mods)
+            function_mods_list = [self.signal.generate_provider(self.context, self, self.provider)]
         except Exception:
             print(f'Failed to generate provider implementation for {self.name}')
             raise

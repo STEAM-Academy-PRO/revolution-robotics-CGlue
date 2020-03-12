@@ -46,15 +46,14 @@ class StructType(TypeCategory):
             return value
 
         types = self._type_collection
-        field_types = type_data['fields']
+        field_types = {name: types.get(field_type) for name, field_type in type_data['fields'].items()}
         field_values = {field_name: value.get(field_name) for field_name in field_types}
 
         def render(field_name, field_value):
             """Render field values"""
-            return types.get(field_types[field_name]).render_value(field_value, 'initialization')
+            return field_types[field_name].render_value(field_value, 'initialization')
 
         rendered_values = {name: render(name, value) for name, value in field_values.items()}
-
         rendered_field_values = (f'.{name} = {rendered}' for name, rendered in rendered_values.items())
 
         fields_str = ', '.join(rendered_field_values)
@@ -69,11 +68,10 @@ class StructType(TypeCategory):
             default = type_data['default_value']
             struct_fields = type_data['fields']
 
-            def default_value(field_name):
-                # use 'or' so we only look up the default for the field if it is not given in the struct data
-                return default.get(field_name) or self._type_collection.get(struct_fields[field_name]).default_value()
-
-            return {name: default_value(name) for name in struct_fields}
+            types = self._type_collection
+            # use 'or' so we only look up the default for the field if it is not given in the struct data
+            return {name: default.get(name) or types.get(field_type).default_value()
+                    for name, field_type in struct_fields.items()}
         else:
             return super().attribute(type_name, type_data, name)
 
@@ -199,11 +197,19 @@ def process_member_access(types: TypeCollection, attributes, provided_data_type,
     return member_accessor, types.get(consumed_data_type)
 
 
-def _add_instance_check(assignment, provider_instance):
-    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+def _add_instance_check(assignment, provider_instance, instance_argument='instance'):
+    return f'if ({instance_argument} == &{provider_instance.instance_var_name})\n' \
            f'{{\n' \
            f'{indent(assignment)}\n' \
            f'}}'
+
+
+def _get_instance_argument(context, argument_names, instance_name):
+    instance_var_name = None
+    if _port_component_is_instanced(context, instance_name):
+        instance_var_name = argument_names.pop(0)
+
+    return instance_var_name
 
 
 def _port_component_is_instanced(context, port_name):
@@ -237,9 +243,7 @@ class VariableSignal(SignalType):
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
         provider_instance = context['component_instances'][provider_component_instance_name]
 
-        is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        instance_argument = _get_instance_argument(context, argument_names, provider_instance_name)
 
         data_arg_name = argument_names[0]
         used_args = [data_arg_name]
@@ -249,9 +253,9 @@ class VariableSignal(SignalType):
         else:
             assignment = f'{connection.name} = *{data_arg_name};'
 
-        if is_multiple_instances:
-            used_args.append('instance')
-            assignment = _add_instance_check(assignment, provider_instance)
+        if instance_argument is not None:
+            used_args.append(instance_argument)
+            assignment = _add_instance_check(assignment, provider_instance, instance_argument=instance_argument)
 
         return {
             provider_port_name: {
@@ -271,32 +275,28 @@ class VariableSignal(SignalType):
                                                            provider_port_data['data_type'],
                                                            consumer_port_data['data_type'])
 
-        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
-
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        instance_argument = _get_instance_argument(context, argument_names, consumer_instance_name)
 
         used_args = []
         return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}{member_accessor};'
 
-            if provider_is_multiple_instance:
+            if instance_argument is not None:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
             read = f'*{out_name} = {connection.name}{member_accessor};'
             used_args.append(out_name)
 
-        if provider_is_multiple_instance:
-            used_args.append('instance')
-            read = _add_instance_check(read, consumer_instance)
+        if instance_argument is not None:
+            used_args.append(instance_argument)
+            consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+            consumer_instance = context['component_instances'][consumer_component_instance_name]
+            read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
 
         mods = {
             'body': read,
@@ -771,12 +771,13 @@ class ConstantArraySignal(SignalType):
 
 
 def process_type_def(types: TypeCollection, type_name, type_def):
-    type_data = type_def.copy()
     # determine type of definition
-    if 'type' in type_data:
+    if 'type' in type_def:
+        type_data = type_def.copy()
         type_category = type_data['type']
         del type_data['type']
     else:
+        type_data = type_def
         if 'defined_in' in type_data:
             type_category = TypeCollection.EXTERNAL_DEF
         elif 'aliases' in type_data:
@@ -790,11 +791,10 @@ def process_type_def(types: TypeCollection, type_name, type_def):
 
     try:
         return types.category(type_category).process_type(type_data)
-    except KeyError:
-        print(f'Unknown type category {type_category} set for {type_name}')
-        raise
+    except KeyError as e:
+        raise Exception(f'Unknown type category {type_category} set for {type_name}') from e
     except Exception as e:
-        raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}')
+        raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}') from e
 
 
 class ReadValuePortType(PortType):

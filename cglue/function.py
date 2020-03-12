@@ -55,7 +55,7 @@ class ArgumentList(dict):
                 else:
                     pattern = '{} {}'
 
-            elif data['direction'] in ['out', 'inout']:
+            elif data['direction'] in ('out', 'inout'):
                 pattern = '{}* {}'
 
             else:
@@ -130,11 +130,7 @@ class FunctionImplementation:
 
     def add_input_assert(self, statements):
         self.includes.add('"utils_assert.h"')
-        if type(statements) is str:
-            self._asserts.add(f'ASSERT({statements});')
-        else:
-            for statement in statements:
-                self.add_input_assert(statement)
+        self._asserts.add(f'ASSERT({statements});')
 
     def add_body(self, body):
         if type(body) is str:

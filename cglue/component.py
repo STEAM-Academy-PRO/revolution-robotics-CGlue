@@ -64,15 +64,13 @@ class Component:
 class ComponentCollection:
     def __init__(self):
         self._components = {}
+        self.items = self._components.items
 
     def add(self, component: Component):
         self._components[component.name] = component
 
     def __getitem__(self, item):
         return self._components[item]
-
-    def items(self):
-        return self._components.items()
 
     def check_dependencies(self):
         failures = []

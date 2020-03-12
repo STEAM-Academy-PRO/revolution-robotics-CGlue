@@ -503,11 +503,11 @@ class CGlue:
                             f'{provider_port.full_name} and {consumer_port.full_name}')
 
     def raise_event(self, event_name, *args):
-        for plugin in self._plugins:
+        for plugin in self._plugins.values():
             try:
-                self._plugins[plugin].handle(event_name, args)
+                plugin.handle(event_name, args)
             except Exception:
-                print(f'Error while processing {plugin}::{event_name}')
+                print(f'Error while processing {plugin.name}::{event_name}')
                 raise
 
     @property

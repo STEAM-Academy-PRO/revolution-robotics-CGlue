@@ -96,9 +96,20 @@ class Plugin:
 
 
 class RuntimeGeneratorContext:
-    def __init__(self, owner, config: dict):
-        self._context = config
+    def __init__(self, owner):
         self._owner = owner
+        self._context = {
+            'runtime': owner,
+            'files': {},
+            'functions': {},
+            'declarations': [],
+            'exported_function_declarations': [],
+            'runtime_includes': {'"utils.h"'},
+            'signals': defaultdict(lambda: defaultdict(list)),
+            'component_instances': {},
+            'component_type_instances': defaultdict(list),
+            'used_types': []
+        }
 
     def __getitem__(self, item):
         return self._context[item]
@@ -308,13 +319,10 @@ class CGlue:
     def get_port(self, short_name):
         return self._ports[short_name]
 
-    def generate_runtime(self, filename):
-        source_file_name = filename + '.c'
-        header_file_name = filename + '.h'
-
+    def get_project_structure(self):
         self._component_collection.check_dependencies()
 
-        context = self._prepare_context(header_file_name, source_file_name)
+        context = self._prepare_context()
 
         self._create_component_instances(context)
 
@@ -322,6 +330,18 @@ class CGlue:
         self._functions.update(port_functions)
 
         self._process_connections(context)
+
+        return context
+
+    def generate_runtime(self, filename):
+        source_file_name = filename + '.c'
+        header_file_name = filename + '.h'
+
+        context = self.get_project_structure()
+
+        context['files'][source_file_name] = ''
+        context['files'][header_file_name] = ''
+
         self._generate_signals(context['signals'])
 
         if 'unconnected_signals' in self._print_warnings:
@@ -380,10 +400,7 @@ class CGlue:
 
         return context['files']
 
-    def _create_component_instances(self, context):
-        context['component_instances'] = {}
-        context['component_type_instances'] = defaultdict(list)
-
+    def _create_component_instances(self, context: RuntimeGeneratorContext):
         def add_component_instance(inst_name, inst_component):
             if inst_name in context['component_instances']:
                 instance_component = context['component_instances'][inst_name]
@@ -410,17 +427,8 @@ class CGlue:
                 self._process_consumer_ports(context, consumer_ref, provider_attributes,
                                              connection['provider']['short_name'], provider_signals)
 
-    def _prepare_context(self, header_file_name, source_file_name):
-        return RuntimeGeneratorContext(self, {
-            'runtime': self,
-            'files': {source_file_name: '', header_file_name: ''},
-            'functions': {},
-            'declarations': [],
-            'exported_function_declarations': [],
-            'runtime_includes': {'"utils.h"'},
-            'signals': defaultdict(lambda: defaultdict(list)),
-            'used_types': []
-        })
+    def _prepare_context(self):
+        return RuntimeGeneratorContext(self)
 
     @staticmethod
     def _create_port_function(context, port):

@@ -11,7 +11,7 @@ class TestFunctionPointer(unittest.TestCase):
             "pass_semantic": "value",
             "defined_in": "<stdint.h>",
             "default_value": "0u"
-        })
+        }, 'test')
         fp = FunctionPointerType(tc)
         self.assertEqual('typedef uint8_t (*test_function)(uint8_t* p);', fp.render_typedef('test_function', {
             'return_type': 'uint8_t',

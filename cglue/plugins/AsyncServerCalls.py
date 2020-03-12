@@ -554,7 +554,8 @@ def init(owner: CGlue):
                 'AsyncState_Done'
             ],
             'default_value': 'AsyncState_Idle'
-        })
+        }),
+        "builtin type"
     )
     types.add(
         'AsyncCommand_t',
@@ -566,7 +567,8 @@ def init(owner: CGlue):
                 'AsyncCommand_Cancel'
             ],
             'default_value': 'AsyncCommand_None'
-        })
+        }),
+        "builtin type"
     )
     types.add(
         'AsyncResult_t',
@@ -576,7 +578,8 @@ def init(owner: CGlue):
                 'AsyncResult_Ok'
             ],
             'default_value': 'AsyncResult_Pending'
-        })
+        }),
+        "builtin type"
     )
 
     add_event_to = ['Runnable']

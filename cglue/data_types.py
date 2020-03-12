@@ -119,8 +119,9 @@ class FunctionPointerType(TypeCategory):
 
 
 class TypeWrapper:
-    def __init__(self, type_name, type_data, type_category):
+    def __init__(self, type_name, type_data, type_category, defined_by):
         self._type_name = type_name
+        self._defined_by = defined_by
         self._type_data = type_data
         self._type_category = type_category
 
@@ -135,6 +136,10 @@ class TypeWrapper:
     @property
     def data(self):
         return self._type_data
+
+    @property
+    def defined_by(self):
+        return self._defined_by
 
     def __getitem__(self, item):
         return self._type_data[item]
@@ -212,7 +217,7 @@ class TypeCollection:
         }
 
         for name, data in default_types.items():
-            self.add(name, data)
+            self.add(name, data, 'builtin type')
 
     def add_category(self, info: TypeCategory):
         self._type_categories[info.name] = info
@@ -220,14 +225,18 @@ class TypeCollection:
     def category(self, type_category):
         return self._type_categories[type_category]
 
-    def add(self, type_name, info):
+    def add(self, type_name, info, defined_by):
         try:
             # if the type is already known, check if the definitions are compatible
-            if info != self.get(type_name):
+            existing_type = self.get(type_name)
+
+            print(f'Duplicate type {type_name} defined in {defined_by}, already added from {existing_type.defined_by}')
+
+            if info != existing_type:
                 raise Exception(f'Conflicting definitions exist for {type_name}')
         except KeyError:
             # type is not yet known, add it
-            self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']])
+            self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']], defined_by)
 
     def get(self, type_name):
         if type(type_name) is not str:

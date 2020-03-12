@@ -4,8 +4,8 @@ from cglue.function import FunctionPrototype, FunctionCallGenerationException
 from cglue.data_types import TypeWrapper, BuiltinType, TypeCollection
 
 tc = TypeCollection()
-float_type = TypeWrapper('float', {'pass_semantic': 'value'}, BuiltinType(tc))
-some_object_type = TypeWrapper('Object_t', {'pass_semantic': 'pointer'}, BuiltinType(tc))
+float_type = TypeWrapper('float', {'pass_semantic': 'value'}, BuiltinType(tc), "test")
+some_object_type = TypeWrapper('Object_t', {'pass_semantic': 'pointer'}, BuiltinType(tc), "test")
 
 
 class TestFunctionPrototype(unittest.TestCase):

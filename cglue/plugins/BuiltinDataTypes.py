@@ -18,7 +18,7 @@ class StructType(TypeCategory):
                 'pass_semantic': TypeCollection.PASS_BY_POINTER,
                 'default_value': {}
             },
-            'static':   {
+            'static': {
                 'type': TypeCollection.STRUCT
             }
         }
@@ -33,9 +33,9 @@ class StructType(TypeCategory):
                         "    {{/ fields }}\n"
                         "} {{ type_name }};",
 
-            'data':     {
+            'data': {
                 'type_name': type_name,
-                'fields':    dict_to_chevron_list(type_data['fields'], key_name='name', value_name='type')
+                'fields': dict_to_chevron_list(type_data['fields'], key_name='name', value_name='type')
             }
         }
 
@@ -88,7 +88,7 @@ class EnumType(TypeCategory):
         attributes = {
             'required': ['values', 'default_value'],
             'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
-            'static':   {
+            'static': {
                 'type': TypeCollection.ENUM
             }
         }
@@ -103,9 +103,9 @@ class EnumType(TypeCategory):
                         "    {{/ values }}\n"
                         "} {{ type_name }};",
 
-            'data':     {
+            'data': {
                 'type_name': type_name,
-                'values':    chevron_list_mark_last([{'value': value} for value in type_data['values']])
+                'values': chevron_list_mark_last([{'value': value} for value in type_data['values']])
             }
         }
 
@@ -118,7 +118,7 @@ class UnionType(TypeCategory):
         attributes = {
             'required': ['members', 'default_value'],
             'optional': {'pass_semantic': TypeCollection.PASS_BY_POINTER},
-            'static':   {
+            'static': {
                 'type': TypeCollection.UNION
             }
         }
@@ -133,9 +133,9 @@ class UnionType(TypeCategory):
                         "    {{/ members }}\n"
                         "} {{ type_name }};",
 
-            'data':     {
+            'data': {
                 'type_name': type_name,
-                'members':   dict_to_chevron_list(type_data['members'], key_name='name', value_name='type')
+                'members': dict_to_chevron_list(type_data['members'], key_name='name', value_name='type')
             }
         }
 
@@ -257,7 +257,7 @@ class VariableSignal(SignalType):
             provider_port_name: {
                 'write': {
                     'used_arguments': used_args,
-                    'body':           assignment
+                    'body': assignment
                 }
             }
         }
@@ -370,7 +370,7 @@ class ArraySignal(SignalType):
             provider_port_name: {
                 'write': {
                     'used_arguments': used_args,
-                    'body':           body
+                    'body': body
                 }
             }
         }
@@ -462,8 +462,8 @@ class QueueSignal(SignalType):
         data_type = context.types.get(data_type_name)
 
         data = {
-            'data_type':    data_type.name,
-            'signal_name':  connection.name,
+            'data_type': data_type.name,
+            'signal_name': connection.name,
             'queue_length': connection.attributes['queue_length']
         }
         context['declarations'].append(chevron.render(template, data))
@@ -511,8 +511,8 @@ class QueueSignal(SignalType):
 
         body = chevron.render(template, {
             'queue_length': connection.attributes['queue_length'],
-            'signal_name':  connection.name,
-            'value':        value_arg if passed_by_value else '*' + value_arg
+            'signal_name': connection.name,
+            'value': value_arg if passed_by_value else '*' + value_arg
         })
 
         if provider_is_multiple_instances:
@@ -527,7 +527,7 @@ class QueueSignal(SignalType):
             provider_port_name: {
                 'write': {
                     'used_arguments': used_args,
-                    'body':           body
+                    'body': body
                 }
             }
         }
@@ -590,9 +590,9 @@ class QueueSignal(SignalType):
 
         value_arg = argument_names[0]
         data = {
-            'queue_length':    connection.attributes['queue_length'],
-            'signal_name':     connection.name,
-            'out_name':        '*' + value_arg,
+            'queue_length': connection.attributes['queue_length'],
+            'signal_name': connection.name,
+            'out_name': '*' + value_arg,
             'member_accessor': member_accessor
         }
 
@@ -800,17 +800,17 @@ def process_type_def(types: TypeCollection, type_name, type_def):
 class ReadValuePortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          3,
-            'consumes':       {
-                'array':            'single',
-                'variable':         'single',
-                'constant':         'single',
-                'constant_array':   'single'
+            'order': 3,
+            'consumes': {
+                'array': 'single',
+                'variable': 'single',
+                'constant': 'single',
+                'constant_array': 'single'
             },
             'def_attributes': {
                 'required': ['data_type'],
                 'optional': {'default_value': None},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -859,12 +859,12 @@ class ReadValuePortType(PortType):
 class ReadQueuedValuePortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          3,
-            'consumes':       {'queue': 'single'},
+            'order': 3,
+            'consumes': {'queue': 'single'},
             'def_attributes': {
                 'required': ['data_type'],
                 'optional': {'default_value': None},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -906,15 +906,15 @@ class ReadQueuedValuePortType(PortType):
 class ReadIndexedValuePortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          3,
-            'consumes':       {
-                'array':          'multiple',
+            'order': 3,
+            'consumes': {
+                'array': 'multiple',
                 'constant_array': 'multiple'
             },
             'def_attributes': {
                 'required': ['data_type', 'count'],
                 'optional': {'default_value': None},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -972,12 +972,12 @@ class ReadIndexedValuePortType(PortType):
 class WriteDataPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          2,
-            'provides':       {'variable', 'queue'},
+            'order': 2,
+            'provides': {'variable', 'queue'},
             'def_attributes': {
                 'required': ['data_type'],
                 'optional': {},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -1021,12 +1021,12 @@ class WriteDataPortType(PortType):
 class WriteIndexedDataPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          2,
-            'provides':       {'array'},
+            'order': 2,
+            'provides': {'array'},
             'def_attributes': {
                 'required': ['data_type', 'count'],
                 'optional': {},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -1075,12 +1075,12 @@ class WriteIndexedDataPortType(PortType):
 class ConstantPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          1,
-            'provides':       {'constant'},
+            'order': 1,
+            'provides': {'constant'},
             'def_attributes': {
                 'required': ['data_type', 'value'],
                 'optional': {},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -1121,12 +1121,12 @@ class ConstantPortType(PortType):
 class ConstantArrayPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
-            'order':          1,
-            'provides':       {'constant_array'},
+            'order': 1,
+            'provides': {'constant_array'},
             'def_attributes': {
                 'required': ['data_type', 'value', 'count'],
                 'optional': {},
-                'static':   {}
+                'static': {}
             }
         })
 
@@ -1202,21 +1202,22 @@ def init(owner: CGlue):
                 'QueueStatus_Overflow'
             ],
             'default_value': 'QueueStatus_Empty'
-        })
+        }),
+        "builtin types"
     )
 
     for port_type_name, port_type_class in known_port_types.items():
         owner.add_port_type(port_type_name, port_type_class(types))
 
 
-def add_type_def(owner: CGlue, type_name, type_data):
+def add_type_def(owner: CGlue, type_name, type_data, defined_by):
     processed_type_data = process_type_def(owner.types, type_name, type_data)
-    owner.types.add(type_name, processed_type_data)
+    owner.types.add(type_name, processed_type_data, defined_by)
 
 
 def process_project_types(owner: CGlue, project_config):
     for type_name, type_data in project_config.get('types', {}).items():
-        add_type_def(owner, type_name, type_data)
+        add_type_def(owner, type_name, type_data, "project file")
 
 
 def process_component_ports_and_types(owner: CGlue, component: Component):
@@ -1224,7 +1225,7 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
 
     try:
         for type_name, type_data in component.config['types'].items():
-            add_type_def(owner, type_name, type_data)
+            add_type_def(owner, type_name, type_data, component.name)
 
         if component.config['multiple_instances']:
             instance_type_name = f'{component.name}_Instance_t'
@@ -1232,7 +1233,7 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
                 'fields': component.config['instance_variables'],
                 'pass_semantic': 'pointer'
             }
-            add_type_def(owner, instance_type_name, instance_type)
+            add_type_def(owner, instance_type_name, instance_type, component.name)
     except Exception:
         print(f"Failed to add type definitions for {component.name}")
         raise
@@ -1274,9 +1275,9 @@ def cleanup_component(owner: CGlue, _, ctx):
 
 def builtin_data_types():
     return Plugin("BuiltinDataTypes", {
-        'init':                        init,
-        'load_project_config':         process_project_types,
-        'load_component_config':       process_component_ports_and_types,
+        'init': init,
+        'load_project_config': process_project_types,
+        'load_component_config': process_component_ports_and_types,
         'before_generating_component': cleanup_component,
-        'before_generating_runtime':   sort_functions
+        'before_generating_runtime': sort_functions
     })

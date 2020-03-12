@@ -811,7 +811,7 @@ class ReadValuePortType(PortType):
 
         fn_name = f'{port.component_name}_Read_{port.port_name}'
 
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function = port.declare_function(fn_name, data_type.name)
         else:
             function = port.declare_function(fn_name, 'void', {
@@ -828,7 +828,7 @@ class ReadValuePortType(PortType):
         function.attributes.add('weak')
 
         default_value = data_type.render_value(port['default_value'])
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement(default_value)
         else:
             function.add_input_assert('value != NULL')
@@ -842,7 +842,7 @@ class ReadValuePortType(PortType):
         data_type = self._types.get(port['data_type'])
 
         function = FunctionImplementation(prototype)
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
 
         return {'read': function}
@@ -915,7 +915,7 @@ class ReadIndexedValuePortType(PortType):
 
         fn_name = f'{port.component_name}_Read_{port.port_name}'
 
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function = port.declare_function(fn_name, data_type.name, {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')}
             })
@@ -937,7 +937,7 @@ class ReadIndexedValuePortType(PortType):
         function.mark_argument_used('index')
 
         default_value = data_type.render_value(port['default_value'])
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement(default_value)
         else:
             function.add_input_assert('value != NULL')
@@ -954,7 +954,7 @@ class ReadIndexedValuePortType(PortType):
         function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
 
@@ -991,7 +991,7 @@ class WriteDataPortType(PortType):
         function = FunctionImplementation(prototype)
         function.attributes.add('weak')
 
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
 
@@ -1003,7 +1003,7 @@ class WriteDataPortType(PortType):
 
         function = FunctionImplementation(prototype)
 
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
 
@@ -1043,7 +1043,7 @@ class WriteIndexedDataPortType(PortType):
         function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
 
@@ -1057,7 +1057,7 @@ class WriteIndexedDataPortType(PortType):
         function.add_input_assert(f'index < {port["count"]}')
         function.mark_argument_used('index')
 
-        if data_type.passed_by() == 'pointer':
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
             function.add_input_assert('value != NULL')
             function.mark_argument_used('value')
 
@@ -1081,7 +1081,7 @@ class ConstantPortType(PortType):
 
         fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function = port.declare_function(fn_name, data_type.name)
         else:
             function = port.declare_function(fn_name, 'void', {
@@ -1097,7 +1097,7 @@ class ConstantPortType(PortType):
         function = FunctionImplementation(prototype)
 
         constant_value = data_type.render_value(port['value'])
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement(constant_value)
         else:
             function.add_input_assert('value != NULL')
@@ -1127,7 +1127,7 @@ class ConstantArrayPortType(PortType):
 
         fn_name = f'{port.component_name}_Constant_{port.port_name}'
 
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function = port.declare_function(fn_name, data_type.name, {
                 'index': {'direction': 'in', 'data_type': self._types.get('uint32_t')}
             })
@@ -1149,7 +1149,7 @@ class ConstantArrayPortType(PortType):
 
         constant_value = ', '.join(map(data_type.render_value, port['value']))
         function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{ {constant_value} }};')
-        if data_type.passed_by() == 'value':
+        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement('constant[index]')
         else:
             function.add_input_assert('value != NULL')

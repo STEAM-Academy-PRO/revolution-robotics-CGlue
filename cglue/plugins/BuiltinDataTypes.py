@@ -240,9 +240,6 @@ class VariableSignal(SignalType):
         function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
-        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_instance_name]
-
         instance_argument = _get_instance_argument(context, argument_names, provider_instance_name)
 
         data_arg_name = argument_names[0]
@@ -255,6 +252,8 @@ class VariableSignal(SignalType):
 
         if instance_argument is not None:
             used_args.append(instance_argument)
+            provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+            provider_instance = context['component_instances'][provider_component_instance_name]
             assignment = _add_instance_check(assignment, provider_instance, instance_argument=instance_argument)
 
         return {
@@ -347,12 +346,7 @@ class ArraySignal(SignalType):
         function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
 
-        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_instance_name]
-
-        is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        instance_argument = _get_instance_argument(context, argument_names, provider_instance_name)
 
         index, value = argument_names
         used_args = [index, value]
@@ -362,8 +356,10 @@ class ArraySignal(SignalType):
         else:
             body = f'{connection.name}[{index}] = *{value};'
 
-        if is_multiple_instances:
-            used_args.append('instance')
+        if instance_argument is not None:
+            used_args.append(instance_argument)
+            provider_component_instance_name = provider_instance_name.split('/', 2)[0]
+            provider_instance = context['component_instances'][provider_component_instance_name]
             body = _add_instance_check(body, provider_instance)
 
         return {
@@ -384,16 +380,10 @@ class ArraySignal(SignalType):
                                                            provider_port_data['data_type'],
                                                            consumer_port_data['data_type'])
 
-        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
-
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        instance_argument = _get_instance_argument(context, argument_names, consumer_instance_name)
 
         used_args = []
         return_statement = None
@@ -414,7 +404,7 @@ class ArraySignal(SignalType):
 
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             read = f'return {connection.name}[{index}]{member_accessor};'
-            if provider_is_multiple_instance:
+            if instance_argument is not None:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
@@ -422,9 +412,11 @@ class ArraySignal(SignalType):
 
             read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 
-        if provider_is_multiple_instance:
+        if instance_argument is not None:
             used_args.append('instance')
-            read = _add_instance_check(read, consumer_instance)
+            consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
+            consumer_instance = context['component_instances'][consumer_component_instance_name]
+            read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
 
         mods = {
             'body': read,

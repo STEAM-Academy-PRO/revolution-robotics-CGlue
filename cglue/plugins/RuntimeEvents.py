@@ -46,7 +46,7 @@ def _add_instance_check(assignment, provider_instance):
 
 def _port_component_is_instanced(context, port_name):
     component_instance_name = port_name.split('/', 2)[0]
-    component_instance = context['component_instances'][component_instance_name]
+    component_instance = context.component_instances[component_instance_name]
 
     return component_instance.component.config['multiple_instances']
 
@@ -61,7 +61,7 @@ class EventSignal(SignalType):
 
         manual_args = {}
         consumer_component_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_name]
+        consumer_instance = context.component_instances[consumer_component_name]
 
         is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
@@ -102,7 +102,7 @@ class ServerCallSignal(SignalType):
 
         manual_args = {}
         consumer_component_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_name]
+        consumer_instance = context.component_instances[consumer_component_name]
 
         is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)

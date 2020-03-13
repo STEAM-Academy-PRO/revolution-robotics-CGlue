@@ -6,7 +6,7 @@ from typing import Iterable
 
 import chevron
 
-from cglue.component import Component, ComponentCollection, ComponentInstance
+from cglue.component import Component, ComponentCollection, ComponentInstanceCollection
 from cglue.utils.common import to_underscore
 from cglue.signal import SignalType
 from cglue.data_types import TypeCollection, TypeWrapper
@@ -106,10 +106,9 @@ class RuntimeGeneratorContext:
             'exported_function_declarations': [],
             'runtime_includes': {'"utils.h"'},
             'signals': defaultdict(lambda: defaultdict(list)),
-            'component_instances': {},
-            'component_type_instances': defaultdict(list),
             'used_types': []
         }
+        self.component_instances = ComponentInstanceCollection()
 
     def __getitem__(self, item):
         return self._context[item]
@@ -130,7 +129,7 @@ class RuntimeGeneratorContext:
 
     def _split(self, short_name):
         component_name, port_name = short_name.split('/', 2)
-        return self._context['component_instances'][component_name].component, port_name
+        return self.component_instances[component_name].component, port_name
 
     def get_component_ref(self, short_name):
         component, port_name = self._split(short_name)
@@ -147,8 +146,7 @@ class CGlue:
         self._basedir = os.path.dirname(project_config_file) or '.'
         self._plugins = {}
         self._project_config = {}
-        self._components = {}
-        self._component_collection = ComponentCollection()
+        self._components = ComponentCollection()
         self._types = TypeCollection()
         self._port_types = {}
         self._signal_types = {}
@@ -204,8 +202,7 @@ class CGlue:
 
     def add_component(self, component: Component):
         if component.name not in self._components:
-            self._components[component.name] = component.config
-            self._component_collection.add(component)
+            self._components.add(component)
 
             for dependency in component.dependencies:
                 self._load_component_config(dependency)
@@ -245,7 +242,7 @@ class CGlue:
 
     def update_component(self, component_name):
 
-        self._component_collection.check_dependencies()
+        self._components.check_dependencies()
 
         component_folder = self._component_dir(component_name)
         source_file = f'{component_folder}/{component_name}.c'
@@ -265,7 +262,7 @@ class CGlue:
             'folders': [component_name]
         }
 
-        component_object = self._component_collection[component_name]
+        component_object = self._components[component_name]
         port_short_names = (f'{component_name}/{port_name}' for port_name in component_object.config['ports'])
         context['functions'].update({short_name: self._ports[short_name].create_component_functions()
                                      for short_name in port_short_names})
@@ -322,13 +319,17 @@ class CGlue:
     def get_project_structure(self):
         context = RuntimeGeneratorContext(self)
 
-        self._component_collection.check_dependencies()
+        self._components.check_dependencies()
         self._create_component_instances(context)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
         self._functions.update(port_functions)
 
-        self._process_connections(context)
+        for connection in self._project_config['runtime']['port_connections']:
+            provider_name, port, attributes, signals = self._process_provider_port(context, connection)
+
+            for consumer_ref in connection['consumers']:
+                self._process_consumer_ports(context, consumer_ref, port, attributes, provider_name, signals)
 
         return context
 
@@ -351,7 +352,7 @@ class CGlue:
         self.raise_event('before_generating_runtime', context)
 
         type_names = context['used_types']
-        for c in self._components.values():
+        for c in self._components:
             type_names += c['types'].keys()
 
         output_filename = os.path.basename(filename)
@@ -374,7 +375,7 @@ class CGlue:
         typedefs = [t.render_typedef() for t in sorted_type_objects]
 
         instance_variables = [f'static {instance.component.instance_type} {instance.instance_var_name};'
-                              for instance in context['component_instances'].values()
+                              for instance in context.component_instances
                               if instance.component.config['multiple_instances']]
 
         template_data = {
@@ -382,9 +383,9 @@ class CGlue:
             'includes': sorted(includes),
             'components': [
                 {
-                    'name': name,
-                    'guard_def': to_underscore(name).upper()
-                } for name in self._components if name != 'Runtime'],  # TODO
+                    'name': component.name,
+                    'guard_def': to_underscore(component.name).upper()
+                } for component in self._components if component.name != 'Runtime'],  # TODO
             'types': typedefs,
             'type_includes': sorted(type_includes),
             'function_declarations': function_headers,
@@ -400,30 +401,13 @@ class CGlue:
         return context['files']
 
     def _create_component_instances(self, context: RuntimeGeneratorContext):
-        def add_component_instance(inst_name, inst_component):
-            if inst_name in context['component_instances']:
-                instance_component = context['component_instances'][inst_name]
-                raise ValueError(f'Component instance {inst_name} already exists '
-                                 f'(instance of component {instance_component.component_name}')
-            context['component_instances'][inst_name] = ComponentInstance(inst_component, inst_name)
-
-        for name, component in self._component_collection.items():
+        for component in self._components:
             if not component.config['multiple_instances']:
-                add_component_instance(name, component)
+                context.component_instances.add(component.create_instance(component.name))
 
         for instance_name, component_name in self._project_config.get('instances', {}).items():
-            component = self._component_collection[component_name]
-            if not component.config['multiple_instances']:
-                raise ValueError(f'Component {component_name} does not support instantiating')
-            add_component_instance(instance_name, component)
-            context['component_type_instances'][component.name].append(instance_name)
-
-    def _process_connections(self, context):
-        for connection in self._project_config['runtime']['port_connections']:
-            provider_name, port, attributes, signals = self._process_provider_port(context, connection)
-
-            for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, port, attributes, provider_name, signals)
+            component = self._components[component_name]
+            context.component_instances.add(component.create_instance(instance_name))
 
     @staticmethod
     def _create_port_function(context, port):
@@ -519,7 +503,7 @@ class CGlue:
         return self._project_config['settings']
 
     def dump_component_config(self, component_name):
-        config = self._components[component_name].copy()
+        config = self._components[component_name].export()
         self.raise_event('save_component_config', config)
         return json.dumps(config, indent=4)
 

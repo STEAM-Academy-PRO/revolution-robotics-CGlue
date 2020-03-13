@@ -39,6 +39,15 @@ class Component:
         if self._config['instance_variables'] and not self._config['multiple_instances']:
             raise ValueError(f'Component {name} has instance variables but does not support multiple instances')
 
+    def __getitem__(self, item):
+        return self._config[item]
+
+    def __setitem__(self, key, value):
+        self._config[key] = value
+
+    def export(self):
+        return self._config.copy()
+
     @property
     def version(self):
         return self._version
@@ -60,17 +69,25 @@ class Component:
         assert self._config['multiple_instances'], 'Component has no instance variable'
         return f'{self._name}_Instance_t'
 
+    def create_instance(self, name):
+        return ComponentInstance(self, name)
+
 
 class ComponentCollection:
     def __init__(self):
         self._components = {}
-        self.items = self._components.items
 
     def add(self, component: Component):
         self._components[component.name] = component
 
+    def __iter__(self):
+        yield from self._components.values()
+
     def __getitem__(self, item):
         return self._components[item]
+
+    def __contains__(self, item):
+        return item in self._components
 
     def check_dependencies(self):
         failures = []
@@ -92,7 +109,11 @@ class ComponentInstance:
         self._prototype = component
 
         if name != component.name:
-            assert component.config['multiple_instances']
+            assert component.config['multiple_instances'], f'Component {component.name} does not support instantiating'
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def component_name(self):
@@ -106,3 +127,21 @@ class ComponentInstance:
     def instance_var_name(self):
         assert self._prototype.config['multiple_instances'], 'Component has no instance variable'
         return f'{self._prototype.name}_instance_{self._name}'
+
+
+class ComponentInstanceCollection:
+    def __init__(self):
+        self._instances = {}
+
+    def add(self, value: ComponentInstance):
+        if value.name in self._instances:
+            instance_component = self._instances[value.name]
+            raise ValueError(f'Component instance {value.name} already exists '
+                             f'(instance of component {instance_component.component_name}')
+        self._instances[value.name] = value
+
+    def __getitem__(self, item):
+        return self._instances[item]
+
+    def __iter__(self):
+        yield from self._instances.values()

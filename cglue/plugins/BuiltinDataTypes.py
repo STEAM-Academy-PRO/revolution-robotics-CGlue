@@ -214,7 +214,7 @@ def _get_instance_argument(context, argument_names, instance_name):
 
 def _port_component_is_instanced(context, port_name):
     component_instance_name = port_name.split('/', 2)[0]
-    component_instance = context['component_instances'][component_instance_name]
+    component_instance = context.component_instances[component_instance_name]
 
     return component_instance.component.config['multiple_instances']
 
@@ -253,7 +253,7 @@ class VariableSignal(SignalType):
         if instance_argument is not None:
             used_args.append(instance_argument)
             provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-            provider_instance = context['component_instances'][provider_component_instance_name]
+            provider_instance = context.component_instances[provider_component_instance_name]
             assignment = _add_instance_check(assignment, provider_instance, instance_argument=instance_argument)
 
         return {
@@ -294,7 +294,7 @@ class VariableSignal(SignalType):
         if instance_argument is not None:
             used_args.append(instance_argument)
             consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-            consumer_instance = context['component_instances'][consumer_component_instance_name]
+            consumer_instance = context.component_instances[consumer_component_instance_name]
             read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
 
         mods = {
@@ -359,7 +359,7 @@ class ArraySignal(SignalType):
         if instance_argument is not None:
             used_args.append(instance_argument)
             provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-            provider_instance = context['component_instances'][provider_component_instance_name]
+            provider_instance = context.component_instances[provider_component_instance_name]
             body = _add_instance_check(body, provider_instance)
 
         return {
@@ -415,7 +415,7 @@ class ArraySignal(SignalType):
         if instance_argument is not None:
             used_args.append('instance')
             consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-            consumer_instance = context['component_instances'][consumer_component_instance_name]
+            consumer_instance = context.component_instances[consumer_component_instance_name]
             read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
 
         mods = {
@@ -490,7 +490,7 @@ class QueueSignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_instance_name]
+        provider_instance = context.component_instances[provider_component_instance_name]
 
         is_multiple_instances = _port_component_is_instanced(context, provider_instance_name)
         provider_is_multiple_instances = _port_component_is_instanced(context, connection.provider)
@@ -570,7 +570,7 @@ class QueueSignal(SignalType):
                 "}"
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
+        consumer_instance = context.component_instances[consumer_component_instance_name]
 
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
@@ -625,7 +625,7 @@ class ConstantSignal(SignalType):
                                                            consumer_port_data['data_type'])
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
+        consumer_instance = context.component_instances[consumer_component_instance_name]
 
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
@@ -696,7 +696,7 @@ class ConstantArraySignal(SignalType):
                                                            consumer_port_data['data_type'])
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
+        consumer_instance = context.component_instances[consumer_component_instance_name]
 
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())

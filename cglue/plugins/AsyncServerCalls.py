@@ -16,7 +16,7 @@ def _add_instance_check(assignment, provider_instance):
 
 def _port_component_is_instanced(context, port_name):
     component_instance_name = port_name.split('/', 2)[0]
-    component_instance = context['component_instances'][component_instance_name]
+    component_instance = context.component_instances[component_instance_name]
 
     return component_instance.component.config['multiple_instances']
 
@@ -33,7 +33,7 @@ class AsyncServerCallSignal(SignalType):
         port = context.get_port(provider_instance_name)
 
         provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context['component_instances'][provider_component_instance_name]
+        provider_instance = context.component_instances[provider_component_instance_name]
 
         # updater function is unique for each signal, no need for instance argument
         update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
@@ -236,7 +236,7 @@ switch (command)
         lock, unlock = self._get_lock_impl(connection)
 
         consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context['component_instances'][consumer_component_instance_name]
+        consumer_instance = context.component_instances[consumer_component_instance_name]
 
         consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)

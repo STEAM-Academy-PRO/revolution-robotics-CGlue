@@ -218,7 +218,10 @@ def _port_component_is_instanced(component_instance: ComponentInstance):
 
 class VariableSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {}
+        })
 
     def create(self, context, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
@@ -309,7 +312,12 @@ class VariableSignal(SignalType):
 
 class ArraySignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {
+                'index': None
+            }
+        })
 
     def create(self, context, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
@@ -428,7 +436,10 @@ class ArraySignal(SignalType):
 
 class QueueSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple_signals', required_attributes=['queue_length'])
+        super().__init__(consumers='multiple_signals', attributes={
+            'required': {'queue_length'},
+            'optional': {}
+        })
 
     def create(self, context, connection: SignalConnection):
         if connection.attributes['queue_length'] == 1:
@@ -598,7 +609,10 @@ class QueueSignal(SignalType):
 
 class ConstantSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {}
+        })
 
     def create(self, context, connection: SignalConnection):
         pass
@@ -666,7 +680,10 @@ class ConstantSignal(SignalType):
 
 class ConstantArraySignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {}
+        })
 
     def create(self, context, connection: SignalConnection):
         pass

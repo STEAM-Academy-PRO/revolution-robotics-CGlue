@@ -1,5 +1,8 @@
+from cglue.utils.common import process_dict
+
+
 class SignalConnection:
-    def __init__(self, context, name, signal, provider_name, attributes):
+    def __init__(self, context, name, signal: 'SignalType', provider_name, attributes):
         self.name = name
         self.signal = signal
         self.provider = provider_name
@@ -9,28 +12,26 @@ class SignalConnection:
 
         try:
             signal.create(context, self)
-        except Exception:
-            print(f'Failed to generate signal implementation for {self.name}')
-            raise
+        except Exception as e:
+            raise Exception(f'Failed to generate signal implementation for {self.name}') from e
 
     def add_consumer(self, consumer_name, consumer_attributes):
-        self.consumers.append((consumer_name, consumer_attributes))
+        self.consumers.append((consumer_name, self.signal.process_attributes(self.attributes, consumer_attributes)))
 
     def generate(self):
         # collect implementations in a list
         try:
             function_mods_list = [self.signal.generate_provider(self.context, self, self.provider)]
-        except Exception:
-            print(f'Failed to generate provider implementation for {self.name}')
-            raise
+        except Exception as e:
+            raise Exception(f'Failed to generate provider implementation for {self.name}') from e
 
         for consumer, attributes in self.consumers:
             try:
                 function_mods = self.signal.generate_consumer(self.context, self, consumer, attributes)
                 function_mods_list.append(function_mods)
-            except Exception:
-                print(f'Failed to generate consumer implementation for {self.name} (consumer: {consumer})')
-                raise
+            except Exception as e:
+                raise Exception(f'Failed to generate consumer implementation for '
+                                f'{self.name} (consumer: {consumer})') from e
 
         self.context['runtime'].raise_event('signal_generated', self, function_mods_list)
 
@@ -62,12 +63,9 @@ class SignalConnection:
 
 
 class SignalType:
-    def __init__(self, consumers='multiple', required_attributes=None):
-        if required_attributes is None:
-            required_attributes = []
-
+    def __init__(self, consumers='multiple', attributes=None):
         self._consumers = consumers
-        self.required_attributes = frozenset(required_attributes)
+        self._attributes = attributes
 
     @property
     def consumers(self):
@@ -83,8 +81,10 @@ class SignalType:
         return {}
 
     def create_connection(self, context, name, provider, attributes):
-        missing_attributes = self.required_attributes.difference(attributes.keys())
-        if missing_attributes:
-            missing_list = ", ".join(missing_attributes)
-            raise Exception(f'{missing_list} attributes are missing from connection provided by {provider}')
         return SignalConnection(context, name, self, provider, attributes)
+
+    def process_attributes(self, attributes, consumer_attributes):
+        return process_dict(
+            {**attributes, **consumer_attributes},
+            required=self._attributes['required'],
+            optional=self._attributes['optional'])

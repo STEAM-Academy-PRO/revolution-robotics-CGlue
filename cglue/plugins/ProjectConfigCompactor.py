@@ -51,12 +51,14 @@ def expand_port_connection(port_connection):
         connection['consumers'] = []
 
         for consumer in port_connection['consumers']:
-            if type(consumer) is not list:
-                consumer = [consumer, {}]
+            if type(consumer) is list:
+                consumer, attributes = consumer
+            else:
+                attributes = {}
 
             connection['consumers'].append({
-                **process_port_ref_shorthand(consumer[0]),
-                "attributes": consumer[1]
+                **process_port_ref_shorthand(consumer),
+                "attributes": attributes
             })
     connection.update(attrs)
 

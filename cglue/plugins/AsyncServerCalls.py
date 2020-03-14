@@ -25,7 +25,10 @@ def _port_component_is_instanced(component_instance: ComponentInstance):
 # TODO: multiple callers to the same server
 class AsyncServerCallSignal(SignalType):
     def __init__(self):
-        super().__init__('single', {'update_on'})
+        super().__init__('single', {
+            'required': {'update_on'},
+            'optional': {}
+        })
 
     def create(self, context, connection: SignalConnection):
         port = context.get_port(connection.provider)

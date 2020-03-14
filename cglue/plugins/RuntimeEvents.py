@@ -50,7 +50,12 @@ def _port_component_is_instanced(component_instance):
 
 class EventSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {
+                'arguments': {}
+            }
+        })
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         caller_fn = context.get_port(connection.provider).functions['run']
@@ -90,7 +95,13 @@ class EventSignal(SignalType):
 
 class ServerCallSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple')
+        super().__init__(consumers='multiple', attributes={
+            'required': {},
+            'optional': {
+                'conditions': {},
+                'arguments': {}
+            }
+        })
 
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
         consumer_port_data = context.get_port(consumer_instance_name)
@@ -125,7 +136,7 @@ class ServerCallSignal(SignalType):
 
         used_args = list(passed_arguments.keys())
         conditions = []
-        for arg, value in attributes.get('conditions', {}).items():
+        for arg, value in attributes['conditions'].items():
             used_args.append(arg)
             conditions.append(f'{arg} == {value}')
 

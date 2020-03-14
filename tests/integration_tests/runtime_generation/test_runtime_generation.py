@@ -74,3 +74,8 @@ class TestRuntimeGeneration(unittest.TestCase):
             'runtime.h': 'runtime.expected.h',
             'runtime.c': 'runtime.expected.c'
         })
+
+    def test_conditional_server_calls(self):
+        self._test_generated_files('04-conditional-calls/project.json', {
+            'runtime.c': 'runtime.expected.c'
+        })

@@ -24,11 +24,11 @@ void Runtime_RaiseEvent_OnInit(void)
 
 void foo_RaiseEvent_EventPort(foo_Instance_t* instance, uint32_t arg1)
 {
-    if (instance == &foo_instance_foo2)
+    if (instance == &foo_instance_foo1)
     {
         foo_Run_Runnable(&foo_instance_foo2, arg1);
     }
-    if (instance == &foo_instance_foo1)
+    if (instance == &foo_instance_foo2)
     {
         foo_Run_Runnable(&foo_instance_foo1, arg1);
     }
@@ -38,11 +38,11 @@ uint32_t foo_Call_CallPort(foo_Instance_t* instance, uint32_t arg1)
 {
     if (instance == &foo_instance_foo1)
     {
-        return foo_Run_RunnableWithReturnValue(&foo_instance_foo1, arg1);
+        return foo_Run_RunnableWithReturnValue(&foo_instance_foo2, arg1);
     }
     if (instance == &foo_instance_foo2)
     {
-        return foo_Run_RunnableWithReturnValue(&foo_instance_foo2, arg1);
+        return foo_Run_RunnableWithReturnValue(&foo_instance_foo1, arg1);
     }
     return 0u;
 }

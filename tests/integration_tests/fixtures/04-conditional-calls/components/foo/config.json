@@ -1,0 +1,23 @@
+{
+    "name": "foo",
+    "requires": {},
+    "types": {},
+    "multiple_instances": true,
+    "instance_variables": {
+        "var1": "uint32_t"
+    },
+    "runnables": {
+        "run": {
+            "arguments": {
+                "parameter": {
+                    "direction": "in",
+                    "data_type": "uint32_t"
+                },
+                "data": {
+                    "direction": "out",
+                    "data_type": "uint32_t"
+                }
+            }
+        }
+    }
+}

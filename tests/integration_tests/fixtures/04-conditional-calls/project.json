@@ -1,0 +1,40 @@
+{
+    "settings": {
+        "name": "test project",
+        "components_folder": "components",
+        "required_plugins": []
+    },
+    "sources": [],
+    "includes": [],
+    "components": [
+        "foo",
+        "bar"
+    ],
+    "instances": {
+        "foo1": "foo"
+    },
+    "types": {
+        "uint32_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "0u"
+        }
+    },
+    "runtime": {
+        "runnables": {
+        },
+        "port_connections": [
+            {
+                "provider": "foo1/run",
+                "consumer": ["bar/call", {
+                    "conditions": {
+                        "idx": 0
+                    },
+                    "arguments": {
+                        "parameter": 42
+                    }
+                }]
+            }
+        ]
+    }
+}

@@ -63,6 +63,9 @@ class EventSignal(SignalType):
         consumer_component_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context.component_instances[consumer_component_name]
 
+        provider_component_name = connection.provider.split('/', 2)[0]
+        provider_instance = context.component_instances[provider_component_name]
+
         is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
         if is_multiple_instance:
@@ -75,7 +78,7 @@ class EventSignal(SignalType):
         body = fn_to_call.generate_call(passed_arguments) + ';'
 
         if provider_is_multiple_instance:
-            body = _add_instance_check(body, consumer_instance)
+            body = _add_instance_check(body, provider_instance)
 
         return {
             provider_port_name: {
@@ -104,10 +107,13 @@ class ServerCallSignal(SignalType):
         consumer_component_name = consumer_instance_name.split('/', 2)[0]
         consumer_instance = context.component_instances[consumer_component_name]
 
+        provider_component_name = connection.provider.split('/', 2)[0]
+        provider_instance = context.component_instances[provider_component_name]
+
         is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
         provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
-        if is_multiple_instance:
-            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
+        if provider_is_multiple_instance:
+            manual_args['instance'] = f'&{provider_instance.instance_var_name}'
 
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
                                              fn_to_call.arguments, caller_fn.arguments, manual_args)
@@ -126,12 +132,24 @@ class ServerCallSignal(SignalType):
         else:
             body = fn_to_call.generate_call(passed_arguments) + ';'
 
-        if provider_is_multiple_instance:
+        used_args = list(passed_arguments.keys())
+        conditions = []
+        for arg, value in attributes.get('conditions', {}).items():
+            used_args.append(arg)
+            conditions.append(f'{arg} == {value}')
+
+        if conditions:
+            body = f'if ({" && ".join(conditions)})\n' \
+                   f'{{\n' \
+                   f'{indent(body)}\n' \
+                   f'}}'
+
+        if is_multiple_instance:
             body = _add_instance_check(body, consumer_instance)
 
         mod = {
             'body': body,
-            'used_arguments': passed_arguments.keys()
+            'used_arguments': used_args
         }
         if return_statement:
             mod['return_statement'] = return_statement

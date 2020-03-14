@@ -121,8 +121,7 @@ class FunctionPointerType(TypeCategory):
 
     def referenced_types(self, type_name, type_data):
         yield type_data['return_type']
-        for arg in type_data['arguments'].values():
-            yield arg['data_type']
+        yield from {arg['data_type'] for arg in type_data['arguments'].values()}
 
         yield from super().referenced_types(type_name, type_data)
 
@@ -262,7 +261,7 @@ class TypeCollection:
         return {name: strip(data) for name, data in self._type_data.items() if data['type'] != TypeCollection.BUILTIN}
 
     def collect_type_dependencies(self, type_data: TypeWrapper):
-        for referenced_type_name in type_data.category.referenced_types(type_data.name, type_data):
+        for referenced_type_name in sorted(type_data.category.referenced_types(type_data.name, type_data)):
             referenced_type = self.get(referenced_type_name)
             if referenced_type != type_data:
                 yield from self.collect_type_dependencies(referenced_type)

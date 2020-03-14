@@ -4,13 +4,13 @@ from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
-from cglue.component import Component
+from cglue.component import Component, ComponentInstance
 from cglue.data_types import TypeCollection
 from cglue.utils.common import indent
 
 
 def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args, manual_args=None):
-    user_arguments = attributes.get('arguments', {})
+    user_arguments = attributes['arguments']
     if manual_args is None:
         manual_args = {}
 
@@ -37,11 +37,19 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
     return passed_arguments
 
 
-def _add_instance_check(assignment, provider_instance):
-    return f'if (instance == &{provider_instance.instance_var_name})\n' \
+def _add_instance_check(assignment, provider_instance, instance_arg_name='instance'):
+    return f'if ({instance_arg_name} == &{provider_instance.instance_var_name})\n' \
            f'{{\n' \
            f'{indent(assignment)}\n' \
            f'}}'
+
+
+def _get_instance_argument(argument_names, component_instance: ComponentInstance):
+    instance_var_name = None
+    if _port_component_is_instanced(component_instance):
+        instance_var_name = argument_names.pop(0)
+
+    return instance_var_name
 
 
 def _port_component_is_instanced(component_instance):
@@ -65,29 +73,33 @@ class EventSignal(SignalType):
         consumer_instance = context.get_component_instance(consumer_instance_name)
         provider_instance = context.get_component_instance(connection.provider)
 
-        is_multiple_instance = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
-        if is_multiple_instance:
-            manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
+        callee_instance_arg_name = _get_instance_argument(list(fn_to_call.arguments.keys()), consumer_instance)
+        if callee_instance_arg_name:
+            manual_args[callee_instance_arg_name] = f'&{consumer_instance.instance_var_name}'
 
+        caller_args = caller_fn.arguments.copy()
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
-                                             fn_to_call.arguments, caller_fn.arguments, manual_args)
+                                             fn_to_call.arguments, caller_args, manual_args)
 
         provider_port_name = context.get_component_ref(connection.provider)
         body = fn_to_call.generate_call(passed_arguments) + ';'
 
-        if provider_is_multiple_instance:
-            body = _add_instance_check(body, provider_instance)
+        used_args = list(passed_arguments.keys())
+
+        instance_arg_name = _get_instance_argument(list(caller_args.keys()), provider_instance)
+        if instance_arg_name:
+            used_args.append(instance_arg_name)
+            body = _add_instance_check(body, provider_instance, instance_arg_name=instance_arg_name)
 
         return {
             provider_port_name: {
                 'run': {
                     'body': body,
-                    'used_arguments': passed_arguments.keys()
+                    'used_arguments': used_args
                 },
                 'write': {
                     'body': body,
-                    'used_arguments': passed_arguments.keys()
+                    'used_arguments': used_args
                 }
             }
         }
@@ -112,10 +124,11 @@ class ServerCallSignal(SignalType):
         consumer_instance = context.get_component_instance(consumer_instance_name)
         provider_instance = context.get_component_instance(connection.provider)
 
-        is_multiple_instance = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
-        if provider_is_multiple_instance:
-            manual_args['instance'] = f'&{provider_instance.instance_var_name}'
+        instance_arg_name = _get_instance_argument(list(caller_fn.arguments.keys()), consumer_instance)
+
+        provider_instance_arg_name = _get_instance_argument(list(fn_to_call.arguments.keys()), provider_instance)
+        if provider_instance_arg_name:
+            manual_args[provider_instance_arg_name] = f'&{provider_instance.instance_var_name}'
 
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
                                              fn_to_call.arguments, caller_fn.arguments, manual_args)
@@ -129,7 +142,7 @@ class ServerCallSignal(SignalType):
                                 f'instead of {caller_fn.return_type})')
 
             body = f"return {fn_to_call.generate_call(passed_arguments)};"
-            if provider_is_multiple_instance:
+            if provider_instance_arg_name:
                 return_statement = context.types.get(caller_fn.return_type).render_value(None)
         else:
             body = fn_to_call.generate_call(passed_arguments) + ';'
@@ -146,8 +159,8 @@ class ServerCallSignal(SignalType):
                    f'{indent(body)}\n' \
                    f'}}'
 
-        if is_multiple_instance:
-            body = _add_instance_check(body, consumer_instance)
+        if instance_arg_name:
+            body = _add_instance_check(body, consumer_instance, instance_arg_name=instance_arg_name)
 
         mod = {
             'body': body,

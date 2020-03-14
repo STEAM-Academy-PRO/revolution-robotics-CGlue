@@ -5,19 +5,18 @@ from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
 from cglue.utils.common import indent
+from cglue.component import ComponentInstance
+from cglue.data_types import TypeCollection
 
 
-def _add_instance_check(assignment, provider_instance):
+def _add_instance_check(assignment, provider_instance: ComponentInstance):
     return f'if (instance == &{provider_instance.instance_var_name})\n' \
            f'{{\n' \
            f'{indent(assignment)}\n' \
            f'}}'
 
 
-def _port_component_is_instanced(context, port_name):
-    component_instance_name = port_name.split('/', 2)[0]
-    component_instance = context.component_instances[component_instance_name]
-
+def _port_component_is_instanced(component_instance: ComponentInstance):
     return component_instance.component.config['multiple_instances']
 
 
@@ -29,17 +28,15 @@ class AsyncServerCallSignal(SignalType):
         super().__init__('single', {'update_on'})
 
     def create(self, context, connection: SignalConnection):
-        provider_instance_name = connection.provider
-        port = context.get_port(provider_instance_name)
+        port = context.get_port(connection.provider)
 
-        provider_component_instance_name = provider_instance_name.split('/', 2)[0]
-        provider_instance = context.component_instances[provider_component_instance_name]
+        provider_instance = context.get_component_instance(connection.provider)
 
         # updater function is unique for each signal, no need for instance argument
         update_function = FunctionImplementation(FunctionPrototype(connection.name + '_Update', 'void'))
 
         # create updater function
-        context['functions'][provider_instance_name] = {'update': update_function}
+        context['functions'][connection.provider] = {'update': update_function}
 
         stored_arguments = []
         callee_arguments = {}
@@ -47,8 +44,8 @@ class AsyncServerCallSignal(SignalType):
         indentation = ' ' * 12
         arg_prefix = '\n' + indentation
 
-        port_args = port.get('arguments', {}).copy()
-        if _port_component_is_instanced(context, provider_instance_name):
+        port_args = port['arguments'].copy()
+        if _port_component_is_instanced(provider_instance):
             callee_arguments['instance'] = arg_prefix + '&' + provider_instance.instance_var_name
             del port_args['instance']
             context['used_types'].append(port._owner.instance_type)
@@ -63,7 +60,7 @@ class AsyncServerCallSignal(SignalType):
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
-            if arg_dir == 'out' or arg_type.passed_by() == 'pointer':
+            if arg_dir == 'out' or arg_type.passed_by() == TypeCollection.PASS_BY_POINTER:
                 callee_arguments[name] = f'{arg_prefix}&{connection.name}_argument_{name}'
             else:
                 callee_arguments[name] = f'{arg_prefix}{connection.name}_argument_{name}'
@@ -219,12 +216,8 @@ switch (command)
             }
         }))
 
-    def generate_provider(self, context, connection: SignalConnection, provider_name):
-        return {}
-
     def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
-        provider_instance_name = connection.provider
-        provider_port = context.get_port(provider_instance_name)
+        provider_port = context.get_port(connection.provider)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
 
         port_functions = context['functions'][consumer_port_name]
@@ -235,15 +228,15 @@ switch (command)
 
         lock, unlock = self._get_lock_impl(connection)
 
-        consumer_component_instance_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context.component_instances[consumer_component_instance_name]
+        consumer_instance = context.get_component_instance(consumer_instance_name)
+        provider_instance = context.get_component_instance(connection.provider)
 
-        consumer_is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, provider_instance_name)
+        consumer_is_multiple_instance = _port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
 
         call_mods = self.generate_call_function(
             context.types, attributes.get('arguments', {}), call_function.prototype.arguments, connection,
-            consumer_instance_name, provider_instance_name, provider_port['arguments'], lock, unlock)
+            consumer_instance_name, connection.provider, provider_port['arguments'], lock, unlock)
 
         result_arg_names = list(result_function.arguments.keys())
         if provider_is_multiple_instance:
@@ -406,7 +399,7 @@ return returned_state;''',
                         call_arguments.append({
                             'name': arg,
                             'value': config_value,
-                            'by_pointer': arg_type.passed_by() == 'pointer'
+                            'by_pointer': arg_type.passed_by() == TypeCollection.PASS_BY_POINTER
                         })
                     else:
                         # constant value
@@ -420,7 +413,7 @@ return returned_state;''',
                     call_arguments.append({
                         'name': arg,
                         'value': arg,
-                        'by_pointer': arg_type.passed_by() == 'pointer'
+                        'by_pointer': arg_type.passed_by() == TypeCollection.PASS_BY_POINTER
                     })
                 else:
                     missing_arguments.add(arg)
@@ -459,7 +452,7 @@ class AsyncCallPortType(PortType):
         result_function = port.declare_function(result_fn_name, 'AsyncOperationState_t')
         cancel_function = port.declare_function(cancel_fn_name, 'void')
 
-        for name, arg_data in port.get('arguments', {}).items():
+        for name, arg_data in port['arguments'].items():
             if type(arg_data) is str:
                 call_function.arguments.add(name, 'in', self._types.get(arg_data))
             elif arg_data['direction'] == 'in':
@@ -518,7 +511,7 @@ class AsyncRunnablePortType(PortType):
 
         function.arguments.add('asyncCommand', 'in', self._types.get('AsyncCommand_t'))
 
-        for name, arg_data in port.get('arguments', {}).items():
+        for name, arg_data in port['arguments'].items():
             if type(arg_data) is str:
                 data_type = arg_data
                 direction = 'in'

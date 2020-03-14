@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from cglue.function import FunctionPrototype, FunctionImplementation
+from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
@@ -44,10 +44,7 @@ def _add_instance_check(assignment, provider_instance):
            f'}}'
 
 
-def _port_component_is_instanced(context, port_name):
-    component_instance_name = port_name.split('/', 2)[0]
-    component_instance = context.component_instances[component_instance_name]
-
+def _port_component_is_instanced(component_instance):
     return component_instance.component.config['multiple_instances']
 
 
@@ -60,14 +57,11 @@ class EventSignal(SignalType):
         fn_to_call = context.get_port(consumer_instance_name).functions['run']
 
         manual_args = {}
-        consumer_component_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context.component_instances[consumer_component_name]
+        consumer_instance = context.get_component_instance(consumer_instance_name)
+        provider_instance = context.get_component_instance(connection.provider)
 
-        provider_component_name = connection.provider.split('/', 2)[0]
-        provider_instance = context.component_instances[provider_component_name]
-
-        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
+        is_multiple_instance = _port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
         if is_multiple_instance:
             manual_args['instance'] = f'&{consumer_instance.instance_var_name}'
 
@@ -104,14 +98,11 @@ class ServerCallSignal(SignalType):
         fn_to_call = context.get_port(connection.provider).functions['run']
 
         manual_args = {}
-        consumer_component_name = consumer_instance_name.split('/', 2)[0]
-        consumer_instance = context.component_instances[consumer_component_name]
+        consumer_instance = context.get_component_instance(consumer_instance_name)
+        provider_instance = context.get_component_instance(connection.provider)
 
-        provider_component_name = connection.provider.split('/', 2)[0]
-        provider_instance = context.component_instances[provider_component_name]
-
-        is_multiple_instance = _port_component_is_instanced(context, consumer_instance_name)
-        provider_is_multiple_instance = _port_component_is_instanced(context, connection.provider)
+        is_multiple_instance = _port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
         if provider_is_multiple_instance:
             manual_args['instance'] = f'&{provider_instance.instance_var_name}'
 
@@ -161,6 +152,22 @@ class ServerCallSignal(SignalType):
         }
 
 
+def _create_callee_function(port, types: TypeCollection, fn_name, return_type):
+    args = {}
+    for name, arg_data in port['arguments'].items():
+        if type(arg_data) is str:
+            args[name] = types.get(arg_data)
+        else:
+            args[name] = {
+                'direction': arg_data['direction'],
+                'data_type': types.get(arg_data['data_type'])
+            }
+
+    function = port.declare_function(fn_name, return_type, args)
+
+    return {'run': function}
+
+
 class RunnablePortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
@@ -176,21 +183,10 @@ class RunnablePortType(PortType):
 
     def declare_functions(self, port):
         fn_name = f'{port.component_name}_Run_{port.port_name}'
-
-        function = FunctionPrototype(fn_name, port['return_type'])
-
-        for name, arg_data in port.get('arguments', {}).items():
-            if type(arg_data) is str:
-                function.arguments.add(name, 'in', self._types.get(arg_data))
-            else:
-                function.arguments.add(name, arg_data['direction'], self._types.get(arg_data['data_type']))
-
-        return {'run': function}
+        return _create_callee_function(port, self._types, fn_name, port['return_type'])
 
     def create_component_functions(self, port):
-        prototype = port.functions['run']
-
-        function = FunctionImplementation(prototype)
+        function = FunctionImplementation(port.functions['run'])
 
         for arg in function.arguments:
             function.mark_argument_used(arg)
@@ -201,18 +197,6 @@ class RunnablePortType(PortType):
         return {}
 
 
-def _create_callee_function(port, types, fn_name, return_type):
-    function = port.declare_function(fn_name, return_type)
-
-    for name, arg_data in port.get('arguments', {}).items():
-        if type(arg_data) is str:
-            function.arguments.add(name, 'in', types.get(arg_data))
-        else:
-            function.arguments.add(name, arg_data['direction'], types.get(arg_data['data_type']))
-
-    return {'run': function}
-
-
 class EventPortType(PortType):
     def __init__(self, types):
         super().__init__(types, {
@@ -221,7 +205,7 @@ class EventPortType(PortType):
             'def_attributes': {
                 'required': [],
                 'optional': {'arguments': {}},
-                'static':   {'return_type': 'void'}
+                'static':   {}
             }
         })
 
@@ -250,6 +234,7 @@ class ServerCallPortType(PortType):
                 'required': [],
                 'optional': {
                     'return_type': 'void',
+                    'return_value': None,
                     'arguments':   {}
                 },
                 'static':   {}
@@ -261,14 +246,12 @@ class ServerCallPortType(PortType):
         return _create_callee_function(port, self._types, fn_name, port['return_type'])
 
     def create_component_functions(self, port):
-        prototype = port.functions['run']
-
-        function = FunctionImplementation(prototype)
+        function = FunctionImplementation(port.functions['run'])
         function.attributes.add('weak')
 
         if function.return_type != 'void':
             function_return_type = self._types.get(port['return_type'])
-            return_value = function_return_type.render_value(port.get('return_value'))
+            return_value = function_return_type.render_value(port['return_value'])
             function.set_return_statement(return_value)
 
         return {'run': function}

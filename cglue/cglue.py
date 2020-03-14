@@ -129,14 +129,14 @@ class RuntimeGeneratorContext:
 
     def _split(self, short_name):
         component_name, port_name = short_name.split('/', 2)
-        return self.component_instances[component_name].component, port_name
+        return self.component_instances[component_name], port_name
 
     def get_component_ref(self, short_name):
         component, port_name = self._split(short_name)
-        return f'{component.name}/{port_name}'
+        return f'{component.component.name}/{port_name}'
 
-    def get_component_of(self, short_name):
-        component, _ = self._split(short_name)
+    def get_component_instance(self, port_short_name):
+        component, port = self._split(port_short_name)
         return component
 
 
@@ -249,23 +249,22 @@ class CGlue:
         header_file = f'{component_folder}/{component_name}.h'
         config_file = f'{component_folder}/config.json'
 
+        component_object = self._components[component_name]
+        port_short_names = (f'{component_name}/{port_name}' for port_name in component_object.config['ports'])
+
         context = {
             'runtime': self,
             'component_folder': component_folder,
-            'functions': {},
             'declarations': [],
             'files': {
                 config_file: '',
                 source_file: '',
                 header_file: ''
             },
-            'folders': [component_name]
+            'folders': [component_name],
+            'functions': {short_name: self._ports[short_name].create_component_functions()
+                          for short_name in port_short_names}
         }
-
-        component_object = self._components[component_name]
-        port_short_names = (f'{component_name}/{port_name}' for port_name in component_object.config['ports'])
-        context['functions'].update({short_name: self._ports[short_name].create_component_functions()
-                                     for short_name in port_short_names})
 
         self.raise_event('before_generating_component', component_name, context)
 

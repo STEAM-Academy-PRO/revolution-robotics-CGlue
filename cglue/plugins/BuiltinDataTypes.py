@@ -70,8 +70,8 @@ class StructType(TypeCategory):
         else:
             return f'({type_name}) {{ {fields_str} }}'
 
-    def attribute(self, type_name, type_data, name):
-        if name == 'default_value':
+    def attribute(self, type_name, type_data: dict, attr_name):
+        if attr_name == 'default_value':
             # if a struct member does not have default value, look for it recursively
             default = type_data['default_value']
             struct_fields = type_data['fields']
@@ -81,7 +81,7 @@ class StructType(TypeCategory):
             return {name: default.get(name) or types.get(field_type).default_value()
                     for name, field_type in struct_fields.items()}
         else:
-            return super().attribute(type_name, type_data, name)
+            return super().attribute(type_name, type_data, attr_name)
 
     def referenced_types(self, type_name, type_data):
         yield from type_data['fields'].values()
@@ -192,10 +192,11 @@ def create_member_accessor(member):
 
 
 def process_member_access(types: TypeCollection, attributes, provided_data_type, consumed_data_type):
-    if 'member' in attributes:
-        member_list = attributes['member'].split('.')
+    member = attributes['member']
+    if member:
+        member_list = member.split('.')
         provided_data_type = lookup_member(types, provided_data_type, member_list)
-        member_accessor = create_member_accessor(attributes['member'])
+        member_accessor = create_member_accessor(member)
     else:
         member_accessor = ''
 
@@ -209,14 +210,17 @@ class VariableSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
             'required': {},
-            'optional': {}
+            'optional': {
+                'init_value': None,
+                'member': None
+            }
         })
 
     def create(self, context, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         data_type = context.types.get(data_type_name)
-        init_value = connection.attributes.get('init_value')
+        init_value = connection.attributes['init_value']
         rendered_init_value = data_type.render_value(init_value, 'initialization')
         context['declarations'].append(
             f'static {data_type.name} {connection.name} = {rendered_init_value};'
@@ -304,7 +308,10 @@ class ArraySignal(SignalType):
         super().__init__(consumers='multiple', attributes={
             'required': {},
             'optional': {
-                'index': None
+                'index': None,
+                'member': None,
+                'init_value': None,
+                'init_values': None
             }
         })
 
@@ -314,10 +321,10 @@ class ArraySignal(SignalType):
         data_type = context.types.get(data_type_name)
         count = provider_port_data['count']
 
-        try:
-            # either all init values are specified
-            init_values = connection.attributes['init_values']
-        except KeyError:
+        # either all init values are specified
+        init_values = connection.attributes['init_values']
+
+        if not init_values:
             # ... or a single one is
             init_value = connection.attributes.get('init_value')
             init_values = [data_type.render_value(init_value, 'initialization')] * count
@@ -427,7 +434,9 @@ class QueueSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple_signals', attributes={
             'required': {'queue_length'},
-            'optional': {}
+            'optional': {
+                'member': None
+            }
         })
 
     def create(self, context, connection: SignalConnection):
@@ -600,7 +609,9 @@ class ConstantSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
             'required': {},
-            'optional': {}
+            'optional': {
+                'member': None
+            }
         })
 
     def create(self, context, connection: SignalConnection):
@@ -671,7 +682,9 @@ class ConstantArraySignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
             'required': {},
-            'optional': {}
+            'optional': {
+                'member': None
+            }
         })
 
     def create(self, context, connection: SignalConnection):

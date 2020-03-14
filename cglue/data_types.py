@@ -1,5 +1,3 @@
-from contextlib import suppress
-
 from cglue.function import ArgumentList
 from cglue.utils.common import process_dict
 
@@ -39,9 +37,9 @@ class TypeCategory:
     def attributes(self):
         return self._attributes
 
-    def attribute(self, type_name, type_data, name):
+    def attribute(self, type_name, type_data: dict, attr_name):
         """Return a specific attribute of the given type"""
-        return type_data[name]
+        return type_data[attr_name]
 
     def referenced_types(self, type_name, type_data):
         yield type_name
@@ -65,12 +63,8 @@ class TypeAlias(TypeCategory):
         # call the render of aliased type
         return self.aliased_type(type_data).render_value(value, context)
 
-    def attribute(self, type_name, type_data, name):
-        with suppress(KeyError):
-            if type_data[name] is not None:
-                return type_data[name]
-
-        return self.aliased_type(type_data).get_attribute(name)
+    def attribute(self, type_name, type_data: dict, attr_name):
+        return type_data.get(attr_name) or self.aliased_type(type_data).get_attribute(attr_name)
 
     def referenced_types(self, type_name, type_data):
         yield type_data['aliases']

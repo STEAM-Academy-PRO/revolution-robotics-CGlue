@@ -11,6 +11,12 @@ from cglue.utils.multiple_instance_helpers import add_instance_check, get_instan
     port_component_is_instanced
 
 
+class BuiltinTypes:
+    STRUCT = 'struct'
+    UNION = 'union'
+    ENUM = 'enum'
+
+
 class StructType(TypeCategory):
 
     def __init__(self, type_collection):
@@ -21,10 +27,10 @@ class StructType(TypeCategory):
                 'default_value': {}
             },
             'static': {
-                'type': TypeCollection.STRUCT
+                'type': BuiltinTypes.STRUCT
             }
         }
-        super().__init__(type_collection, 'struct', attributes)
+        super().__init__(type_collection, BuiltinTypes.STRUCT, attributes)
 
     def render_typedef(self, type_name, type_data):
         context = {
@@ -89,10 +95,10 @@ class EnumType(TypeCategory):
             'required': ['values', 'default_value'],
             'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
             'static': {
-                'type': TypeCollection.ENUM
+                'type': BuiltinTypes.ENUM
             }
         }
-        super().__init__(type_collection, 'enum', attributes)
+        super().__init__(type_collection, BuiltinTypes.ENUM, attributes)
 
     def render_typedef(self, type_name, type_data):
         context = {
@@ -119,10 +125,10 @@ class UnionType(TypeCategory):
             'required': ['members', 'default_value'],
             'optional': {'pass_semantic': TypeCollection.PASS_BY_POINTER},
             'static': {
-                'type': TypeCollection.UNION
+                'type': BuiltinTypes.UNION
             }
         }
-        super().__init__(type_collection, 'union', attributes)
+        super().__init__(type_collection, BuiltinTypes.UNION, attributes)
 
     def render_typedef(self, type_name, type_data):
         context = {
@@ -163,8 +169,8 @@ class UnionType(TypeCategory):
 
 def lookup_member(types: TypeCollection, data_type, member_list):
     keys = {
-        TypeCollection.STRUCT: 'fields',
-        TypeCollection.UNION: 'members'
+        BuiltinTypes.STRUCT: 'fields',
+        BuiltinTypes.UNION: 'members'
     }
 
     for member in member_list:
@@ -747,31 +753,13 @@ class ConstantArraySignal(SignalType):
         }
 
 
-def process_type_def(types: TypeCollection, type_name, type_def):
-    # determine type of definition
-    if 'type' in type_def:
-        type_data = type_def.copy()
-        type_category = type_data['type']
-        del type_data['type']
+def add_default_value_output(types, function, port):
+    data_type = types.get(port['data_type'])
+    default_value = data_type.render_value(port['default_value'])
+    if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
+        function.set_return_statement(default_value)
     else:
-        type_data = type_def
-        if 'defined_in' in type_data:
-            type_category = TypeCollection.EXTERNAL_DEF
-        elif 'aliases' in type_data:
-            type_category = TypeCollection.ALIAS
-        elif 'fields' in type_data:
-            type_category = TypeCollection.STRUCT
-        elif 'members' in type_data:
-            type_category = TypeCollection.UNION
-        else:
-            raise Exception(f'Invalid type definition for {type_name}')
-
-    try:
-        return types.category(type_category).process_type(type_data)
-    except KeyError as e:
-        raise Exception(f'Unknown type category {type_category} set for {type_name}') from e
-    except Exception as e:
-        raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}') from e
+        function.add_body(f'*value = {default_value};')
 
 
 class ReadValuePortType(PortType):
@@ -805,30 +793,25 @@ class ReadValuePortType(PortType):
 
         return {'read': function}
 
-    def create_component_functions(self, port):
-        prototype = port.functions['read']
-        data_type = self._types.get(port['data_type'])
+    def _create_function(self, port):
+        function = FunctionImplementation(port.functions['read'])
 
-        function = FunctionImplementation(prototype)
+        data_type = self._types.get(port['data_type'])
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
+            function.add_input_assert('value', 'value != NULL')
+
+        return function
+
+    def create_component_functions(self, port):
+        function = self._create_function(port)
         function.attributes.add('weak')
 
-        default_value = data_type.render_value(port['default_value'])
-        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
-            function.set_return_statement(default_value)
-        else:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
-            function.add_body('*value = {};'.format(default_value))
+        add_default_value_output(self._types, function, port)
 
         return {'read': function}
 
     def create_runtime_functions(self, port):
-        prototype = port.functions['read']
-        data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
-        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
+        function = self._create_function(port)
 
         return {'read': function}
 
@@ -856,26 +839,23 @@ class ReadQueuedValuePortType(PortType):
 
         return {'read': function}
 
+    @staticmethod
+    def _create_function(port):
+        function = FunctionImplementation(port.functions['read'])
+        function.add_input_assert('value', 'value != NULL')
+
+        return function
+
     def create_component_functions(self, port):
-        prototype = port.functions['read']
+        function = self._create_function(port)
 
-        queue_status_type = self._types.get('QueueStatus_t')
-
-        function = FunctionImplementation(prototype)
         function.attributes.add('weak')
-        function.add_input_assert('value != NULL')
-        function.mark_argument_used('value')
-
-        function.set_return_statement(queue_status_type.render_value(None))
+        function.set_return_statement(self._types.get('QueueStatus_t').render_value(None))
 
         return {'read': function}
 
     def create_runtime_functions(self, port):
-        prototype = port.functions['read']
-
-        function = FunctionImplementation(prototype)
-        function.add_input_assert('value != NULL')
-        function.mark_argument_used('value')
+        function = self._create_function(port)
 
         return {'read': function}
 
@@ -912,36 +892,26 @@ class ReadIndexedValuePortType(PortType):
 
         return {'read': function}
 
-    def create_component_functions(self, port):
-        prototype = port.functions['read']
+    def _create_function(self, port):
+        function = FunctionImplementation(port.functions['read'])
+        function.add_input_assert('index', f'index < {port["count"]}')
+
         data_type = self._types.get(port['data_type'])
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
+            function.add_input_assert('value', 'value != NULL')
 
-        function = FunctionImplementation(prototype)
+        return function
+
+    def create_component_functions(self, port):
+        function = self._create_function(port)
         function.attributes.add('weak')
-        function.add_input_assert(f'index < {port["count"]}')
-        function.mark_argument_used('index')
 
-        default_value = data_type.render_value(port['default_value'])
-        if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
-            function.set_return_statement(default_value)
-        else:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
-            function.add_body(f'*value = {default_value};')
+        add_default_value_output(self._types, function, port)
 
         return {'read': function}
 
     def create_runtime_functions(self, port):
-        prototype = port.functions['read']
-        data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
-        function.add_input_assert(f'index < {port["count"]}')
-        function.mark_argument_used('index')
-
-        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+        function = self._create_function(port)
 
         return {'read': function}
 
@@ -969,28 +939,23 @@ class WriteDataPortType(PortType):
 
         return {'write': function}
 
-    def create_component_functions(self, port):
-        prototype = port.functions['write']
+    def _create_function(self, port):
+        function = FunctionImplementation(port.functions['write'])
+
         data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
-        function.attributes.add('weak')
-
         if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+            function.add_input_assert('value', 'value != NULL')
+
+        return function
+
+    def create_component_functions(self, port):
+        function = self._create_function(port)
+        function.attributes.add('weak')
 
         return {'write': function}
 
     def create_runtime_functions(self, port):
-        prototype = port.functions['write']
-        data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
-
-        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+        function = self._create_function(port)
 
         return {'write': function}
 
@@ -1020,33 +985,25 @@ class WriteIndexedDataPortType(PortType):
         return {'write': function}
 
     def create_component_functions(self, port):
-        prototype = port.functions['write']
-        data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
+        function = self._create_function(port)
         function.attributes.add('weak')
-        function.add_input_assert(f'index < {port["count"]}')
-        function.mark_argument_used('index')
-
-        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
 
         return {'write': function}
 
     def create_runtime_functions(self, port):
-        prototype = port.functions['write']
-        data_type = self._types.get(port['data_type'])
-
-        function = FunctionImplementation(prototype)
-        function.add_input_assert(f'index < {port["count"]}')
-        function.mark_argument_used('index')
-
-        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+        function = self._create_function(port)
 
         return {'write': function}
+
+    def _create_function(self, port):
+        function = FunctionImplementation(port.functions['write'])
+        function.add_input_assert('index', f'index < {port["count"]}')
+
+        data_type = self._types.get(port['data_type'])
+        if data_type.passed_by() == TypeCollection.PASS_BY_POINTER:
+            function.add_input_assert('value', 'value != NULL')
+
+        return function
 
 
 class ConstantPortType(PortType):
@@ -1085,8 +1042,7 @@ class ConstantPortType(PortType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement(constant_value)
         else:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+            function.add_input_assert('value', 'value != NULL')
             function.add_body(f'*value = {constant_value};')
 
         return {'constant': function}
@@ -1129,16 +1085,14 @@ class ConstantArrayPortType(PortType):
         data_type = self._types.get(port['data_type'])
 
         function = FunctionImplementation(prototype)
-        function.add_input_assert(f'index < {port["count"]}')
-        function.mark_argument_used('index')
+        function.add_input_assert('index', f'index < {port["count"]}')
 
         constant_value = ', '.join(map(data_type.render_value, port['value']))
         function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{ {constant_value} }};')
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement('constant[index]')
         else:
-            function.add_input_assert('value != NULL')
-            function.mark_argument_used('value')
+            function.add_input_assert('value', 'value != NULL')
             function.add_body('*value = constant[index];')
 
         return {'constant': function}
@@ -1188,7 +1142,7 @@ def init(owner: CGlue):
 
 
 def add_type_def(owner: CGlue, type_name, type_data, defined_by):
-    processed_type_data = process_type_def(owner.types, type_name, type_data)
+    processed_type_data = owner.types.process_type_definition(type_name, type_data)
     owner.types.add(type_name, processed_type_data, defined_by)
 
 
@@ -1205,12 +1159,11 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
             add_type_def(owner, type_name, type_data, component.name)
 
         if component.config['multiple_instances']:
-            instance_type_name = f'{component.name}_Instance_t'
             instance_type = {
                 'fields': component.config['instance_variables'],
                 'pass_semantic': TypeCollection.PASS_BY_POINTER
             }
-            add_type_def(owner, instance_type_name, instance_type, component.name)
+            add_type_def(owner, component.instance_type, instance_type, component.name)
     except Exception:
         print(f"Failed to add type definitions for {component.name}")
         raise

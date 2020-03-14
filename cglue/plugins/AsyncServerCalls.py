@@ -39,7 +39,7 @@ class AsyncServerCallSignal(SignalType):
         if port_component_is_instanced(provider_instance):
             callee_arguments['instance'] = arg_prefix + '&' + provider_instance.instance_var_name
             del port_args['instance']
-            context['used_types'].append(port._owner.instance_type)
+            context['used_types'].append(provider_instance.component.instance_type)
 
         for name, arg_data in port_args.items():
             if type(arg_data) is str:

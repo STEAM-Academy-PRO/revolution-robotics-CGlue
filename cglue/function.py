@@ -128,8 +128,9 @@ class FunctionImplementation:
     def attributes(self):
         return self._attributes
 
-    def add_input_assert(self, statements):
+    def add_input_assert(self, input_arg, statements):
         self.includes.add('"utils_assert.h"')
+        self.mark_argument_used(input_arg)
         self._asserts.add(f'ASSERT({statements});')
 
     def add_body(self, body):

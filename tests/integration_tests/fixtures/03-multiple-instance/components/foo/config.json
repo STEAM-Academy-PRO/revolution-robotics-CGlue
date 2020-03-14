@@ -3,7 +3,6 @@
     "requires": {},
     "types": {
         "FuncPtr_t": {
-            "type": "func_ptr",
             "return_type": "void",
             "arguments": {
                 "instance": {

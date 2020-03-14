@@ -13,6 +13,12 @@ class TypeCategory:
     def __str__(self):
         return f'TypeCategory({self._name})'
 
+    def can_process(self, type_data):
+        for attr in self._attributes['required']:
+            if attr not in type_data:
+                return False
+        return True
+
     def process_type(self, type_data):
         return {
             **self._attributes['static'],
@@ -78,6 +84,9 @@ class BuiltinType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {}
         super().__init__(type_collection, 'builtin', attributes)
+
+    def can_process(self, type_data):
+        return False
 
     def render_typedef(self, type_name, type_data):
         pass
@@ -192,9 +201,6 @@ class TypeCollection:
     BUILTIN = 'builtin'
     ALIAS = 'type_alias'
     EXTERNAL_DEF = 'external_type_def'
-    ENUM = 'enum'
-    STRUCT = 'struct'
-    UNION = 'union'
     FUNC_PTR = 'func_ptr'
 
     PASS_BY_VALUE = 'value'
@@ -279,3 +285,26 @@ class TypeCollection:
             type_name = type_name.replace('const ', '').replace('*', '').replace(' ', '')
 
         return type_name
+
+    def process_type_definition(self, type_name, type_def):
+        if 'type' in type_def:
+            type_data = type_def.copy()
+            type_category = type_data['type']
+            try:
+                category = self._type_categories[type_category]
+                del type_data['type']
+            except KeyError as e:
+                raise Exception(f'Unknown type category {type_category} set for {type_name}') from e
+        else:
+            type_data = type_def
+
+            for type_category, category in self._type_categories.items():
+                if category.can_process(type_data):
+                    break
+            else:
+                raise Exception(f'Invalid type definition for {type_name}, maybe missing type specifier?')
+
+        try:
+            return category.process_type(type_data)
+        except Exception as e:
+            raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}') from e

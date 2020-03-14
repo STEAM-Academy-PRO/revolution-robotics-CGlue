@@ -5,7 +5,6 @@
     },
     "types": {
         "function_ptr": {
-            "type": "func_ptr",
             "return_type": "void",
             "arguments": {
                 "arg": {

@@ -10,11 +10,10 @@ class PortType:
         self._types = types
         self.config = config
 
+        self.get = config.get
+
     def __getitem__(self, item):
         return self.config[item]
-
-    def __contains__(self, item):
-        return item in self.config
 
     def declare_functions(self, port):
         raise NotImplementedError
@@ -39,7 +38,7 @@ class PortType:
 
 
 class Port:
-    def __init__(self, component, port_name, port_data, port_type):
+    def __init__(self, component, port_name, port_data, port_type: PortType):
         self.port_name = port_name
         self.component_name = component.name
         self.port_type = port_type
@@ -49,6 +48,8 @@ class Port:
         self._full_name = f'{component.name}/{port_name}'
 
         self.functions = port_type.declare_functions(self)
+
+        self.get = self.port_data.get
 
     def declare_function(self, function_name, return_type, arguments=None):
         args = OrderedDict()
@@ -63,17 +64,14 @@ class Port:
         return self._full_name
 
     @property
-    def is_consumer(self):
-        return 'consumes' in self.port_type and self.port_type['consumes']
+    def is_consumer(self) -> bool:
+        return self.port_type.get('consumes', False)
 
     def __getitem__(self, item):
         return self.port_data[item]
 
     def __contains__(self, item):
         return item in self.port_data
-
-    def get(self, item, default=None):
-        return self.port_data.get(item, default)
 
     def create_runtime_functions(self):
         return self.port_type.create_runtime_functions(self)

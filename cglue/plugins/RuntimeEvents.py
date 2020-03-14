@@ -4,9 +4,10 @@ from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
-from cglue.component import Component, ComponentInstance
+from cglue.component import Component
 from cglue.data_types import TypeCollection
 from cglue.utils.common import indent
+from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument
 
 
 def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args, manual_args=None):
@@ -28,32 +29,12 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
 
         elif arg_name in caller_args:
             if arg_type != caller_args[arg_name]:
-                raise Exception(f'Caller of {consumer_name} has matching '
-                                f'argument {arg_name} but types are different')
+                raise Exception(f'Caller of {consumer_name} has matching argument {arg_name} but types are different')
             passed_arguments[arg_name] = arg_name
         else:
             raise Exception(f'Unable to connect argument {arg_name} of {consumer_name}')
 
     return passed_arguments
-
-
-def _add_instance_check(assignment, provider_instance, instance_arg_name='instance'):
-    return f'if ({instance_arg_name} == &{provider_instance.instance_var_name})\n' \
-           f'{{\n' \
-           f'{indent(assignment)}\n' \
-           f'}}'
-
-
-def _get_instance_argument(argument_names, component_instance: ComponentInstance):
-    instance_var_name = None
-    if _port_component_is_instanced(component_instance):
-        instance_var_name = argument_names.pop(0)
-
-    return instance_var_name
-
-
-def _port_component_is_instanced(component_instance):
-    return component_instance.component.config['multiple_instances']
 
 
 class EventSignal(SignalType):
@@ -73,7 +54,7 @@ class EventSignal(SignalType):
         consumer_instance = context.get_component_instance(consumer_instance_name)
         provider_instance = context.get_component_instance(connection.provider)
 
-        callee_instance_arg_name = _get_instance_argument(list(fn_to_call.arguments.keys()), consumer_instance)
+        callee_instance_arg_name = get_instance_argument(list(fn_to_call.arguments.keys()), consumer_instance)
         if callee_instance_arg_name:
             manual_args[callee_instance_arg_name] = f'&{consumer_instance.instance_var_name}'
 
@@ -86,10 +67,10 @@ class EventSignal(SignalType):
 
         used_args = list(passed_arguments.keys())
 
-        instance_arg_name = _get_instance_argument(list(caller_args.keys()), provider_instance)
+        instance_arg_name = get_instance_argument(list(caller_args.keys()), provider_instance)
         if instance_arg_name:
             used_args.append(instance_arg_name)
-            body = _add_instance_check(body, provider_instance, instance_arg_name=instance_arg_name)
+            body = add_instance_check(body, provider_instance, instance_arg_name=instance_arg_name)
 
         return {
             provider_port_name: {
@@ -124,9 +105,9 @@ class ServerCallSignal(SignalType):
         consumer_instance = context.get_component_instance(consumer_instance_name)
         provider_instance = context.get_component_instance(connection.provider)
 
-        instance_arg_name = _get_instance_argument(list(caller_fn.arguments.keys()), consumer_instance)
+        instance_arg_name = get_instance_argument(list(caller_fn.arguments.keys()), consumer_instance)
 
-        provider_instance_arg_name = _get_instance_argument(list(fn_to_call.arguments.keys()), provider_instance)
+        provider_instance_arg_name = get_instance_argument(list(fn_to_call.arguments.keys()), provider_instance)
         if provider_instance_arg_name:
             manual_args[provider_instance_arg_name] = f'&{provider_instance.instance_var_name}'
 
@@ -160,7 +141,7 @@ class ServerCallSignal(SignalType):
                    f'}}'
 
         if instance_arg_name:
-            body = _add_instance_check(body, consumer_instance, instance_arg_name=instance_arg_name)
+            body = add_instance_check(body, consumer_instance, instance_arg_name=instance_arg_name)
 
         mod = {
             'body': body,
@@ -355,21 +336,19 @@ def create_runnable_ports(owner: CGlue, component: Component):
         if component.config['multiple_instances']:
             args = OrderedDict()
 
-            if 'instance' in runnable_data.get('arguments', {}):
-                instance_type = runnable_data["arguments"]["instance"]["data_type"]
+            runnable_arguments = runnable_data.get('arguments', {})
+            if 'instance' in runnable_arguments:
+                instance_type = runnable_arguments["instance"]["data_type"]
                 if instance_type != component.instance_type:
                     raise TypeError(f'Runnable has argument named "instance" but '
-                                    f'its type ({instance_type.name}) '
-                                    f'does not match instance type')
+                                    f'its type ({instance_type.name}) does not match instance type')
             else:
                 args['instance'] = {
                     'data_type': component.instance_type,
                     'direction': 'inout'
                 }
 
-            if 'arguments' in runnable_data:
-                args.update(runnable_data['arguments'])
-
+            args.update(runnable_arguments)
             runnable_data['arguments'] = args
 
         component.config['ports'][runnable_name] = {

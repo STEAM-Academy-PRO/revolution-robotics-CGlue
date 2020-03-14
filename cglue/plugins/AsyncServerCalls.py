@@ -4,20 +4,8 @@ from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalType, SignalConnection
-from cglue.utils.common import indent
-from cglue.component import ComponentInstance
 from cglue.data_types import TypeCollection
-
-
-def _add_instance_check(assignment, provider_instance: ComponentInstance):
-    return f'if (instance == &{provider_instance.instance_var_name})\n' \
-           f'{{\n' \
-           f'{indent(assignment)}\n' \
-           f'}}'
-
-
-def _port_component_is_instanced(component_instance: ComponentInstance):
-    return component_instance.component.config['multiple_instances']
+from cglue.utils.multiple_instance_helpers import add_instance_check, port_component_is_instanced
 
 
 # FIXME clean up implementation
@@ -48,7 +36,7 @@ class AsyncServerCallSignal(SignalType):
         arg_prefix = '\n' + indentation
 
         port_args = port['arguments'].copy()
-        if _port_component_is_instanced(provider_instance):
+        if port_component_is_instanced(provider_instance):
             callee_arguments['instance'] = arg_prefix + '&' + provider_instance.instance_var_name
             del port_args['instance']
             context['used_types'].append(port._owner.instance_type)
@@ -234,8 +222,8 @@ switch (command)
         consumer_instance = context.get_component_instance(consumer_instance_name)
         provider_instance = context.get_component_instance(connection.provider)
 
-        consumer_is_multiple_instance = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instance = _port_component_is_instanced(provider_instance)
+        consumer_is_multiple_instance = port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instance = port_component_is_instanced(provider_instance)
 
         call_mods = self.generate_call_function(
             context.types, attributes.get('arguments', {}), call_function.prototype.arguments, connection,
@@ -262,10 +250,10 @@ switch (command)
 
             busy_value = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
 
-            cancel_mods['body'] = _add_instance_check(cancel_mods['body'], consumer_instance)
-            call_mods['body'] = _add_instance_check(call_mods['body'], consumer_instance)
+            cancel_mods['body'] = add_instance_check(cancel_mods['body'], consumer_instance)
+            call_mods['body'] = add_instance_check(call_mods['body'], consumer_instance)
             call_mods['return_statement'] = busy_value
-            get_result_mods['body'] = _add_instance_check(get_result_mods['body'], consumer_instance)
+            get_result_mods['body'] = add_instance_check(get_result_mods['body'], consumer_instance)
             get_result_mods['return_statement'] = busy_value
 
         return {

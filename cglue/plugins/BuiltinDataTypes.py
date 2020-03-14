@@ -6,7 +6,9 @@ from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
-from cglue.component import Component, ComponentInstance
+from cglue.component import Component
+from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument, \
+    port_component_is_instanced
 
 
 class StructType(TypeCategory):
@@ -197,25 +199,6 @@ def process_member_access(types: TypeCollection, attributes, provided_data_type,
     return member_accessor, types.get(consumed_data_type)
 
 
-def _add_instance_check(assignment, provider_instance: ComponentInstance, instance_argument='instance'):
-    return f'if ({instance_argument} == &{provider_instance.instance_var_name})\n' \
-           f'{{\n' \
-           f'{indent(assignment)}\n' \
-           f'}}'
-
-
-def _get_instance_argument(argument_names, component_instance: ComponentInstance):
-    instance_var_name = None
-    if _port_component_is_instanced(component_instance):
-        instance_var_name = argument_names.pop(0)
-
-    return instance_var_name
-
-
-def _port_component_is_instanced(component_instance: ComponentInstance):
-    return component_instance.component.config['multiple_instances']
-
-
 class VariableSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
@@ -242,7 +225,7 @@ class VariableSignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         provider_instance = context.get_component_instance(provider_instance_name)
-        instance_argument = _get_instance_argument(argument_names, provider_instance)
+        instance_argument = get_instance_argument(argument_names, provider_instance)
 
         data_arg_name = argument_names[0]
         used_args = [data_arg_name]
@@ -254,7 +237,7 @@ class VariableSignal(SignalType):
 
         if instance_argument is not None:
             used_args.append(instance_argument)
-            assignment = _add_instance_check(assignment, provider_instance, instance_argument=instance_argument)
+            assignment = add_instance_check(assignment, provider_instance, instance_arg_name=instance_argument)
 
         return {
             provider_port_name: {
@@ -278,7 +261,7 @@ class VariableSignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         consumer_instance = context.get_component_instance(consumer_instance_name)
-        instance_argument = _get_instance_argument(argument_names, consumer_instance)
+        instance_argument = get_instance_argument(argument_names, consumer_instance)
 
         used_args = []
         return_statement = None
@@ -294,7 +277,7 @@ class VariableSignal(SignalType):
 
         if instance_argument is not None:
             used_args.append(instance_argument)
-            read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
+            read = add_instance_check(read, consumer_instance, instance_arg_name=instance_argument)
 
         mods = {
             'body': read,
@@ -351,7 +334,7 @@ class ArraySignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         provider_instance = context.get_component_instance(provider_instance_name)
-        instance_argument = _get_instance_argument(argument_names, provider_instance)
+        instance_argument = get_instance_argument(argument_names, provider_instance)
 
         index, value = argument_names
         used_args = [index, value]
@@ -363,7 +346,7 @@ class ArraySignal(SignalType):
 
         if instance_argument is not None:
             used_args.append(instance_argument)
-            body = _add_instance_check(body, provider_instance)
+            body = add_instance_check(body, provider_instance)
 
         return {
             provider_port_name: {
@@ -387,7 +370,7 @@ class ArraySignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         consumer_instance = context.get_component_instance(consumer_instance_name)
-        instance_argument = _get_instance_argument(argument_names, consumer_instance)
+        instance_argument = get_instance_argument(argument_names, consumer_instance)
 
         used_args = []
         return_statement = None
@@ -418,7 +401,7 @@ class ArraySignal(SignalType):
 
         if instance_argument is not None:
             used_args.append('instance')
-            read = _add_instance_check(read, consumer_instance, instance_argument=instance_argument)
+            read = add_instance_check(read, consumer_instance, instance_arg_name=instance_argument)
 
         mods = {
             'body': read,
@@ -495,7 +478,7 @@ class QueueSignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         provider_instance = context.get_component_instance(provider_instance_name)
-        is_multiple_instances = _port_component_is_instanced(provider_instance)
+        is_multiple_instances = port_component_is_instanced(provider_instance)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -511,7 +494,7 @@ class QueueSignal(SignalType):
 
         if is_multiple_instances:
             used_args.append('instance')
-            body = _add_instance_check(body, provider_instance)
+            body = add_instance_check(body, provider_instance)
         elif needs_scope:
             body = f'{{\n' \
                    f'{indent(body)}\n' \
@@ -577,8 +560,8 @@ class QueueSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = _port_component_is_instanced(provider_instance)
+        is_multiple_instances = port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
         if is_multiple_instances:
             argument_names.pop(0)
 
@@ -594,7 +577,7 @@ class QueueSignal(SignalType):
         used_args = [value_arg]
         if provider_is_multiple_instances:
             used_args.append('instance')
-            read = _add_instance_check(read, consumer_instance)
+            read = add_instance_check(read, consumer_instance)
 
         return {
             consumer_port_name: {
@@ -632,8 +615,8 @@ class ConstantSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = _port_component_is_instanced(provider_instance)
+        is_multiple_instances = port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
         constant_provider = provider_port_data.functions['constant']
 
         call_args = {}
@@ -662,7 +645,7 @@ class ConstantSignal(SignalType):
 
         if provider_is_multiple_instances:
             used_args.append('instance')
-            body = _add_instance_check(body, consumer_instance)
+            body = add_instance_check(body, consumer_instance)
 
         mods = {
             'used_arguments': used_args,
@@ -703,8 +686,8 @@ class ConstantArraySignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = _port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = _port_component_is_instanced(provider_instance)
+        is_multiple_instances = port_component_is_instanced(consumer_instance)
+        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
         constant_provider = provider_port_data.functions['constant']
 
         call_args = {}
@@ -748,7 +731,7 @@ class ConstantArraySignal(SignalType):
 
         if provider_is_multiple_instances:
             used_args.append('instance')
-            body = _add_instance_check(body, consumer_instance)
+            body = add_instance_check(body, consumer_instance)
 
         mods = {
             'body': body,

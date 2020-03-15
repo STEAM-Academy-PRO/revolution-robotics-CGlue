@@ -431,7 +431,7 @@ class ArraySignal(SignalType):
 
 class QueueSignal(SignalType):
     def __init__(self):
-        super().__init__(consumers='multiple_signals', attributes={
+        super().__init__(consumers='multiple', attributes={
             'required': {'queue_length'},
             'optional': {
                 'member': None

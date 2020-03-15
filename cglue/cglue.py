@@ -325,10 +325,16 @@ class CGlue:
         self._functions.update(port_functions)
 
         for connection in self._project_config['runtime']['port_connections']:
-            provider_name, port, attributes, signals = self._process_provider_port(context, connection)
+            provider_name, port, attributes, all_signals = self._process_provider_port(context, connection)
+
+            signals = defaultdict(list)
 
             for consumer_ref in connection['consumers']:
-                self._process_consumer_ports(context, consumer_ref, port, attributes, provider_name, signals)
+                self._process_consumer_ports(context, consumer_ref, port,
+                                             attributes, provider_name, signals, all_signals)
+
+            for signal_type, new_signals in signals.items():
+                all_signals[signal_type] += new_signals
 
         return context
 
@@ -435,7 +441,8 @@ class CGlue:
                 for connection in connections:
                     connection.generate()
 
-    def _process_consumer_ports(self, context, consumer_ref, provider_port, attrs, provider_name, provider_signals):
+    def _process_consumer_ports(self, context, consumer_ref, provider_port,
+                                attrs, provider_name, provider_signals, all_signals):
         consumer_short_name = consumer_ref['short_name']
         consumer_port = context.get_port(consumer_short_name)
 
@@ -453,6 +460,7 @@ class CGlue:
 
         signal_type = self._signal_types[signal_type_name]
         signals_of_current_type = provider_signals[signal_type_name]
+        all_signals_of_current_type = all_signals[signal_type_name]
 
         # create consumer function
         self._create_port_function(context, consumer_port)
@@ -465,11 +473,14 @@ class CGlue:
         signal_name = f'{provider_name}_{signal_type_name}'.replace('/', '_')
 
         if not signals_of_current_type:
+            if all_signals_of_current_type:
+                signal_name = f'{signal_name}{len(all_signals_of_current_type)}'
+
             create_new_signal(signal_name)
         else:
             if signal_type.consumers == 'multiple_signals':
                 # create new signal in all cases
-                create_new_signal(f'{signal_name}{len(signals_of_current_type)}')
+                create_new_signal(f'{signal_name}{len(all_signals_of_current_type)}')
             elif signal_type.consumers == 'single':
                 raise Exception(f'Multiple consumers not allowed for {signal_type_name}'
                                 f' signal (provided by {provider_port.full_name})')

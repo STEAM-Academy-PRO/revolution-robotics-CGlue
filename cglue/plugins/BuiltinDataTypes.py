@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation
-from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent
+from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
@@ -468,13 +468,11 @@ class QueueSignal(SignalType):
         data_type = context.types.get(provider_port_data['data_type'])
 
         if connection.attributes['queue_length'] == 1:
-            needs_scope = False
             template = \
                 "{{ signal_name }}_overflow = {{ signal_name }}_data_valid;\n" \
                 "{{ signal_name }} = {{ value }};\n" \
                 "{{ signal_name }}_data_valid = true;"
         else:
-            needs_scope = True
             template = \
                 "if ({{ signal_name }}_count < {{ queue_length }}u)\n" \
                 "{\n" \
@@ -484,9 +482,9 @@ class QueueSignal(SignalType):
                 "{\n" \
                 "    {{ signal_name }}_overflow = true;\n" \
                 "}\n" \
-                "size_t idx = {{ signal_name }}_write_index;\n" \
+                "size_t {{ signal_name }}_idx = {{ signal_name }}_write_index;\n" \
                 "{{ signal_name }}_write_index = ({{ signal_name }}_write_index + 1u) % {{ queue_length }}u;\n" \
-                "{{ signal_name }}[idx] = {{ value }};"
+                "{{ signal_name }}[{{ signal_name }}_idx] = {{ value }};"
 
         function = context.functions[provider_port_name]['write']
         argument_names = list(function.arguments.keys())
@@ -507,10 +505,6 @@ class QueueSignal(SignalType):
         if instance_arg_name:
             used_args.append(instance_arg_name)
             body = add_instance_check(body, provider_instance, instance_arg_name=instance_arg_name)
-        elif needs_scope:
-            body = f'{{\n' \
-                   f'{indent(body)}\n' \
-                   f'}}'
 
         return {
             provider_port_name: {

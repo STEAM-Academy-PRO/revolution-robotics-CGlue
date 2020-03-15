@@ -76,9 +76,9 @@ void foo_Write_WPort(foo_Instance_t* instance, uint32_t value)
         {
             foo1_WPort_queue_overflow = true;
         }
-        size_t idx = foo1_WPort_queue_write_index;
+        size_t foo1_WPort_queue_idx = foo1_WPort_queue_write_index;
         foo1_WPort_queue_write_index = (foo1_WPort_queue_write_index + 1u) % 2u;
-        foo1_WPort_queue[idx] = value;
+        foo1_WPort_queue[foo1_WPort_queue_idx] = value;
     }
     if (instance == &foo_instance_foo2)
     {

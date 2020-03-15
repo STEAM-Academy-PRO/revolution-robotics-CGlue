@@ -560,16 +560,11 @@ class QueueSignal(SignalType):
                 "    }\n" \
                 "}"
 
-        consumer_instance = context.get_component_instance(consumer_instance_name)
-        provider_instance = context.get_component_instance(connection.provider)
-
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        consumer_instance = context.get_component_instance(consumer_instance_name)
+        instance_arg_name = get_instance_argument(argument_names, consumer_instance)
 
         value_arg = argument_names[0]
         data = {
@@ -581,9 +576,9 @@ class QueueSignal(SignalType):
 
         read = chevron.render(template, data)
         used_args = [value_arg]
-        if provider_is_multiple_instances:
-            used_args.append('instance')
-            read = add_instance_check(read, consumer_instance)
+        if instance_arg_name:
+            used_args.append(instance_arg_name)
+            read = add_instance_check(read, consumer_instance, instance_arg_name=instance_arg_name)
 
         return {
             consumer_port_name: {

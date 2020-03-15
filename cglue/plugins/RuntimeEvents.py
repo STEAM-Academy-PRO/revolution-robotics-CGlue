@@ -56,7 +56,7 @@ class EventSignal(SignalType):
 
         callee_instance_arg_name = get_instance_argument(list(fn_to_call.arguments.keys()), consumer_instance)
         if callee_instance_arg_name:
-            manual_args[callee_instance_arg_name] = f'&{consumer_instance.instance_var_name}'
+            manual_args[callee_instance_arg_name] = '&' + consumer_instance.instance_var_name
 
         caller_args = caller_fn.arguments.copy()
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
@@ -109,7 +109,7 @@ class ServerCallSignal(SignalType):
 
         provider_instance_arg_name = get_instance_argument(list(fn_to_call.arguments.keys()), provider_instance)
         if provider_instance_arg_name:
-            manual_args[provider_instance_arg_name] = f'&{provider_instance.instance_var_name}'
+            manual_args[provider_instance_arg_name] = '&' + provider_instance.instance_var_name
 
         passed_arguments = collect_arguments(attributes, consumer_instance_name,
                                              fn_to_call.arguments, caller_fn.arguments, manual_args)
@@ -128,17 +128,15 @@ class ServerCallSignal(SignalType):
         else:
             body = fn_to_call.generate_call(passed_arguments) + ';'
 
-        used_args = list(passed_arguments.keys())
-        conditions = []
-        for arg, value in attributes['conditions'].items():
-            used_args.append(arg)
-            conditions.append(f'{arg} == {value}')
-
-        if conditions:
+        if attributes['conditions']:
+            used_args = [*passed_arguments.keys(), *attributes['conditions'].keys()]
+            conditions = (f'{arg} == {value}' for arg, value in attributes['conditions'].items())
             body = f'if ({" && ".join(conditions)})\n' \
                    f'{{\n' \
                    f'{indent(body)}\n' \
                    f'}}'
+        else:
+            used_args = passed_arguments.keys()
 
         if instance_arg_name:
             body = add_instance_check(body, consumer_instance, instance_arg_name=instance_arg_name)
@@ -255,7 +253,7 @@ class ServerCallPortType(PortType):
         function.attributes.add('weak')
 
         if function.return_type != 'void':
-            function_return_type = self._types.get(port['return_type'])
+            function_return_type = self._types.get(function.return_type)
             return_value = function_return_type.render_value(port['return_value'])
             function.set_return_statement(return_value)
 
@@ -267,24 +265,6 @@ class ServerCallPortType(PortType):
         return {'run': function}
 
 
-def create_port_ref(port):
-    if type(port) is str:
-        parts = port.split('/')
-        return {
-            'short_name': port,
-            'component':  parts[0],
-            'port':       parts[1]
-        }
-    elif type(port) is dict:
-        return {
-            'short_name': port['short_name'],
-            'component':  port['component'],
-            'port':       port.get('runnable') or port.get('port')
-        }
-    else:
-        raise TypeError("port must either be a dict or a str")
-
-
 def expand_runtime_events(owner: CGlue, project_config):
     runtime_config = project_config['runtime']
     runtime_component = Component.create_empty_config('Runtime')
@@ -293,10 +273,14 @@ def expand_runtime_events(owner: CGlue, project_config):
     runtime_runnables = runtime_config['runnables']
 
     runtime_component['ports'] = {event: {'port_type': 'Event'} for event in runtime_runnables}
-    event_connections = [{
-            'provider': create_port_ref(f'Runtime/{event}'),
+    event_connections = ({
+            'provider': {
+                'short_name': f'Runtime/{event}',
+                'component':  'Runtime',
+                'port':       event
+            },
             'consumers': handlers
-        } for event, handlers in runtime_runnables.items()]
+        } for event, handlers in runtime_runnables.items())
 
     owner.add_component(Component('Runtime', runtime_component, owner.types))
     runtime_config['port_connections'] += event_connections
@@ -358,8 +342,9 @@ def create_runnable_ports(owner: CGlue, component: Component):
 
 
 def add_exported_declarations(owner: CGlue, context):
-    runtime_funcs = [short_name for short_name in context['functions'] if short_name.startswith('Runtime/')]
-    context['exported_function_declarations'] += runtime_funcs
+    context['exported_function_declarations'] += (short_name
+                                                  for short_name in context['functions']
+                                                  if short_name.startswith('Runtime/'))
 
     sort_functions(owner, context)
 
@@ -386,24 +371,25 @@ def sort_functions(owner: CGlue, context):
 
 def remove_runtime_component(owner: CGlue, config):
     del owner._components['Runtime']
-    port_connections = []
-    for connection in config['runtime']['port_connections']:
+
+    def is_provided_by_runtime(connection):
         provider = connection['provider']
         if type(provider) is str:
-            if not provider.startswith('Runtime/'):
-                port_connections.append(connection)
+            return provider.startswith('Runtime/')
         else:
-            if provider['component'] != 'Runtime':
-                port_connections.append(connection)
+            return provider['component'] == 'Runtime'
 
-    config['runtime']['port_connections'] = port_connections
+    config['runtime']['port_connections'] = (connection
+                                             for connection in config['runtime']['port_connections']
+                                             if not is_provided_by_runtime(connection))
 
 
 def cleanup_component(owner: CGlue, component_name, ctx):
     # remove automatically generated runnable ports
     component_data = owner._components[component_name]
-    component_data['ports'] = {name: port for name, port in component_data['ports'].items() if
-                               name not in component_data['runnables']}
+    component_data['ports'] = {name: port
+                               for name, port in component_data['ports'].items()
+                               if name not in component_data['runnables']}
 
     sort_functions(owner, ctx)
 

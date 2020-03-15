@@ -7,8 +7,7 @@ from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
-from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument, \
-    port_component_is_instanced
+from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument
 
 
 class BuiltinTypes:
@@ -493,9 +492,7 @@ class QueueSignal(SignalType):
         argument_names = list(function.arguments.keys())
 
         provider_instance = context.get_component_instance(provider_instance_name)
-        is_multiple_instances = port_component_is_instanced(provider_instance)
-        if is_multiple_instances:
-            argument_names.pop(0)
+        instance_arg_name = get_instance_argument(argument_names, provider_instance)
 
         passed_by_value = data_type.passed_by() == TypeCollection.PASS_BY_VALUE
         value_arg = argument_names[0]
@@ -507,9 +504,9 @@ class QueueSignal(SignalType):
             'value': value_arg if passed_by_value else '*' + value_arg
         })
 
-        if is_multiple_instances:
-            used_args.append('instance')
-            body = add_instance_check(body, provider_instance)
+        if instance_arg_name:
+            used_args.append(instance_arg_name)
+            body = add_instance_check(body, provider_instance, instance_arg_name=instance_arg_name)
         elif needs_scope:
             body = f'{{\n' \
                    f'{indent(body)}\n' \
@@ -632,21 +629,21 @@ class ConstantSignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
         constant_provider = provider_port_data.functions['constant']
+        provider_argument_names = list(constant_provider.arguments.keys())
 
         call_args = {}
-        if is_multiple_instances:
-            argument_names.pop(0)
-            call_args['instance'] = '&' + consumer_instance.instance_var_name
+        instance_arg_name = get_instance_argument(argument_names, consumer_instance)
+        provider_instance_arg_name = get_instance_argument(provider_argument_names, provider_instance)
+        if instance_arg_name:
+            call_args[instance_arg_name] = '&' + consumer_instance.instance_var_name
 
         used_args = []
         return_statement = None
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
-            if provider_is_multiple_instances:
+            if provider_instance_arg_name:
                 return_statement = data_type.render_value(None)
         else:
             out_arg_name = argument_names[0]
@@ -660,9 +657,9 @@ class ConstantSignal(SignalType):
                 call_args['value'] = out_arg_name
                 body = constant_provider.generate_call(call_args) + ';'
 
-        if provider_is_multiple_instances:
-            used_args.append('instance')
-            body = add_instance_check(body, consumer_instance)
+        if provider_instance_arg_name:
+            used_args.append(provider_instance_arg_name)
+            body = add_instance_check(body, consumer_instance, instance_arg_name=provider_instance_arg_name)
 
         mods = {
             'used_arguments': used_args,
@@ -705,14 +702,14 @@ class ConstantArraySignal(SignalType):
         function = context.functions[consumer_port_name]['read']
         argument_names = list(function.arguments.keys())
 
-        is_multiple_instances = port_component_is_instanced(consumer_instance)
-        provider_is_multiple_instances = port_component_is_instanced(provider_instance)
         constant_provider = provider_port_data.functions['constant']
+        provider_argument_names = list(constant_provider.arguments.keys())
 
         call_args = {}
-        if is_multiple_instances:
-            argument_names.pop(0)
-            call_args['instance'] = '&' + consumer_instance.instance_var_name
+        instance_arg_name = get_instance_argument(argument_names, consumer_instance)
+        provider_instance_arg_name = get_instance_argument(provider_argument_names, provider_instance)
+        if instance_arg_name:
+            call_args[instance_arg_name] = '&' + consumer_instance.instance_var_name
 
         used_args = []
         if 'count' not in consumer_port_data:
@@ -732,7 +729,7 @@ class ConstantArraySignal(SignalType):
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             call = constant_provider.generate_call(call_args)
             body = f'return {call}{member_accessor};'
-            if provider_is_multiple_instances:
+            if provider_instance_arg_name:
                 return_statement = data_type.render_value(None)
         else:
             out_name = argument_names[0]
@@ -748,9 +745,9 @@ class ConstantArraySignal(SignalType):
                 call_args['value'] = out_name
                 body = constant_provider.function_call(call_args) + ';'
 
-        if provider_is_multiple_instances:
-            used_args.append('instance')
-            body = add_instance_check(body, consumer_instance)
+        if provider_instance_arg_name:
+            used_args.append(provider_instance_arg_name)
+            body = add_instance_check(body, consumer_instance, instance_arg_name=provider_instance_arg_name)
 
         mods = {
             'body': body,

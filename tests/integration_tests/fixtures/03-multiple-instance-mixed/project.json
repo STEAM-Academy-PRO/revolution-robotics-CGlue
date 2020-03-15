@@ -11,7 +11,8 @@
         "bar"
     ],
     "instances": {
-        "foo1": "foo"
+        "foo1": "foo",
+        "foo2": "foo"
     },
     "types": {
         "uint32_t": {
@@ -31,6 +32,16 @@
             {
                 "provider": "bar/write",
                 "consumer": "foo1/read"
+            },
+            {
+                "provider": "bar/write",
+                "consumer": "foo1/read_queue",
+                "queue_length": 1
+            },
+            {
+                "provider": "bar/write",
+                "consumer": "foo2/read_queue",
+                "queue_length": 1
             }
         ]
     }

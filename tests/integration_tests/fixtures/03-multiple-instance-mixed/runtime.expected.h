@@ -8,6 +8,12 @@ typedef struct {
     uint32_t var1;
 } foo_Instance_t;
 
+typedef enum {
+    QueueStatus_Empty,
+    QueueStatus_Ok,
+    QueueStatus_Overflow
+} QueueStatus_t;
+
 #define COMPONENT_TYPES_FOO_H_
 #define COMPONENT_TYPES_BAR_H_
 

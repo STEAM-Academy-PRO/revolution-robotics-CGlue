@@ -379,9 +379,9 @@ def remove_runtime_component(owner: CGlue, config):
         else:
             return provider['component'] == 'Runtime'
 
-    config['runtime']['port_connections'] = (connection
-                                             for connection in config['runtime']['port_connections']
-                                             if not is_provided_by_runtime(connection))
+    config['runtime']['port_connections'] = list(connection
+                                                 for connection in config['runtime']['port_connections']
+                                                 if not is_provided_by_runtime(connection))
 
 
 def cleanup_component(owner: CGlue, component_name, ctx):

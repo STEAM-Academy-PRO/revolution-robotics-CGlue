@@ -15,6 +15,14 @@ class PortType:
     def __getitem__(self, item):
         return self.config[item]
 
+    @property
+    def is_consumer(self) -> bool:
+        return self.config.get('consumes', False)
+
+    @property
+    def is_provider(self) -> bool:
+        return self.config.get('provides', False)
+
     def declare_functions(self, port):
         raise NotImplementedError
 
@@ -65,7 +73,11 @@ class Port:
 
     @property
     def is_consumer(self) -> bool:
-        return self.port_type.get('consumes', False)
+        return self.port_type.is_consumer
+
+    @property
+    def is_provider(self) -> bool:
+        return self.port_type.is_consumer
 
     def __getitem__(self, item):
         return self.port_data[item]

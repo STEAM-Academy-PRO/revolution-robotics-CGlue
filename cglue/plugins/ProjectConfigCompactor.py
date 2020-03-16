@@ -127,8 +127,8 @@ def compact_project_config(owner: CGlue, config):
 
     for t in owner.types.export():
         project_type = t in config['types']
-        for component_data in owner._components.values():
-            if t in component_data.get('types', {}):
+        for component_data in owner._components:
+            if t in component_data.config.get('types', {}):
                 project_type = False
                 break
 

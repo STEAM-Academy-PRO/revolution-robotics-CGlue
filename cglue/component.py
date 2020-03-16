@@ -80,6 +80,9 @@ class ComponentCollection:
     def add(self, component: Component):
         self._components[component.name] = component
 
+    def __delitem__(self, key):
+        del self._components[key]
+
     def __iter__(self):
         yield from self._components.values()
 

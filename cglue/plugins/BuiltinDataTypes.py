@@ -669,7 +669,8 @@ class ConstantArraySignal(SignalType):
         super().__init__(consumers='multiple', attributes={
             'required': {},
             'optional': {
-                'member': None
+                'member': None,
+                'index': None
             }
         })
 

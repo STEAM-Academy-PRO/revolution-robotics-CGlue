@@ -6,7 +6,7 @@ py_version = sys.version_info
 
 setup(
     name='CGlue',
-    version='0.1.15',
+    version='0.2.0',
     packages=['cglue', 'cglue/plugins', 'cglue/utils'],
     package_dir={'cglue': 'cglue'},
     url='https://github.com/RevolutionRobotics/CGlue',

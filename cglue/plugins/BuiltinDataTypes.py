@@ -390,8 +390,9 @@ class ArraySignal(SignalType):
             # single read, index should be next to consumer name
             try:
                 index = attributes['index']
-            except KeyError:
-                raise Exception(f'{consumer_instance_name} tries to read from an array without specifying the element')
+            except KeyError as e:
+                raise Exception(f'{consumer_instance_name} tries to read from an '
+                                f'array without specifying the element') from e
         else:
             if consumer_port_data['count'] > provider_port_data['count']:
                 raise Exception(
@@ -704,7 +705,11 @@ class ConstantArraySignal(SignalType):
         used_args = []
         if 'count' not in consumer_port_data:
             # single read, index should be next to consumer name
-            index = attributes['index']
+            try:
+                index = attributes['index']
+            except KeyError as e:
+                raise Exception(f'{consumer_instance_name} tries to read from a constant '
+                                f'array without specifying the element') from e
         else:
             if consumer_port_data['count'] > provider_port_data['count']:
                 raise Exception(

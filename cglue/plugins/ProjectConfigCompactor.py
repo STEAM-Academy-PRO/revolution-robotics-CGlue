@@ -1,68 +1,47 @@
 from cglue.cglue import Plugin, CGlue
 
 
-def process_runnable_ref_shorthand(runnable):
-    """Parse shorthand form of runnable reference into a dictionary"""
-    if type(runnable) is str:
-        parts = runnable.split('/')
-        runnable = {
-            'short_name': runnable,
-            'component':  parts[0],
-            'runnable':   parts[1]
-        }
-    else:
-        runnable['short_name'] = "{}/{}".format(runnable['component'], runnable['runnable'])
-
-    return runnable
-
-
-def process_port_ref_shorthand(port):
+def process_port_ref_shorthand(port, port_key='port'):
     """Parse shorthand form of port reference into a dictionary"""
     if type(port) is str:
         parts = port.split('/')
         port = {
             'short_name': port,
             'component':  parts[0],
-            'port':       parts[1]
+            port_key:     parts[1]
         }
     else:
-        port['short_name'] = "{}/{}".format(port['component'], port['port'])
+        port['short_name'] = f"{port['component']}/{port[port_key]}"
 
     return port
 
 
-def expand_port_connection(port_connection):
-    connection = {}
-
-    attrs = {k: v for k, v in port_connection.items() if k not in ['provider', 'consumer', 'consumers']}
-
-    if 'consumer' in port_connection:
-        consumer = port_connection['consumer']
-        if type(consumer) is list:
-            consumer, attributes = consumer
-        else:
-            attributes = {}
-
-        connection['consumers'] = [{
-            **process_port_ref_shorthand(consumer),
-            "attributes": attributes
-        }]
+def expand_port(runnable, port_key):
+    if type(runnable) is list:
+        runnable, attributes = runnable
     else:
-        connection['consumers'] = []
+        attributes = {}
 
-        for consumer in port_connection['consumers']:
-            if type(consumer) is list:
-                consumer, attributes = consumer
-            else:
-                attributes = {}
+    return {
+        **process_port_ref_shorthand(runnable, port_key),
+        'attributes': attributes
+    }
 
-            connection['consumers'].append({
-                **process_port_ref_shorthand(consumer),
-                "attributes": attributes
-            })
+
+def expand_port_connection(port_connection):
+    try:
+        consumers = port_connection['consumers']
+    except KeyError:
+        consumers = [port_connection['consumer']]
+
+    connection = {
+        'consumers': [expand_port(consumer, 'port') for consumer in consumers],
+        'provider': process_port_ref_shorthand(port_connection['provider'], 'port')
+    }
+
+    attrs = {k: v for k, v in port_connection.items() if k not in ('provider', 'consumer', 'consumers')}
     connection.update(attrs)
 
-    connection['provider'] = process_port_ref_shorthand(port_connection['provider'])
     return connection
 
 
@@ -73,35 +52,11 @@ def expand_project_config(owner, project_config):
     raw_port_connections = project_config['runtime'].get('port_connections', [])
 
     for runnable_group, runnables in raw_runnables.items():
-        processed_runnables[runnable_group] = []
-
-        for runnable in runnables:
-            if type(runnable) is not list:
-                runnable = [runnable, {}]
-
-            processed_runnables[runnable_group].append({
-                **process_runnable_ref_shorthand(runnable[0]),
-                'attributes': runnable[1]
-            })
+        processed_runnables[runnable_group] = [expand_port(runnable, 'runnable') for runnable in runnables]
 
     project_config['runtime']['runnables'] = processed_runnables
     project_config['runtime']['port_connections'] = [expand_port_connection(port_connection)
                                                      for port_connection in raw_port_connections]
-
-
-def _remove_empty_attribute_list(ref):
-    if not ref['attributes']:
-        del ref['attributes']
-
-
-def _remove_empty_argument_list(ref):
-    if 'arguments' in ref['attributes']:
-        if not ref['attributes']['arguments']:
-            del ref['attributes']['arguments']
-
-
-def _ref_only_contains_default_keys(ref):
-    return not set(ref.keys()).difference(['short_name', 'component', 'port', 'runnable', 'attributes'])
 
 
 def _compact_ref(ref):
@@ -109,10 +64,13 @@ def _compact_ref(ref):
         return ref
 
     if 'attributes' in ref:
-        _remove_empty_argument_list(ref)
-        _remove_empty_attribute_list(ref)
+        if not ref['attributes'].get('arguments', True):
+            del ref['attributes']['arguments']
 
-    if not _ref_only_contains_default_keys(ref):
+        if not ref['attributes']:
+            del ref['attributes']
+
+    if set(ref.keys()).difference(('short_name', 'component', 'port', 'runnable', 'attributes')):
         return {key: ref[key] for key in ref if key != 'short_name'}
 
     if 'attributes' in ref:
@@ -125,14 +83,9 @@ def compact_project_config(owner: CGlue, config):
     """Simplify parts that don't need to remain in their expanded forms"""
     types = {}
 
+    component_types = list(component_data.config.get('types', {}) for component_data in owner._components)
     for t in owner.types.export():
-        project_type = t in config['types']
-        for component_data in owner._components:
-            if t in component_data.config.get('types', {}):
-                project_type = False
-                break
-
-        if project_type:
+        if t in config['types'] and not any(t in types for types in component_types):
             types[t] = config['types'][t]
 
     expanded_runtime = config['runtime'].copy()
@@ -157,7 +110,7 @@ def compact_project_config(owner: CGlue, config):
             compacted_connection['consumers'] = consumers
 
         compacted_connection.update(
-            {key: value for key, value in connection.items() if key not in ['provider', 'consumers']})
+            {key: value for key, value in connection.items() if key not in ('provider', 'consumers')})
 
         compacted_runtime['port_connections'].append(compacted_connection)
 

@@ -32,7 +32,7 @@ class StructType(TypeCategory):
         super().__init__(type_collection, BuiltinTypes.STRUCT, attributes)
 
     def render_typedef(self, type_name, type_data):
-        context = {
+        return chevron.render(**{
             'template': "\n"
                         "typedef struct {\n"
                         "    {{# fields }}\n"
@@ -44,26 +44,16 @@ class StructType(TypeCategory):
                 'type_name': type_name,
                 'fields': dict_to_chevron_list(type_data['fields'], key_name='name', value_name='type')
             }
-        }
-
-        return chevron.render(**context)
+        })
 
     def render_value(self, type_name, type_data, value, context='assignment'):
         if type(value) is str:
             return value
 
         types = self._type_collection
-        field_types = {name: types.get(field_type) for name, field_type in type_data['fields'].items()}
-        field_values = {field_name: value.get(field_name) for field_name in field_types}
+        fields_str = ', '.join(f'.{name} = {types.get(t).render_value(value.get(name), "initialization")}'
+                               for name, t in type_data['fields'].items())
 
-        def render(field_name, field_value):
-            """Render field values"""
-            return field_types[field_name].render_value(field_value, 'initialization')
-
-        rendered_values = {name: render(name, value) for name, value in field_values.items()}
-        rendered_field_values = (f'.{name} = {rendered}' for name, rendered in rendered_values.items())
-
-        fields_str = ', '.join(rendered_field_values)
         if context == 'initialization':
             return f'{{ {fields_str} }}'
         else:
@@ -100,7 +90,7 @@ class EnumType(TypeCategory):
         super().__init__(type_collection, BuiltinTypes.ENUM, attributes)
 
     def render_typedef(self, type_name, type_data):
-        context = {
+        return chevron.render(**{
             'template': "\n"
                         "typedef enum {\n"
                         "    {{# values }}\n"
@@ -112,9 +102,7 @@ class EnumType(TypeCategory):
                 'type_name': type_name,
                 'values': chevron_list_mark_last([{'value': value} for value in type_data['values']])
             }
-        }
-
-        return chevron.render(**context)
+        })
 
 
 class UnionType(TypeCategory):
@@ -130,7 +118,7 @@ class UnionType(TypeCategory):
         super().__init__(type_collection, BuiltinTypes.UNION, attributes)
 
     def render_typedef(self, type_name, type_data):
-        context = {
+        return chevron.render(**{
             'template': "\n"
                         "typedef union {\n"
                         "    {{# members }}\n"
@@ -142,9 +130,7 @@ class UnionType(TypeCategory):
                 'type_name': type_name,
                 'members': dict_to_chevron_list(type_data['members'], key_name='name', value_name='type')
             }
-        }
-
-        return chevron.render(**context)
+        })
 
     def render_value(self, type_name, type_data, value, context='assignment'):
         if type(value) is str:
@@ -1146,14 +1132,14 @@ def init(owner: CGlue):
         owner.add_port_type(port_type_name, port_type_class(types))
 
 
-def add_type_def(owner: CGlue, type_name, type_data, defined_by):
-    processed_type_data = owner.types.process_type_definition(type_name, type_data)
-    owner.types.add(type_name, processed_type_data, defined_by)
+def add_type_def(types, type_name, type_data, defined_by):
+    processed_type_data = types.process_type_definition(type_name, type_data)
+    types.add(type_name, processed_type_data, defined_by)
 
 
 def process_project_types(owner: CGlue, project_config):
     for type_name, type_data in project_config.get('types', {}).items():
-        add_type_def(owner, type_name, type_data, "project file")
+        add_type_def(owner.types, type_name, type_data, "project file")
 
 
 def process_component_ports_and_types(owner: CGlue, component: Component):
@@ -1161,42 +1147,35 @@ def process_component_ports_and_types(owner: CGlue, component: Component):
 
     try:
         for type_name, type_data in component.config['types'].items():
-            add_type_def(owner, type_name, type_data, component.name)
+            add_type_def(owner.types, type_name, type_data, component.name)
 
         if component.config['multiple_instances']:
             instance_type = {
                 'fields': component.config['instance_variables'],
                 'pass_semantic': TypeCollection.PASS_BY_POINTER
             }
-            add_type_def(owner, component.instance_type, instance_type, component.name)
-    except Exception:
-        print(f"Failed to add type definitions for {component.name}")
-        raise
+            add_type_def(owner.types, component.instance_type, instance_type, component.name)
+    except Exception as e:
+        raise Exception(f"Failed to add type definitions for {component.name}") from e
 
 
 def sort_functions(owner: CGlue, context):
+    def get_port(fn):
+        try:
+            return context.get_port(fn)
+        except (AttributeError, KeyError):
+            return owner.get_port(fn)
+
     def sort_by_name(fn):
         # only sort functions of known port types
-        if type(context) is dict:
-            port = owner.get_port(fn)
-        else:
-            try:
-                port = context.get_port(fn)
-            except KeyError:
-                port = owner.get_port(fn)
+        port = get_port(fn)
         if port['port_type'] in known_port_types:
             return fn
         else:
             return '0'
 
     def sort_by_port_type(fn):
-        if type(context) is dict:
-            port = owner.get_port(fn)
-        else:
-            try:
-                port = context.get_port(fn)
-            except KeyError:
-                port = owner.get_port(fn)
+        port = get_port(fn)
         return port.port_type.config.get('order', 0)
 
     by_name = sorted(context['functions'], key=sort_by_name)

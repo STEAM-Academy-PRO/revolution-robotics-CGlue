@@ -321,12 +321,12 @@ def create_runnable_ports(owner: CGlue, component: Component):
             args = OrderedDict()
 
             runnable_arguments = runnable_data.get('arguments', {})
-            if 'instance' in runnable_arguments:
+            try:
                 instance_type = runnable_arguments["instance"]["data_type"]
                 if instance_type != component.instance_type:
                     raise TypeError(f'Runnable has argument named "instance" but '
                                     f'its type ({instance_type.name}) does not match instance type')
-            else:
+            except KeyError:
                 args['instance'] = {
                     'data_type': component.instance_type,
                     'direction': 'inout'
@@ -354,13 +354,11 @@ def sort_functions(owner: CGlue, context):
         if fn.startswith('Runtime/'):
             weight = 0
         else:
-            if type(context) is dict:
+            try:
+                port = context.get_port(fn)
+            except (AttributeError, KeyError):
                 port = owner.get_port(fn)
-            else:
-                try:
-                    port = context.get_port(fn)
-                except KeyError:
-                    port = owner.get_port(fn)
+
             weight = port.port_type.config.get('order', 3)
 
         return weight

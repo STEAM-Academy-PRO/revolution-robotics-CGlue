@@ -27,6 +27,14 @@ class ArgumentList(dict):
                     self.add(arg_name, 'in', arg_data)
 
     def add(self, name, direction, data_type):
+        from cglue.data_types import TypeWrapper
+
+        if type(data_type) is not TypeWrapper:
+            raise TypeError(f'Type info for argument "{name}" is not a TypeWrapper object')
+
+        if direction not in ('in', 'out', 'inout'):
+            raise ValueError(f'Unknown argument direction {direction}')
+
         self[name] = {'direction': direction, 'data_type': data_type}
 
     def assemble(self, args: dict):
@@ -39,10 +47,7 @@ class ArgumentList(dict):
 
     def get_argument_list(self):
         def generate_parameter(name, data):
-            from cglue.data_types import TypeCollection, TypeWrapper
-            if type(data['data_type']) is not TypeWrapper:
-                raise TypeError(f'Type info for argument "{name}" is not a TypeWrapper object')
-
+            from cglue.data_types import TypeCollection
             try:
                 pass_by_ptr = data['data_type']['pass_semantic'] == TypeCollection.PASS_BY_POINTER
             except KeyError:
@@ -55,11 +60,8 @@ class ArgumentList(dict):
                 else:
                     pattern = '{} {}'
 
-            elif data['direction'] in ('out', 'inout'):
-                pattern = '{}* {}'
-
             else:
-                raise Exception(f'Unknown argument direction {data["direction"]}')
+                pattern = '{}* {}'
 
             return pattern.format(data['data_type'].name, name)
 

@@ -412,7 +412,7 @@ class ArraySignal(SignalType):
             read = f'*{out_name} = {connection.name}[{index}]{member_accessor};'
 
         if instance_argument is not None:
-            used_args.append('instance')
+            used_args.append(instance_argument)
             read = add_instance_check(read, consumer_instance, instance_arg_name=instance_argument)
 
         mods = {

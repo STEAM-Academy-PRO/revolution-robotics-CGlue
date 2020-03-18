@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation
-from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list
+from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
@@ -51,13 +51,17 @@ class StructType(TypeCategory):
             return value
 
         types = self._type_collection
-        fields_str = ', '.join(f'.{name} = {types.get(t).render_value(value.get(name), "initialization")}'
-                               for name, t in type_data['fields'].items())
+        fields_str = ',\n'.join(f'.{name} = {types.get(t).render_value(value.get(name), "initialization")}'
+                                for name, t in type_data['fields'].items())
 
         if context == 'initialization':
-            return f'{{ {fields_str} }}'
+            return f'{{\n' \
+                   f'{indent(fields_str)}\n' \
+                   f'}}'
         else:
-            return f'({type_name}) {{ {fields_str} }}'
+            return f'({type_name}) {{\n' \
+                   f'{indent(fields_str)}\n' \
+                   f'}}'
 
     def attribute(self, type_name, type_data: dict, attr_name):
         if attr_name == 'default_value':
@@ -140,12 +144,17 @@ class UnionType(TypeCategory):
             raise Exception('Only a single union member can be assigned')
 
         members = {name: self._type_collection.get(member_type) for name, member_type in type_data['members'].items()}
-        values_str = ', '.join(f'.{name} = {members[name].render_value(value, "initialization")}'
-                               for name, value in value.items())
+        values_str = ',\n'.join(f'.{name} = {members[name].render_value(value, "initialization")}'
+                                for name, value in value.items())
+
         if context == 'initialization':
-            return f'{{ {values_str} }}'
+            return f'{{\n' \
+                   f'{indent(values_str)}\n' \
+                   f'}}'
         else:
-            return f'({type_name}) {{ {values_str} }}'
+            return f'({type_name}) {{\n' \
+                   f'{indent(values_str)}\n' \
+                   f'}}'
 
     def referenced_types(self, type_name, type_data):
         yield from type_data['members'].values()
@@ -320,9 +329,11 @@ class ArraySignal(SignalType):
                 raise Exception(f'Array initializer count ({len(init_values)}) does not '
                                 f'match size ({count}) - signal provided by {connection.provider}')
 
-            init_values = ', '.join(init_values)
+            init_values = ',\n'.join(init_values)
 
-        context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{ {init_values} }};')
+        context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{\n'
+                                       f'{indent(init_values)}\n'
+                                       f'}};')
 
     def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)
@@ -1083,8 +1094,10 @@ class ConstantArrayPortType(PortType):
         function = FunctionImplementation(prototype)
         function.add_input_assert('index', f'index < {port["count"]}')
 
-        constant_value = ', '.join(map(data_type.render_value, port['value']))
-        function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{ {constant_value} }};')
+        constant_value = ',\n'.join(map(data_type.render_value, port['value']))
+        function.add_body(f'static const {data_type.name} constant[{port["count"]}] = {{\n'
+                          f'{indent(constant_value)}\n'
+                          f'}};')
         if data_type.passed_by() == TypeCollection.PASS_BY_VALUE:
             function.set_return_statement('constant[index]')
         else:

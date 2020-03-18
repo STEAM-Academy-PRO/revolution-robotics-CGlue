@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import Dict
 
 from cglue.function import FunctionPrototype
 from cglue.utils.common import process_dict
@@ -46,6 +47,8 @@ class PortType:
 
 
 class Port:
+    functions: Dict[str, FunctionPrototype]
+
     def __init__(self, component, port_name, port_data, port_type: PortType):
         self.port_name = port_name
         self.component_name = component.name

@@ -2,7 +2,7 @@ from collections import OrderedDict
 
 from cglue.function import FunctionImplementation
 from cglue.ports import PortType
-from cglue.cglue import Plugin, CGlue
+from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
 from cglue.data_types import TypeCollection
@@ -46,7 +46,8 @@ class EventSignal(SignalType):
             }
         })
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         caller_fn = context.get_port(connection.provider).functions['run']
         fn_to_call = context.get_port(consumer_instance_name).functions['run']
 
@@ -96,7 +97,8 @@ class ServerCallSignal(SignalType):
             }
         })
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         consumer_port_data = context.get_port(consumer_instance_name)
         caller_fn = consumer_port_data.functions['run']
         fn_to_call = context.get_port(connection.provider).functions['run']

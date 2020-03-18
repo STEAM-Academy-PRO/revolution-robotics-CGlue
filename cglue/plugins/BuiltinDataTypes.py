@@ -4,7 +4,7 @@ from cglue.function import FunctionImplementation
 from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
-from cglue.cglue import Plugin, CGlue
+from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
 from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument
@@ -201,7 +201,7 @@ class VariableSignal(SignalType):
             }
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         data_type = context.types.get(data_type_name)
@@ -211,7 +211,7 @@ class VariableSignal(SignalType):
             f'static {data_type.name} {connection.name} = {rendered_init_value};'
         )
 
-    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
+    def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = context.types.get(provider_port_data['data_type'])
@@ -243,7 +243,8 @@ class VariableSignal(SignalType):
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
@@ -300,7 +301,7 @@ class ArraySignal(SignalType):
             }
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         provider_port_data = context.get_port(connection.provider)
         data_type_name = provider_port_data['data_type']
         data_type = context.types.get(data_type_name)
@@ -323,7 +324,7 @@ class ArraySignal(SignalType):
 
         context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{ {init_values} }};')
 
-    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
+    def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = context.types.get(provider_port_data['data_type'])
@@ -355,7 +356,8 @@ class ArraySignal(SignalType):
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
@@ -425,7 +427,7 @@ class QueueSignal(SignalType):
             }
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         if connection.attributes['queue_length'] == 1:
             template = \
                 "static {{ data_type }} {{ signal_name }};\n" \
@@ -449,7 +451,7 @@ class QueueSignal(SignalType):
         }
         context['declarations'].append(chevron.render(template, data))
 
-    def generate_provider(self, context, connection: SignalConnection, provider_instance_name):
+    def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)
         provider_port_name = context.get_component_ref(provider_instance_name)
         data_type = context.types.get(provider_port_data['data_type'])
@@ -502,7 +504,8 @@ class QueueSignal(SignalType):
             }
         }
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
@@ -587,10 +590,11 @@ class ConstantSignal(SignalType):
             }
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         pass
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
@@ -661,10 +665,11 @@ class ConstantArraySignal(SignalType):
             }
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         pass
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port_data = context.get_port(connection.provider)
         consumer_port_data = context.get_port(consumer_instance_name)
         consumer_port_name = context.get_component_ref(consumer_instance_name)

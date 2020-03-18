@@ -2,7 +2,7 @@ import chevron
 
 from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.ports import PortType
-from cglue.cglue import Plugin, CGlue
+from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
 from cglue.signal import SignalType, SignalConnection
 from cglue.data_types import TypeCollection
 from cglue.utils.multiple_instance_helpers import add_instance_check, port_component_is_instanced
@@ -18,7 +18,7 @@ class AsyncServerCallSignal(SignalType):
             'optional': {}
         })
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         port = context.get_port(connection.provider)
 
         provider_instance = context.get_component_instance(connection.provider)
@@ -207,7 +207,8 @@ switch (command)
             }
         }))
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_instance_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_instance_name, attributes):
         provider_port = context.get_port(connection.provider)
         consumer_port_name = context.get_component_ref(consumer_instance_name)
 

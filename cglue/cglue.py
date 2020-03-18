@@ -7,6 +7,7 @@ from typing import Iterable
 import chevron
 
 from cglue.component import Component, ComponentCollection, ComponentInstanceCollection
+from cglue.ports import Port
 from cglue.utils.common import to_underscore
 from cglue.signal import SignalType
 from cglue.data_types import TypeCollection, TypeWrapper
@@ -124,7 +125,7 @@ class RuntimeGeneratorContext:
     def functions(self):
         return self._owner.functions
 
-    def get_port(self, short_name):
+    def get_port(self, short_name) -> Port:
         return self._owner.get_port(self.get_component_ref(short_name))
 
     def _split(self, short_name):

@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation
-from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent
+from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent, rpad
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
@@ -51,8 +51,11 @@ class StructType(TypeCategory):
             return value
 
         types = self._type_collection
-        fields_str = ',\n'.join(f'.{name} = {types.get(t).render_value(value.get(name), "initialization")}'
-                                for name, t in type_data['fields'].items())
+
+        length = max(len(name) for name in type_data['fields'].keys())
+        fields = (f'.{rpad(name, length)} = {types.get(t).render_value(value.get(name), "initialization")}'
+                  for name, t in type_data['fields'].items())
+        fields_str = ',\n'.join(fields)
 
         if context == 'initialization':
             return f'{{\n' \

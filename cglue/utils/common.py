@@ -103,3 +103,17 @@ def remove_trailing_spaces(text):
     'foobar\\n'
     """
     return trailing_ws_re.sub('', text)
+
+
+def rpad(string, length, char=' '):
+    """
+    >>> rpad('foo', 6)
+    'foo   '
+    >>> rpad('foo', 2)
+    'foo'
+    >>> rpad('foo', 6, '#')
+    'foo###'
+    """
+    if len(string) < length:
+        string += char * (length - len(string))
+    return string

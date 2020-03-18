@@ -724,7 +724,7 @@ class ConstantArraySignal(SignalType):
                        f'{out_name} = tmp{member_accessor};'
             else:
                 call_args['value'] = out_name
-                body = constant_provider.function_call(call_args) + ';'
+                body = constant_provider.generate_call(call_args) + ';'
 
         if provider_instance_arg_name:
             used_args.append(provider_instance_arg_name)

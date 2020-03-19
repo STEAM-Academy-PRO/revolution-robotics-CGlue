@@ -1,4 +1,5 @@
 import re
+from typing import Any, Sequence
 
 
 def to_underscore(name):
@@ -117,3 +118,21 @@ def rpad(string, length, char=' '):
     if len(string) < length:
         string += char * (length - len(string))
     return string
+
+
+def split(data: Sequence[Any], chunk_size: int):
+    """
+    >>> list(split([], 5))
+    []
+    >>> list(split(b'apple', 5))
+    [b'apple']
+    >>> list(split(b'apple', 7))
+    [b'apple']
+    >>> list(split([1, 2, 3, 4], 2))
+    [[1, 2], [3, 4]]
+    >>> list(split([1, 2, 3, 4, 5], 2))
+    [[1, 2], [3, 4], [5]]
+    >>> list(split(b'apple', 3))
+    [b'app', b'le']
+    """
+    return (data[i:i + chunk_size] for i in range(0, len(data), chunk_size))

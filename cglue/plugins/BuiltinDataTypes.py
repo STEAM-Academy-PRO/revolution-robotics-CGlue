@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation
-from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent, rpad
+from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent, rpad, split
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
@@ -330,11 +330,17 @@ class ArraySignal(SignalType):
                 raise Exception(f'Array initializer count ({len(init_values)}) does not '
                                 f'match size ({count}) - signal provided by {connection.provider}')
 
-            init_values = ',\n'.join(init_values)
+            longest_member_length = max(map(len, init_values))
+            longest_line_length = 50
+            items_per_row = longest_line_length // longest_member_length
+            rows = split(init_values, items_per_row or 1)
+            row_strs = [', '.join(row) for row in rows]
+            if len(row_strs) > 1:
+                init_values = '\n' + indent(',\n'.join(row_strs)) + '\n'
+            else:
+                init_values = ' ' + row_strs[0] + ' '
 
-        context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{\n'
-                                       f'{indent(init_values)}\n'
-                                       f'}};')
+        context['declarations'].append(f'static {data_type.name} {connection.name}[{count}] = {{{init_values}}};')
 
     def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_instance_name):
         provider_port_data = context.get_port(provider_instance_name)

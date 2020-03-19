@@ -1,15 +1,19 @@
 from collections import OrderedDict
-from typing import Dict
+from typing import Dict, Any
 
 from cglue.function import FunctionPrototype
-from cglue.utils.common import process_dict
 from cglue.data_types import TypeCollection
+from cglue.utils.dict_processor import DictProcessor
 
 
 class PortType:
-    def __init__(self, types: TypeCollection, config):
+    def __init__(self, types: TypeCollection, config: Dict[str, Any]):
         self._types = types
         self.config = config
+        self._data_processor = DictProcessor(
+            required_keys=config['def_attributes'].get('required', set()),
+            optional_keys=config['def_attributes'].get('optional', {})
+        )
 
         self.get = config.get
 
@@ -42,9 +46,7 @@ class PortType:
         return Port(component, pn, {
             'port_type': port_type,
             **attributes['static'],
-            **process_dict(port_data,
-                           attributes.get('required', set()),
-                           attributes['optional'])
+            **self._data_processor.process(port_data)
         }, self)
 
 

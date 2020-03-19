@@ -1,5 +1,5 @@
 from cglue.function import ArgumentList
-from cglue.utils.common import process_dict
+from cglue.utils.dict_processor import DictProcessor
 
 
 class TypeCategory:
@@ -7,6 +7,9 @@ class TypeCategory:
         self._name = name
         self._attributes = attributes
         self._type_collection = type_collection
+        self._data_processor = DictProcessor(
+            required_keys=attributes.get('required', set()),
+            optional_keys=attributes.get('optional', {}))
 
     def __str__(self):
         return f'TypeCategory({self._name})'
@@ -20,7 +23,7 @@ class TypeCategory:
     def process_type(self, type_data):
         return {
             **self._attributes['static'],
-            **process_dict(type_data, required=self._attributes['required'], optional=self._attributes['optional'])
+            **self._data_processor.process(type_data)
         }
 
     def render_typedef(self, type_name, type_data):

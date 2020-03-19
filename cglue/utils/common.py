@@ -53,26 +53,6 @@ def dict_to_chevron_list(data, key_name, value_name, last_key=None):
     return chevron_list
 
 
-def process_dict(src, required, optional):
-    """This function makes sure src contains required and optional keys and nothing else"""
-
-    required_keys = set(required)
-    present_keys = set(src.keys())
-    optional_keys = set(optional.keys())
-
-    missing_required = required_keys - present_keys
-    not_required = present_keys - required_keys
-    unexpected_keys = not_required - optional_keys
-
-    if unexpected_keys:
-        raise Exception(f'Unexpected keys: {", ".join(unexpected_keys)}')
-
-    if missing_required:
-        raise Exception(f'Missing keys: {", ".join(missing_required)}')
-
-    return {**optional, **src}
-
-
 indent_re = re.compile(r'^([ \t]*\S[^\n]*)$', flags=re.MULTILINE)
 
 

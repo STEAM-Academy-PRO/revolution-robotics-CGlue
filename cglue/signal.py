@@ -1,4 +1,4 @@
-from cglue.utils.common import process_dict
+from cglue.utils.dict_processor import DictProcessor
 
 
 class SignalConnection:
@@ -65,7 +65,9 @@ class SignalConnection:
 class SignalType:
     def __init__(self, consumers='multiple', attributes=None):
         self._consumers = consumers
-        self._attributes = attributes
+        self._data_processor = DictProcessor(
+            required_keys=attributes.get('required', set()),
+            optional_keys=attributes.get('optional', {}))
 
     @property
     def consumers(self):
@@ -81,13 +83,7 @@ class SignalType:
         return {}
 
     def create_connection(self, context, name, provider, attributes):
-        return SignalConnection(context, name, self, provider, process_dict(
-            attributes,
-            required=self._attributes.get('required', set()),
-            optional=self._attributes['optional']))
+        return SignalConnection(context, name, self, provider, self._data_processor.process(attributes))
 
     def process_attributes(self, attributes, consumer_attributes):
-        return process_dict(
-            {**attributes, **consumer_attributes},
-            required=self._attributes.get('required', set()),
-            optional=self._attributes['optional'])
+        return self._data_processor.process({**attributes, **consumer_attributes})

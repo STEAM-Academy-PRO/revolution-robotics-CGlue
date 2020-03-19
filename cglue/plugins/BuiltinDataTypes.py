@@ -20,7 +20,7 @@ class StructType(TypeCategory):
 
     def __init__(self, type_collection):
         attributes = {
-            'required': ['fields'],
+            'required': {'fields'},
             'optional': {
                 'pass_semantic': TypeCollection.PASS_BY_POINTER,
                 'default_value': {}
@@ -88,7 +88,7 @@ class EnumType(TypeCategory):
 
     def __init__(self, type_collection):
         attributes = {
-            'required': ['values', 'default_value'],
+            'required': {'values', 'default_value'},
             'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
             'static': {
                 'type': BuiltinTypes.ENUM
@@ -116,7 +116,7 @@ class UnionType(TypeCategory):
 
     def __init__(self, type_collection):
         attributes = {
-            'required': ['members', 'default_value'],
+            'required': {'members', 'default_value'},
             'optional': {'pass_semantic': TypeCollection.PASS_BY_POINTER},
             'static': {
                 'type': BuiltinTypes.UNION
@@ -206,7 +206,6 @@ def process_member_access(types: TypeCollection, attributes, provided_data_type,
 class VariableSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'init_value': None,
                 'member': None
@@ -304,7 +303,6 @@ class VariableSignal(SignalType):
 class ArraySignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'index': None,
                 'member': None,
@@ -598,7 +596,6 @@ class QueueSignal(SignalType):
 class ConstantSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'member': None
             }
@@ -672,7 +669,6 @@ class ConstantSignal(SignalType):
 class ConstantArraySignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'member': None,
                 'index': None
@@ -783,7 +779,7 @@ class ReadValuePortType(PortType):
                 'constant_array': 'single'
             },
             'def_attributes': {
-                'required': ['data_type'],
+                'required': {'data_type'},
                 'optional': {'default_value': None},
                 'static': {}
             }
@@ -832,7 +828,7 @@ class ReadQueuedValuePortType(PortType):
             'order': 3,
             'consumes': {'queue': 'single'},
             'def_attributes': {
-                'required': ['data_type'],
+                'required': {'data_type'},
                 'optional': {'default_value': None},
                 'static': {}
             }
@@ -879,7 +875,7 @@ class ReadIndexedValuePortType(PortType):
                 'constant_array': 'multiple'
             },
             'def_attributes': {
-                'required': ['data_type', 'count'],
+                'required': {'data_type', 'count'},
                 'optional': {'default_value': None},
                 'static': {}
             }
@@ -932,7 +928,7 @@ class WriteDataPortType(PortType):
             'order': 2,
             'provides': {'variable', 'queue'},
             'def_attributes': {
-                'required': ['data_type'],
+                'required': {'data_type'},
                 'optional': {},
                 'static': {}
             }
@@ -976,7 +972,7 @@ class WriteIndexedDataPortType(PortType):
             'order': 2,
             'provides': {'array'},
             'def_attributes': {
-                'required': ['data_type', 'count'],
+                'required': {'data_type', 'count'},
                 'optional': {},
                 'static': {}
             }
@@ -1022,7 +1018,7 @@ class ConstantPortType(PortType):
             'order': 1,
             'provides': {'constant'},
             'def_attributes': {
-                'required': ['data_type', 'value'],
+                'required': {'data_type', 'value'},
                 'optional': {},
                 'static': {}
             }
@@ -1067,7 +1063,7 @@ class ConstantArrayPortType(PortType):
             'order': 1,
             'provides': {'constant_array'},
             'def_attributes': {
-                'required': ['data_type', 'value', 'count'],
+                'required': {'data_type', 'value', 'count'},
                 'optional': {},
                 'static': {}
             }

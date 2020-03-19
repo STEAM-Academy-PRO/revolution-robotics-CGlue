@@ -40,7 +40,6 @@ def collect_arguments(attributes, consumer_name, consumer_arguments, caller_args
 class EventSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'arguments': {}
             }
@@ -90,7 +89,6 @@ class EventSignal(SignalType):
 class ServerCallSignal(SignalType):
     def __init__(self):
         super().__init__(consumers='multiple', attributes={
-            'required': {},
             'optional': {
                 'conditions': {},
                 'arguments': {}
@@ -180,7 +178,6 @@ class RunnablePortType(PortType):
             'consumes':       {'event': 'multiple'},
             'provides': {'call'},
             'def_attributes': {
-                'required': [],
                 'optional': {'arguments': {}, 'return_type': 'void'},
                 'static':   {}
             }
@@ -208,7 +205,6 @@ class EventPortType(PortType):
             'order':          1,
             'provides':       {'event'},
             'def_attributes': {
-                'required': [],
                 'optional': {'arguments': {}},
                 'static':   {}
             }
@@ -236,7 +232,6 @@ class ServerCallPortType(PortType):
             'order':          2,
             'consumes':       {'call': 'multiple'},
             'def_attributes': {
-                'required': [],
                 'optional': {
                     'return_type': 'void',
                     'return_value': None,

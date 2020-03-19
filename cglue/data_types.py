@@ -48,7 +48,7 @@ class TypeCategory:
 class TypeAlias(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': ['aliases'],
+            'required': {'aliases'},
             'optional': {'default_value': None, 'pass_semantic': None},
             'static': {
                 'type': TypeCollection.ALIAS
@@ -89,7 +89,7 @@ class BuiltinType(TypeCategory):
 class ExternalType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': ['defined_in', 'default_value'],
+            'required': {'defined_in', 'default_value'},
             'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
             'static': {
                 'type': TypeCollection.EXTERNAL_DEF
@@ -104,7 +104,7 @@ class ExternalType(TypeCategory):
 class FunctionPointerType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': ['return_type', 'arguments'],
+            'required': {'return_type', 'arguments'},
             'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
             'static': {
                 'type': TypeCollection.FUNC_PTR

@@ -42,7 +42,9 @@ class PortType:
         return Port(component, pn, {
             'port_type': port_type,
             **attributes['static'],
-            **process_dict(port_data, attributes['required'], attributes['optional'])
+            **process_dict(port_data,
+                           attributes.get('required', set()),
+                           attributes['optional'])
         }, self)
 
 

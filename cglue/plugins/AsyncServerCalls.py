@@ -429,7 +429,6 @@ class AsyncCallPortType(PortType):
             'order':          1,
             'consumes':       {'async_call': 'multiple'},
             'def_attributes': {
-                'required': [],
                 'optional': {"arguments": {}},
                 'static':   {}
             }
@@ -490,7 +489,6 @@ class AsyncRunnablePortType(PortType):
             'order':          1,
             'provides':       {'async_call'},
             'def_attributes': {
-                'required': [],
                 'optional': {"arguments": {}},
                 'static':   {}
             }

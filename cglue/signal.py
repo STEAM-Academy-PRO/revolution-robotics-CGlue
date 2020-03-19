@@ -83,11 +83,11 @@ class SignalType:
     def create_connection(self, context, name, provider, attributes):
         return SignalConnection(context, name, self, provider, process_dict(
             attributes,
-            required=self._attributes['required'],
+            required=self._attributes.get('required', set()),
             optional=self._attributes['optional']))
 
     def process_attributes(self, attributes, consumer_attributes):
         return process_dict(
             {**attributes, **consumer_attributes},
-            required=self._attributes['required'],
+            required=self._attributes.get('required', set()),
             optional=self._attributes['optional'])

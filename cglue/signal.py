@@ -1,8 +1,9 @@
+from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.utils.dict_processor import DictProcessor
 
 
 class SignalConnection:
-    def __init__(self, context, name, signal: 'SignalType', provider_name, attributes):
+    def __init__(self, context: RuntimeGeneratorContext, name, signal: 'SignalType', provider_name, attributes):
         self.name = name
         self.signal = signal
         self.provider = provider_name
@@ -73,16 +74,17 @@ class SignalType:
     def consumers(self):
         return self._consumers
 
-    def create(self, context, connection: SignalConnection):
+    def create(self, context: RuntimeGeneratorContext, connection: SignalConnection):
         pass
 
-    def generate_provider(self, context, connection: SignalConnection, provider_name):
+    def generate_provider(self, context: RuntimeGeneratorContext, connection: SignalConnection, provider_name: str):
         return {}
 
-    def generate_consumer(self, context, connection: SignalConnection, consumer_name, attributes):
+    def generate_consumer(self, context: RuntimeGeneratorContext,
+                          connection: SignalConnection, consumer_name, attributes):
         return {}
 
-    def create_connection(self, context, name, provider, attributes):
+    def create_connection(self, context: RuntimeGeneratorContext, name, provider, attributes):
         return SignalConnection(context, name, self, provider, self._data_processor.process(attributes))
 
     def process_attributes(self, attributes, consumer_attributes):

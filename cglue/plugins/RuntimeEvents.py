@@ -2,7 +2,8 @@ from collections import OrderedDict
 
 from cglue.function import FunctionImplementation
 from cglue.ports import PortType
-from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
+from cglue.cglue import Plugin, CGlue
+from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
 from cglue.data_types import TypeCollection

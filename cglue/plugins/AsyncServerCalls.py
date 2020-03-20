@@ -2,7 +2,8 @@ import chevron
 
 from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.ports import PortType
-from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
+from cglue.cglue import Plugin, CGlue
+from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.signal import SignalType, SignalConnection
 from cglue.data_types import TypeCollection
 from cglue.utils.multiple_instance_helpers import add_instance_check, port_component_is_instanced

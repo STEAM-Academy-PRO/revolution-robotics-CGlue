@@ -4,7 +4,8 @@ from cglue.function import FunctionImplementation
 from cglue.utils.common import chevron_list_mark_last, dict_to_chevron_list, indent, rpad, split
 from cglue.ports import PortType
 from cglue.data_types import TypeCollection, TypeCategory
-from cglue.cglue import Plugin, CGlue, RuntimeGeneratorContext
+from cglue.cglue import Plugin, CGlue
+from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.signal import SignalConnection, SignalType
 from cglue.component import Component
 from cglue.utils.multiple_instance_helpers import add_instance_check, get_instance_argument

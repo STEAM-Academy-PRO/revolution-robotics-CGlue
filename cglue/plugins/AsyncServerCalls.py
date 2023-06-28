@@ -72,8 +72,11 @@ class AsyncServerCallSignal(SignalType):
                 'updater_header': update_function.get_header()
             }
         }))
+
+        # all types are used by the runtime
         context['used_types'].append('AsyncOperationState_t')
         context['used_types'].append('AsyncCommand_t')
+        context['used_types'].append('AsyncResult_t')
 
         # generate the updater function
         if 'run' in port.functions:

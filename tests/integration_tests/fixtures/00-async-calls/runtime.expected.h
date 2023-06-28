@@ -17,6 +17,11 @@ typedef enum {
     AsyncCommand_Continue,
     AsyncCommand_Cancel
 } AsyncCommand_t;
+
+typedef enum {
+    AsyncResult_Pending,
+    AsyncResult_Ok
+} AsyncResult_t;
 typedef uint32_t BarType_t;
 
 #define COMPONENT_TYPES_FOO_H_

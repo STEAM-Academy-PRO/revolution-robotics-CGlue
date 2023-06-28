@@ -148,6 +148,23 @@ Argument and return types can be any type that is visible to the component. This
 defined by the runtime and other components that are listed as a component's dependency (in the
 `requires` section).
 
+#### Example async runnable definition
+
+```json
+"runnables": {
+   "MyAsyncRunnable": {
+      "port_type": "AsyncRunnable",
+      "arguments": {
+         "double_this": {
+            "data_type": "uint8_t",
+            "direction": "in"
+         }
+      },
+      "return_type": "uint8_t",
+   }
+}
+```
+
 ### Runtime
 
 The runtime is generated from a file called `project.json`. This file defines:

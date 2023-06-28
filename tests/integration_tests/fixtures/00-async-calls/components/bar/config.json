@@ -9,7 +9,13 @@
     "runnables": {
         "no_args": {},
         "async_runnable": {
-            "port_type": "AsyncRunnable"
+            "port_type": "AsyncRunnable",
+            "arguments": {
+                "arg": {
+                    "data_type": "uint32_t",
+                    "direction": "inout"
+                }
+            }
         },
         "with_args": {
             "arguments": {

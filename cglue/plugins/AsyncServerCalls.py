@@ -52,7 +52,7 @@ class AsyncServerCallSignal(SignalType):
 
             stored_arguments.append({'name': name, 'type': arg_type.name})
 
-            if arg_dir == 'out' or arg_type.passed_by() == TypeCollection.PASS_BY_POINTER:
+            if arg_dir == 'out' or arg_dir == 'inout' or arg_type.passed_by() == TypeCollection.PASS_BY_POINTER:
                 callee_arguments[name] = f'{arg_prefix}&{connection.name}_argument_{name}'
             else:
                 callee_arguments[name] = f'{arg_prefix}{connection.name}_argument_{name}'
@@ -99,7 +99,7 @@ switch (command)
         {{ signal_name }}_state = AsyncOperationState_Busy;
         {{ unlock }}
 
-        AsyncResult_t result = {{ run_call }};
+        AsyncResult_t result = {{{ run_call }}};
         switch (result)
         {
             case AsyncResult_Ok:
@@ -120,7 +120,7 @@ switch (command)
         {
             {{ unlock }}
 
-            AsyncResult_t result = {{ run_call }};
+            AsyncResult_t result = {{{ run_call }}};
             switch (result)
             {
                 case AsyncResult_Ok:
@@ -145,7 +145,7 @@ switch (command)
         if ({{ signal_name }}_state == AsyncOperationState_Busy)
         {
             {{ unlock }}
-            (void) {{ cancel_call }};
+            (void) {{{ cancel_call }}};
         }
         else
         {

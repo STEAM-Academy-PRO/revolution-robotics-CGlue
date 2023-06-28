@@ -10,6 +10,7 @@ static void bar_no_args_async_call_Update(void);
 /* bar_async_runnable_async_call */
 static AsyncOperationState_t bar_async_runnable_async_call_state = AsyncOperationState_Idle;
 static AsyncCommand_t bar_async_runnable_async_call_command = AsyncCommand_None;
+static uint32_t bar_async_runnable_async_call_argument_arg;
 static void bar_async_runnable_async_call_Update(void);
 
 /* bar_with_args_async_call */
@@ -147,7 +148,8 @@ void bar_async_runnable_async_call_Update(void)
             bar_async_runnable_async_call_state = AsyncOperationState_Busy;
             __enable_irq();
 
-            AsyncResult_t result = bar_AsyncRunnable_async_runnable(command);
+            AsyncResult_t result = bar_AsyncRunnable_async_runnable(command,
+                &bar_async_runnable_async_call_argument_arg);
             switch (result)
             {
                 case AsyncResult_Ok:
@@ -168,7 +170,8 @@ void bar_async_runnable_async_call_Update(void)
             {
                 __enable_irq();
 
-                AsyncResult_t result = bar_AsyncRunnable_async_runnable(command);
+                AsyncResult_t result = bar_AsyncRunnable_async_runnable(command,
+                &bar_async_runnable_async_call_argument_arg);
                 switch (result)
                 {
                     case AsyncResult_Ok:
@@ -193,7 +196,8 @@ void bar_async_runnable_async_call_Update(void)
             if (bar_async_runnable_async_call_state == AsyncOperationState_Busy)
             {
                 __enable_irq();
-                (void) bar_AsyncRunnable_async_runnable(AsyncCommand_Cancel);
+                (void) bar_AsyncRunnable_async_runnable(AsyncCommand_Cancel,
+                &bar_async_runnable_async_call_argument_arg);
             }
             else
             {

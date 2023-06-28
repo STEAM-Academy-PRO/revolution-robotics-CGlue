@@ -24,6 +24,6 @@ typedef enum {
 
 void bar_Run_no_args(void);
 void bar_Run_with_args(uint32_t arg, BarType_t* result);
-AsyncResult_t bar_AsyncRunnable_async_runnable(AsyncCommand_t asyncCommand);
+AsyncResult_t bar_AsyncRunnable_async_runnable(AsyncCommand_t asyncCommand, uint32_t* arg);
 
 #endif /* COMPONENT_BAR_H_ */

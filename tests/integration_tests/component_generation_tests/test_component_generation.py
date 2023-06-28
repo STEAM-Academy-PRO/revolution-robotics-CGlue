@@ -50,6 +50,9 @@ class TestComponentGeneration(unittest.TestCase):
         self._test_generated_files('00-async-calls/project.json', 'foo', {
             'foo.h': 'foo.expected.h'
         })
+        self._test_generated_files('00-async-calls/project.json', 'bar', {
+            'bar.h': 'bar.expected.h'
+        })
 
     def test_runnables_can_implement_func_ptrs(self):
         self._test_generated_files('02-funcptr-runnable/project.json', 'foo', {

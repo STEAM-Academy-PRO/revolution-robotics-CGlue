@@ -46,6 +46,11 @@
                 "update_on": "Runtime/loop"
             },
             {
+                "provider": "bar/async_runnable",
+                "consumer": "foo/no_args_async",
+                "update_on": "Runtime/loop"
+            },
+            {
                 "provider": "bar/with_args",
                 "consumer": "foo/with_args",
                 "update_on": "Runtime/loop"

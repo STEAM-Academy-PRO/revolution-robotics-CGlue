@@ -8,6 +8,9 @@
     },
     "runnables": {
         "no_args": {},
+        "async_runnable": {
+            "port_type": "AsyncRunnable"
+        },
         "with_args": {
             "arguments": {
                 "arg": {

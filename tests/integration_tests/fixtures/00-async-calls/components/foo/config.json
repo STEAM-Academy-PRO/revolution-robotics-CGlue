@@ -8,6 +8,9 @@
         "no_args": {
             "port_type": "AsyncServerCall"
         },
+        "no_args_async": {
+            "port_type": "AsyncServerCall"
+        },
         "with_args": {
             "port_type": "AsyncServerCall",
             "arguments": {

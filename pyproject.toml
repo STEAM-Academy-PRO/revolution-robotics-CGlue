@@ -1,0 +1,17 @@
+[project]
+name = "CGlue"
+version = "0.2.3"
+authors = [
+  { name="Dániel Buga", email="bugadani@gmail.com" },
+]
+description = "Framework for C software"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+]
+
+[project.urls]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

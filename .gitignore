@@ -3,3 +3,4 @@
 **/__pycache__/
 /CGlue.egg-info/
 .coverage
+/dist

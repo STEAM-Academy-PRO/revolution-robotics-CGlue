@@ -5,10 +5,10 @@
 
 
 typedef enum {
-    AsyncState_Idle,
-    AsyncState_Started,
-    AsyncState_Busy,
-    AsyncState_Done
+    AsyncOperationState_Idle,
+    AsyncOperationState_Started,
+    AsyncOperationState_Busy,
+    AsyncOperationState_Done
 } AsyncOperationState_t;
 
 typedef enum {

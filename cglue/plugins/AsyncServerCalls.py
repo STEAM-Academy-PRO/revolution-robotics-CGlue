@@ -60,7 +60,7 @@ class AsyncServerCallSignal(SignalType):
         context['declarations'].append(chevron.render(**{
             'template':
                 '\n/* {{ signal_name }} */\n'
-                'static AsyncOperationState_t {{ signal_name }}_state = AsyncState_Idle;\n'
+                'static AsyncOperationState_t {{ signal_name }}_state = AsyncOperationState_Idle;\n'
                 'static AsyncCommand_t {{ signal_name }}_command = AsyncCommand_None;\n'
                 '{{# arguments }}'
                 'static {{ type }} {{ signal_name }}_argument_{{ name }};\n'
@@ -151,7 +151,7 @@ switch (command)
         {
             {{ unlock }}
         }
-        {{ signal_name }}_state = AsyncState_Idle;
+        {{ signal_name }}_state = AsyncOperationState_Idle;
         break;
 
     default:
@@ -183,17 +183,17 @@ AsyncCommand_t command = {{ signal_name }}_command;
 switch (command)
 {
     case AsyncCommand_Start:
-        {{ signal_name }}_state = AsyncState_Busy;
+        {{ signal_name }}_state = AsyncOperationState_Busy;
         {{ unlock }}
 
         {{{ call }}};
 
-        {{ signal_name }}_state = AsyncState_Done;
+        {{ signal_name }}_state = AsyncOperationState_Done;
         break;
 
     case AsyncCommand_Cancel:
         {{ unlock }}
-        {{ signal_name }}_state = AsyncState_Idle;
+        {{ signal_name }}_state = AsyncOperationState_Idle;
         break;
 
     default:
@@ -250,7 +250,7 @@ switch (command)
             cancel_mods['used_arguments'].append('instance')
             get_result_mods['used_arguments'].append('instance')
 
-            busy_value = context.types.get('AsyncOperationState_t').render_value('AsyncState_Busy')
+            busy_value = context.types.get('AsyncOperationState_t').render_value('AsyncOperationState_Busy')
 
             cancel_mods['body'] = add_instance_check(cancel_mods['body'], consumer_instance)
             call_mods['body'] = add_instance_check(call_mods['body'], consumer_instance)
@@ -289,21 +289,21 @@ switch (command)
 {{ lock }}
 switch ({{ signal_name }}_state)
 {
-    case AsyncState_Done:
+    case AsyncOperationState_Done:
 {{# arguments }}
         if ({{ name }})
         {
             *{{ name }} = {{{ value }}};
         }
 {{/ arguments }}
-        {{ signal_name }}_state = AsyncState_Idle;
+        {{ signal_name }}_state = AsyncOperationState_Idle;
         {{ unlock }}
-        returned_state = AsyncState_Done;
+        returned_state = AsyncOperationState_Done;
         break;
 
-    case AsyncState_Started:
+    case AsyncOperationState_Started:
         {{ unlock }}
-        returned_state = AsyncState_Busy;
+        returned_state = AsyncOperationState_Busy;
         break;
 
     default:
@@ -341,19 +341,19 @@ return returned_state;''',
                             f' the following in-arguments: {", ".join(missing_arguments)}')
 
         call_body = chevron.render(**{
-            'template': '''AsyncOperationState_t returned_state = AsyncState_Busy;
+            'template': '''AsyncOperationState_t returned_state = AsyncOperationState_Busy;
 {{ signal_name }}_command = AsyncCommand_None;
 {{ lock }}
-if ({{ signal_name}}_state == AsyncState_Idle || {{ signal_name}}_state == AsyncState_Done)
+if ({{ signal_name}}_state == AsyncOperationState_Idle || {{ signal_name}}_state == AsyncOperationState_Done)
 {
-    {{ signal_name}}_state = AsyncState_Started;
+    {{ signal_name}}_state = AsyncOperationState_Started;
     {{ unlock }}
 
 {{# arguments }}
     {{ signal_name }}_argument_{{ name }} = {{# by_pointer }}*{{/ by_pointer }}{{ value }};
 {{/ arguments }}
 
-    returned_state = AsyncState_Started;
+    returned_state = AsyncOperationState_Started;
     {{ signal_name }}_command = AsyncCommand_Start;
 }
 else
@@ -463,11 +463,11 @@ class AsyncCallPortType(PortType):
 
         call_fn = FunctionImplementation(declared_functions['async_call'])
         call_fn.attributes.add('weak')
-        call_fn.set_return_statement('AsyncState_Busy')
+        call_fn.set_return_statement('AsyncOperationState_Busy')
 
         result_fn = FunctionImplementation(declared_functions['get_result'])
         result_fn.attributes.add('weak')
-        result_fn.set_return_statement('AsyncState_Busy')
+        result_fn.set_return_statement('AsyncOperationState_Busy')
 
         cancel_fn = FunctionImplementation(declared_functions['cancel'])
         cancel_fn.attributes.add('weak')
@@ -532,12 +532,12 @@ def init(owner: CGlue):
         'AsyncOperationState_t',
         types.category('enum').process_type({
             'values': [
-                'AsyncState_Idle',
-                'AsyncState_Started',
-                'AsyncState_Busy',
-                'AsyncState_Done'
+                'AsyncOperationState_Idle',
+                'AsyncOperationState_Started',
+                'AsyncOperationState_Busy',
+                'AsyncOperationState_Done'
             ],
-            'default_value': 'AsyncState_Idle'
+            'default_value': 'AsyncOperationState_Idle'
         }),
         "builtin type"
     )

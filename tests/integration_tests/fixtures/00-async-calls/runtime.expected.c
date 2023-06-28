@@ -3,17 +3,17 @@
 
 
 /* bar_no_args_async_call */
-static AsyncOperationState_t bar_no_args_async_call_state = AsyncState_Idle;
+static AsyncOperationState_t bar_no_args_async_call_state = AsyncOperationState_Idle;
 static AsyncCommand_t bar_no_args_async_call_command = AsyncCommand_None;
 static void bar_no_args_async_call_Update(void);
 
 /* bar_async_runnable_async_call */
-static AsyncOperationState_t bar_async_runnable_async_call_state = AsyncState_Idle;
+static AsyncOperationState_t bar_async_runnable_async_call_state = AsyncOperationState_Idle;
 static AsyncCommand_t bar_async_runnable_async_call_command = AsyncCommand_None;
 static void bar_async_runnable_async_call_Update(void);
 
 /* bar_with_args_async_call */
-static AsyncOperationState_t bar_with_args_async_call_state = AsyncState_Idle;
+static AsyncOperationState_t bar_with_args_async_call_state = AsyncOperationState_Idle;
 static AsyncCommand_t bar_with_args_async_call_command = AsyncCommand_None;
 static uint32_t bar_with_args_async_call_argument_arg;
 static BarType_t bar_with_args_async_call_argument_result;
@@ -28,17 +28,17 @@ void bar_no_args_async_call_Update(void)
     switch (command)
     {
         case AsyncCommand_Start:
-            bar_no_args_async_call_state = AsyncState_Busy;
+            bar_no_args_async_call_state = AsyncOperationState_Busy;
             __enable_irq();
 
             bar_Run_no_args();
 
-            bar_no_args_async_call_state = AsyncState_Done;
+            bar_no_args_async_call_state = AsyncOperationState_Done;
             break;
 
         case AsyncCommand_Cancel:
             __enable_irq();
-            bar_no_args_async_call_state = AsyncState_Idle;
+            bar_no_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
@@ -56,19 +56,19 @@ void bar_with_args_async_call_Update(void)
     switch (command)
     {
         case AsyncCommand_Start:
-            bar_with_args_async_call_state = AsyncState_Busy;
+            bar_with_args_async_call_state = AsyncOperationState_Busy;
             __enable_irq();
 
             bar_Run_with_args(
                 bar_with_args_async_call_argument_arg,
                 &bar_with_args_async_call_argument_result);
 
-            bar_with_args_async_call_state = AsyncState_Done;
+            bar_with_args_async_call_state = AsyncOperationState_Done;
             break;
 
         case AsyncCommand_Cancel:
             __enable_irq();
-            bar_with_args_async_call_state = AsyncState_Idle;
+            bar_with_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
@@ -86,16 +86,16 @@ void Runtime_RaiseEvent_loop(void)
 
 AsyncOperationState_t foo_Async_no_args_Call(void)
 {
-    AsyncOperationState_t returned_state = AsyncState_Busy;
+    AsyncOperationState_t returned_state = AsyncOperationState_Busy;
     bar_no_args_async_call_command = AsyncCommand_None;
     __disable_irq();
-    if (bar_no_args_async_call_state == AsyncState_Idle || bar_no_args_async_call_state == AsyncState_Done)
+    if (bar_no_args_async_call_state == AsyncOperationState_Idle || bar_no_args_async_call_state == AsyncOperationState_Done)
     {
-        bar_no_args_async_call_state = AsyncState_Started;
+        bar_no_args_async_call_state = AsyncOperationState_Started;
         __enable_irq();
 
 
-        returned_state = AsyncState_Started;
+        returned_state = AsyncOperationState_Started;
         bar_no_args_async_call_command = AsyncCommand_Start;
     }
     else
@@ -111,15 +111,15 @@ AsyncOperationState_t foo_Async_no_args_GetResult(void)
     __disable_irq();
     switch (bar_no_args_async_call_state)
     {
-        case AsyncState_Done:
-            bar_no_args_async_call_state = AsyncState_Idle;
+        case AsyncOperationState_Done:
+            bar_no_args_async_call_state = AsyncOperationState_Idle;
             __enable_irq();
-            returned_state = AsyncState_Done;
+            returned_state = AsyncOperationState_Done;
             break;
 
-        case AsyncState_Started:
+        case AsyncOperationState_Started:
             __enable_irq();
-            returned_state = AsyncState_Busy;
+            returned_state = AsyncOperationState_Busy;
             break;
 
         default:
@@ -199,7 +199,7 @@ void bar_async_runnable_async_call_Update(void)
             {
                 __enable_irq();
             }
-            bar_async_runnable_async_call_state = AsyncState_Idle;
+            bar_async_runnable_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
@@ -212,16 +212,16 @@ void bar_async_runnable_async_call_Update(void)
 
 AsyncOperationState_t foo_Async_no_args_async_Call(void)
 {
-    AsyncOperationState_t returned_state = AsyncState_Busy;
+    AsyncOperationState_t returned_state = AsyncOperationState_Busy;
     bar_async_runnable_async_call_command = AsyncCommand_None;
     __disable_irq();
-    if (bar_async_runnable_async_call_state == AsyncState_Idle || bar_async_runnable_async_call_state == AsyncState_Done)
+    if (bar_async_runnable_async_call_state == AsyncOperationState_Idle || bar_async_runnable_async_call_state == AsyncOperationState_Done)
     {
-        bar_async_runnable_async_call_state = AsyncState_Started;
+        bar_async_runnable_async_call_state = AsyncOperationState_Started;
         __enable_irq();
 
 
-        returned_state = AsyncState_Started;
+        returned_state = AsyncOperationState_Started;
         bar_async_runnable_async_call_command = AsyncCommand_Start;
     }
     else
@@ -237,15 +237,15 @@ AsyncOperationState_t foo_Async_no_args_async_GetResult(void)
     __disable_irq();
     switch (bar_async_runnable_async_call_state)
     {
-        case AsyncState_Done:
-            bar_async_runnable_async_call_state = AsyncState_Idle;
+        case AsyncOperationState_Done:
+            bar_async_runnable_async_call_state = AsyncOperationState_Idle;
             __enable_irq();
-            returned_state = AsyncState_Done;
+            returned_state = AsyncOperationState_Done;
             break;
 
-        case AsyncState_Started:
+        case AsyncOperationState_Started:
             __enable_irq();
-            returned_state = AsyncState_Busy;
+            returned_state = AsyncOperationState_Busy;
             break;
 
         default:
@@ -263,17 +263,17 @@ void foo_Async_no_args_async_Cancel(void)
 
 AsyncOperationState_t foo_Async_with_args_Call(uint32_t arg)
 {
-    AsyncOperationState_t returned_state = AsyncState_Busy;
+    AsyncOperationState_t returned_state = AsyncOperationState_Busy;
     bar_with_args_async_call_command = AsyncCommand_None;
     __disable_irq();
-    if (bar_with_args_async_call_state == AsyncState_Idle || bar_with_args_async_call_state == AsyncState_Done)
+    if (bar_with_args_async_call_state == AsyncOperationState_Idle || bar_with_args_async_call_state == AsyncOperationState_Done)
     {
-        bar_with_args_async_call_state = AsyncState_Started;
+        bar_with_args_async_call_state = AsyncOperationState_Started;
         __enable_irq();
 
         bar_with_args_async_call_argument_arg = arg;
 
-        returned_state = AsyncState_Started;
+        returned_state = AsyncOperationState_Started;
         bar_with_args_async_call_command = AsyncCommand_Start;
     }
     else
@@ -289,19 +289,19 @@ AsyncOperationState_t foo_Async_with_args_GetResult(BarType_t* result)
     __disable_irq();
     switch (bar_with_args_async_call_state)
     {
-        case AsyncState_Done:
+        case AsyncOperationState_Done:
             if (result)
             {
                 *result = bar_with_args_async_call_argument_result;
             }
-            bar_with_args_async_call_state = AsyncState_Idle;
+            bar_with_args_async_call_state = AsyncOperationState_Idle;
             __enable_irq();
-            returned_state = AsyncState_Done;
+            returned_state = AsyncOperationState_Done;
             break;
 
-        case AsyncState_Started:
+        case AsyncOperationState_Started:
             __enable_irq();
-            returned_state = AsyncState_Busy;
+            returned_state = AsyncOperationState_Busy;
             break;
 
         default:

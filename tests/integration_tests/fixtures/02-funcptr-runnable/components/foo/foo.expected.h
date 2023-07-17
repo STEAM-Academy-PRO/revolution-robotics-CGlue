@@ -12,6 +12,10 @@ typedef void (*function_ptr)(BarType_t arg);
 
 #endif /* COMPONENT_TYPES_FOO_H_ */
 
+/* Begin User Code Section: Declarations */
+
+/* End User Code Section: Declarations */
+
 void foo_Run_runnable_name(BarType_t arg);
 
 #endif /* COMPONENT_FOO_H_ */

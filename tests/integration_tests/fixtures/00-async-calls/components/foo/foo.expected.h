@@ -17,6 +17,10 @@ typedef enum {
 
 #endif /* COMPONENT_TYPES_FOO_H_ */
 
+/* Begin User Code Section: Declarations */
+
+/* End User Code Section: Declarations */
+
 AsyncOperationState_t foo_Async_no_args_Call(void);
 AsyncOperationState_t foo_Async_no_args_GetResult(void);
 void foo_Async_no_args_Cancel(void);

@@ -83,6 +83,7 @@ def fill_sections(source, sections):
 
 def add_sections_to_component(owner: CGlue, component_name, context: dict):
     context['declarations'].insert(0, create_section('Declarations', ''))
+    context['header_declarations'].insert(0, create_section('Declarations', ''))
 
     for func_name, functions in context['functions'].items():
         for func_type, function in functions.items():

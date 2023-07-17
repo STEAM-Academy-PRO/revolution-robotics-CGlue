@@ -18,6 +18,10 @@ typedef void (*function_ptr)(BarType_t arg, ByteArray_t* data);
 
 #endif /* COMPONENT_TYPES_FOO_H_ */
 
+/* Begin User Code Section: Declarations */
+
+/* End User Code Section: Declarations */
+
 void foo_Write_port(BarType_t value);
 
 #endif /* COMPONENT_FOO_H_ */

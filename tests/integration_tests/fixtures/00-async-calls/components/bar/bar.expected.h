@@ -22,6 +22,10 @@ typedef enum {
 
 #endif /* COMPONENT_TYPES_BAR_H_ */
 
+/* Begin User Code Section: Declarations */
+
+/* End User Code Section: Declarations */
+
 void bar_Run_no_args(void);
 void bar_Run_with_args(uint32_t arg, BarType_t* result);
 AsyncResult_t bar_AsyncRunnable_async_runnable(AsyncCommand_t asyncCommand, uint32_t* arg);

@@ -20,6 +20,10 @@ typedef enum {
 
 #endif /* COMPONENT_TYPES_FOO_H_ */
 
+/* Begin User Code Section: Declarations */
+
+/* End User Code Section: Declarations */
+
 void foo_Run_Runnable(foo_Instance_t* instance, uint32_t arg1);
 uint32_t foo_Run_RunnableWithReturnValue(foo_Instance_t* instance, uint32_t arg1);
 void foo_Run_FuncPtr(foo_Instance_t* instance);

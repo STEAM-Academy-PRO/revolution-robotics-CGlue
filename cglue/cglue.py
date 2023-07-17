@@ -54,6 +54,10 @@ component_header_template = '''#ifndef COMPONENT_{{ guard_def }}_H_
 
 #endif /* COMPONENT_TYPES_{{ guard_def }}_H_ */
 
+{{# header_decls }}
+{{{ . }}}
+
+{{/ header_decls }}
 {{# function_headers }}
 {{{ . }}};
 {{/ function_headers }}
@@ -212,6 +216,7 @@ class CGlue:
             'runtime': self,
             'component_folder': component_folder,
             'declarations': [],
+            'header_declarations': [],
             'files': {
                 config_file: '',
                 source_file: '',
@@ -251,6 +256,7 @@ class CGlue:
             'component_name': component_name,
             'guard_def': to_underscore(component_name).upper(),
             'variables': context['declarations'],
+            'header_decls': context['header_declarations'],
             'types': typedefs,
             'type_includes': sorted(type_includes),
             'functions': function_implementations,

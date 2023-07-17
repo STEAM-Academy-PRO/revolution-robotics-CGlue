@@ -6,6 +6,7 @@ from cglue.plugins.BuiltinDataTypes import builtin_data_types
 from cglue.plugins.RuntimeEvents import runtime_events
 from cglue.plugins.ProjectConfigCompactor import project_config_compactor
 from cglue.plugins.AsyncServerCalls import async_server_calls
+from cglue.plugins.UserCodePlugin import user_code_plugin
 
 
 def _create_generator(path):
@@ -15,6 +16,7 @@ def _create_generator(path):
     generator.add_plugin(builtin_data_types())
     generator.add_plugin(runtime_events())
     generator.add_plugin(async_server_calls())
+    generator.add_plugin(user_code_plugin())
 
     generator.load()
     return generator
@@ -31,6 +33,11 @@ class TestComponentGeneration(unittest.TestCase):
         files = generator.update_component(component)
 
         self.maxDiff = None
+        
+        # to bless the output, uncomment this and run the test
+        # for generated_file, expected_file in expectations.items():
+        #     with open(f'{root}/{expected_file}', 'w') as f:
+        #         f.write(files[f'{root}/components/{component}/{generated_file}'])
 
         for generated_file, expected_file in expectations.items():
             with open(f'{root}/{expected_file}', 'r') as f:

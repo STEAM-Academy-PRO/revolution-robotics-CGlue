@@ -29,9 +29,7 @@ class TestComponentGeneration(unittest.TestCase):
 
         project_file = f'../fixtures/{project_file}'
 
-        root = os.path.dirname(project_file)
         generator = _create_generator(project_file)
-
         files = generator.update_component(component)
 
         self.maxDiff = None

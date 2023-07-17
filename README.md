@@ -30,7 +30,7 @@ pip install -r requirements.txt
 pip install -r requirements_tests.txt
 ```
 
-Use `python setup.py test` to run the tests.
+Use `nose2` to run the tests.
 
 Create a new project
 --------------------

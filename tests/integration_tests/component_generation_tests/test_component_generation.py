@@ -35,7 +35,7 @@ class TestComponentGeneration(unittest.TestCase):
         self.maxDiff = None
 
         component_dir = generator.component_dir(component)
-        
+
         # to bless the output, uncomment this and run the test
         # for generated_file, expected_file in expectations.items():
         #     with open(f'{component_dir}/{expected_file}', 'w') as f:

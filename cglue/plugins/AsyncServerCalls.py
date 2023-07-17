@@ -419,8 +419,8 @@ return returned_state;''',
     @staticmethod
     def _get_lock_impl(connection):
         if 'no_locks' not in connection.attributes or not connection.attributes['no_locks']:
-            lock = '__disable_irq();'
-            unlock = '__enable_irq();'
+            lock = 'uint32_t primask = __get_PRIMASK();\n__disable_irq();'
+            unlock = '__set_PRIMASK(primask);'
         else:
             lock = ''
             unlock = ''

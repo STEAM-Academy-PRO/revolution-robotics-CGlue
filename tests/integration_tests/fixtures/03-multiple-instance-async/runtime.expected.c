@@ -38,6 +38,7 @@ void bar1_no_args_async_call_Update(void)
     /* Begin User Code Section: bar1/no_args:update Start */
 
     /* End User Code Section: bar1/no_args:update Start */
+    uint32_t primask = __get_PRIMASK();
     __disable_irq();
     AsyncCommand_t command = bar1_no_args_async_call_command;
     bar1_no_args_async_call_command = AsyncCommand_None;
@@ -46,7 +47,7 @@ void bar1_no_args_async_call_Update(void)
     {
         case AsyncCommand_Start:
             bar1_no_args_async_call_state = AsyncOperationState_Busy;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar_Run_no_args(
                 &bar_instance_bar1);
@@ -55,12 +56,12 @@ void bar1_no_args_async_call_Update(void)
             break;
 
         case AsyncCommand_Cancel:
-            __enable_irq();
+            __set_PRIMASK(primask);
             bar1_no_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
-            __enable_irq();
+            __set_PRIMASK(primask);
             break;
     }
     /* Begin User Code Section: bar1/no_args:update End */
@@ -73,6 +74,7 @@ void bar1_with_args_async_call_Update(void)
     /* Begin User Code Section: bar1/with_args:update Start */
 
     /* End User Code Section: bar1/with_args:update Start */
+    uint32_t primask = __get_PRIMASK();
     __disable_irq();
     AsyncCommand_t command = bar1_with_args_async_call_command;
     bar1_with_args_async_call_command = AsyncCommand_None;
@@ -81,7 +83,7 @@ void bar1_with_args_async_call_Update(void)
     {
         case AsyncCommand_Start:
             bar1_with_args_async_call_state = AsyncOperationState_Busy;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar_Run_with_args(
                 &bar_instance_bar1,
@@ -92,12 +94,12 @@ void bar1_with_args_async_call_Update(void)
             break;
 
         case AsyncCommand_Cancel:
-            __enable_irq();
+            __set_PRIMASK(primask);
             bar1_with_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
-            __enable_irq();
+            __set_PRIMASK(primask);
             break;
     }
     /* Begin User Code Section: bar1/with_args:update End */
@@ -110,6 +112,7 @@ void bar2_no_args_async_call_Update(void)
     /* Begin User Code Section: bar2/no_args:update Start */
 
     /* End User Code Section: bar2/no_args:update Start */
+    uint32_t primask = __get_PRIMASK();
     __disable_irq();
     AsyncCommand_t command = bar2_no_args_async_call_command;
     bar2_no_args_async_call_command = AsyncCommand_None;
@@ -118,7 +121,7 @@ void bar2_no_args_async_call_Update(void)
     {
         case AsyncCommand_Start:
             bar2_no_args_async_call_state = AsyncOperationState_Busy;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar_Run_no_args(
                 &bar_instance_bar2);
@@ -127,12 +130,12 @@ void bar2_no_args_async_call_Update(void)
             break;
 
         case AsyncCommand_Cancel:
-            __enable_irq();
+            __set_PRIMASK(primask);
             bar2_no_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
-            __enable_irq();
+            __set_PRIMASK(primask);
             break;
     }
     /* Begin User Code Section: bar2/no_args:update End */
@@ -145,6 +148,7 @@ void bar2_with_args_async_call_Update(void)
     /* Begin User Code Section: bar2/with_args:update Start */
 
     /* End User Code Section: bar2/with_args:update Start */
+    uint32_t primask = __get_PRIMASK();
     __disable_irq();
     AsyncCommand_t command = bar2_with_args_async_call_command;
     bar2_with_args_async_call_command = AsyncCommand_None;
@@ -153,7 +157,7 @@ void bar2_with_args_async_call_Update(void)
     {
         case AsyncCommand_Start:
             bar2_with_args_async_call_state = AsyncOperationState_Busy;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar_Run_with_args(
                 &bar_instance_bar2,
@@ -164,12 +168,12 @@ void bar2_with_args_async_call_Update(void)
             break;
 
         case AsyncCommand_Cancel:
-            __enable_irq();
+            __set_PRIMASK(primask);
             bar2_with_args_async_call_state = AsyncOperationState_Idle;
             break;
 
         default:
-            __enable_irq();
+            __set_PRIMASK(primask);
             break;
     }
     /* Begin User Code Section: bar2/with_args:update End */
@@ -200,11 +204,12 @@ AsyncOperationState_t foo_Async_no_args_Call(foo_Instance_t* instance)
     {
         AsyncOperationState_t returned_state = AsyncOperationState_Busy;
         bar1_no_args_async_call_command = AsyncCommand_None;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         if (bar1_no_args_async_call_state == AsyncOperationState_Idle || bar1_no_args_async_call_state == AsyncOperationState_Done)
         {
             bar1_no_args_async_call_state = AsyncOperationState_Started;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
 
             returned_state = AsyncOperationState_Started;
@@ -212,7 +217,7 @@ AsyncOperationState_t foo_Async_no_args_Call(foo_Instance_t* instance)
         }
         else
         {
-            __enable_irq();
+            __set_PRIMASK(primask);
         }
         return returned_state;
     }
@@ -220,11 +225,12 @@ AsyncOperationState_t foo_Async_no_args_Call(foo_Instance_t* instance)
     {
         AsyncOperationState_t returned_state = AsyncOperationState_Busy;
         bar2_no_args_async_call_command = AsyncCommand_None;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         if (bar2_no_args_async_call_state == AsyncOperationState_Idle || bar2_no_args_async_call_state == AsyncOperationState_Done)
         {
             bar2_no_args_async_call_state = AsyncOperationState_Started;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
 
             returned_state = AsyncOperationState_Started;
@@ -232,7 +238,7 @@ AsyncOperationState_t foo_Async_no_args_Call(foo_Instance_t* instance)
         }
         else
         {
-            __enable_irq();
+            __set_PRIMASK(primask);
         }
         return returned_state;
     }
@@ -250,22 +256,23 @@ AsyncOperationState_t foo_Async_no_args_GetResult(foo_Instance_t* instance)
     if (instance == &foo_instance_foo1)
     {
         AsyncOperationState_t returned_state;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         switch (bar1_no_args_async_call_state)
         {
             case AsyncOperationState_Done:
                 bar1_no_args_async_call_state = AsyncOperationState_Idle;
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Done;
                 break;
 
             case AsyncOperationState_Started:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Busy;
                 break;
 
             default:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = bar1_no_args_async_call_state;
                 break;
         }
@@ -274,22 +281,23 @@ AsyncOperationState_t foo_Async_no_args_GetResult(foo_Instance_t* instance)
     if (instance == &foo_instance_foo2)
     {
         AsyncOperationState_t returned_state;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         switch (bar2_no_args_async_call_state)
         {
             case AsyncOperationState_Done:
                 bar2_no_args_async_call_state = AsyncOperationState_Idle;
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Done;
                 break;
 
             case AsyncOperationState_Started:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Busy;
                 break;
 
             default:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = bar2_no_args_async_call_state;
                 break;
         }
@@ -328,11 +336,12 @@ AsyncOperationState_t foo_Async_with_args_Call(foo_Instance_t* instance, uint32_
     {
         AsyncOperationState_t returned_state = AsyncOperationState_Busy;
         bar1_with_args_async_call_command = AsyncCommand_None;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         if (bar1_with_args_async_call_state == AsyncOperationState_Idle || bar1_with_args_async_call_state == AsyncOperationState_Done)
         {
             bar1_with_args_async_call_state = AsyncOperationState_Started;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar1_with_args_async_call_argument_arg = arg;
 
@@ -341,7 +350,7 @@ AsyncOperationState_t foo_Async_with_args_Call(foo_Instance_t* instance, uint32_
         }
         else
         {
-            __enable_irq();
+            __set_PRIMASK(primask);
         }
         return returned_state;
     }
@@ -349,11 +358,12 @@ AsyncOperationState_t foo_Async_with_args_Call(foo_Instance_t* instance, uint32_
     {
         AsyncOperationState_t returned_state = AsyncOperationState_Busy;
         bar2_with_args_async_call_command = AsyncCommand_None;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         if (bar2_with_args_async_call_state == AsyncOperationState_Idle || bar2_with_args_async_call_state == AsyncOperationState_Done)
         {
             bar2_with_args_async_call_state = AsyncOperationState_Started;
-            __enable_irq();
+            __set_PRIMASK(primask);
 
             bar2_with_args_async_call_argument_arg = arg;
 
@@ -362,7 +372,7 @@ AsyncOperationState_t foo_Async_with_args_Call(foo_Instance_t* instance, uint32_
         }
         else
         {
-            __enable_irq();
+            __set_PRIMASK(primask);
         }
         return returned_state;
     }
@@ -380,6 +390,7 @@ AsyncOperationState_t foo_Async_with_args_GetResult(foo_Instance_t* instance, Ba
     if (instance == &foo_instance_foo1)
     {
         AsyncOperationState_t returned_state;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         switch (bar1_with_args_async_call_state)
         {
@@ -389,17 +400,17 @@ AsyncOperationState_t foo_Async_with_args_GetResult(foo_Instance_t* instance, Ba
                     *result = bar1_with_args_async_call_argument_result;
                 }
                 bar1_with_args_async_call_state = AsyncOperationState_Idle;
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Done;
                 break;
 
             case AsyncOperationState_Started:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Busy;
                 break;
 
             default:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = bar1_with_args_async_call_state;
                 break;
         }
@@ -408,6 +419,7 @@ AsyncOperationState_t foo_Async_with_args_GetResult(foo_Instance_t* instance, Ba
     if (instance == &foo_instance_foo2)
     {
         AsyncOperationState_t returned_state;
+        uint32_t primask = __get_PRIMASK();
         __disable_irq();
         switch (bar2_with_args_async_call_state)
         {
@@ -417,17 +429,17 @@ AsyncOperationState_t foo_Async_with_args_GetResult(foo_Instance_t* instance, Ba
                     *result = bar2_with_args_async_call_argument_result;
                 }
                 bar2_with_args_async_call_state = AsyncOperationState_Idle;
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Done;
                 break;
 
             case AsyncOperationState_Started:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = AsyncOperationState_Busy;
                 break;
 
             default:
-                __enable_irq();
+                __set_PRIMASK(primask);
                 returned_state = bar2_with_args_async_call_state;
                 break;
         }

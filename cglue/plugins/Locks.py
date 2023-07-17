@@ -39,8 +39,8 @@ def is_signal_async(owner: CGlue, connection: SignalConnection):
 
 
 def surround_with_lock(signal_impl):
-    lock_impl = '__disable_irq();'
-    unlock_impl = '__enable_irq();'
+    lock_impl = 'uint32_t primask = __get_PRIMASK();\n__disable_irq();'
+    unlock_impl = '__set_PRIMASK(primask);'
 
     if type(signal_impl) is list:
         signal_impl.insert(0, lock_impl)

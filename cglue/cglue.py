@@ -146,12 +146,12 @@ class CGlue:
     def add_port_type(self, port_type_name, port_type):
         self._port_types[port_type_name] = port_type
 
-    def _component_dir(self, component_name):
+    def component_dir(self, component_name):
         return f'{self._basedir}/{self.settings["components_folder"]}/{component_name}'
 
     def _load_component_config(self, component_name):
         if component_name not in self._components:
-            component_config_file = f'{self._component_dir(component_name)}/config.json'
+            component_config_file = f'{self.component_dir(component_name)}/config.json'
             with open(component_config_file, "r") as file:
                 component_config = json.load(file)
             self.add_component(Component(component_name, component_config, self.types))
@@ -200,7 +200,7 @@ class CGlue:
 
         self._components.check_dependencies()
 
-        component_folder = self._component_dir(component_name)
+        component_folder = self.component_dir(component_name)
         source_file = f'{component_folder}/{component_name}.c'
         header_file = f'{component_folder}/{component_name}.h'
         config_file = f'{component_folder}/config.json'

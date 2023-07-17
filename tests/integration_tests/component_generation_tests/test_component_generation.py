@@ -27,26 +27,32 @@ class TestComponentGeneration(unittest.TestCase):
     def _test_generated_files(self, project_file, component, expectations):
         os.chdir(os.path.dirname(__file__))
 
-        root = os.path.dirname('../fixtures/' + project_file)
-        generator = _create_generator('../fixtures/' + project_file)
+        project_file = f'../fixtures/{project_file}'
+
+        root = os.path.dirname(project_file)
+        generator = _create_generator(project_file)
 
         files = generator.update_component(component)
 
         self.maxDiff = None
+
+        component_dir = generator.component_dir(component)
         
         # to bless the output, uncomment this and run the test
         # for generated_file, expected_file in expectations.items():
-        #     with open(f'{root}/{expected_file}', 'w') as f:
-        #         f.write(files[f'{root}/components/{component}/{generated_file}'])
+        #     with open(f'{component_dir}/{expected_file}', 'w') as f:
+        #         f.write(files[f'{component_dir}/{generated_file}'])
 
         for generated_file, expected_file in expectations.items():
-            with open(f'{root}/{expected_file}', 'r') as f:
+            with open(f'{component_dir}/{expected_file}', 'r') as f:
                 file_contents = f.read()
 
-            self.assertEqual(file_contents, files[f'{root}/components/{component}/{generated_file}'])
+            self.assertEqual(file_contents, files[f'{component_dir}/{generated_file}'])
 
     def test_component_generation_does_not_raise_error(self):
-        self._test_generated_files('00-demo-test/project_consumer_list.json', 'foo', {})
+        self._test_generated_files('00-demo-test/project_consumer_list.json', 'foo', {
+            'foo.c': 'foo.expected.c'
+        })
 
     def test_typedefs_of_required_component_are_generated(self):
         self._test_generated_files('01-component-dependency/project.json', 'foo', {

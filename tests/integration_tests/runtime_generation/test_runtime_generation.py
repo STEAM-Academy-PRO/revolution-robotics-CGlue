@@ -27,27 +27,30 @@ class TestRuntimeGeneration(unittest.TestCase):
     def _test_generated_files(self, project_file, expectations):
         os.chdir(os.path.dirname(__file__))
 
-        root = os.path.dirname('../fixtures/' + project_file)
-        generator = _create_generator('../fixtures/' + project_file)
+        project_file = f'../fixtures/{project_file}'
 
-        files = generator.generate_runtime('runtime')
+        root = os.path.dirname(project_file)
+        generator = _create_generator(project_file)
+
+        files = generator.generate_runtime(f'{root}/runtime')
 
         self.maxDiff = None
 
         # to bless the output, uncomment this and run the test
         # for generated_file, expected_file in expectations.items():
         #     with open(f'{root}/{expected_file}', 'w') as f:
-        #         f.write(files[generated_file])
+        #         f.write(files[f'{root}/{generated_file}'])
 
         for generated_file, expected_file in expectations.items():
             with open(f'{root}/{expected_file}', 'r') as f:
                 file_contents = f.read()
 
-            self.assertEqual(file_contents, files[generated_file])
+            self.assertEqual(file_contents, files[f'{root}/{generated_file}'])
 
     def test_expected_header_is_generated(self):
         self._test_generated_files("00-demo-test/project_consumer_list.json", {
-            'runtime.h': 'runtime.expected.h'
+            'runtime.h': 'runtime.expected.h',
+            'runtime.c': 'runtime.expected.c'
         })
 
     def test_complex_connection_does_not_cause_error_when_consumer_is_by_itself(self):

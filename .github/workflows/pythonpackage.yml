@@ -29,7 +29,4 @@ jobs:
         flake8 . --count --max-complexity=15 --max-line-length=120 --show-source --statistics
     - name: Test with setup.py
       run: |
-        nose2 -v
-    - name: Upload coverage to Codecov  
-      run: |
-        codecov -t ${{ secrets.CODECOV_TOKEN }}
+        nose2 -v -B

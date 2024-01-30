@@ -188,9 +188,9 @@ def cli():
 
         elif args.update_all_components:
             files = {}
-            for component_name in rt._components:
-                if component_name != 'Runtime':
-                    files.update(rt.update_component(component_name))
+            for component in rt._components:
+                if component.name != 'Runtime':
+                    files.update(rt.update_component(component.name))
 
         elif args.generate:
             files = rt.generate_runtime(args.cglue_output)

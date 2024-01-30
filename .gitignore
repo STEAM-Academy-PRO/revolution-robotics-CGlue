@@ -4,3 +4,4 @@
 /CGlue.egg-info/
 .coverage
 /dist
+/build

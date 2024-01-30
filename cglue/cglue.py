@@ -201,7 +201,6 @@ class CGlue:
                     raise
 
     def update_component(self, component_name):
-
         self._components.check_dependencies()
 
         component_folder = self.component_dir(component_name)

@@ -142,7 +142,7 @@ def cli():
                 "port_connections": []
             }
         }
-        files = {
+        result = {
             args.project: json.dumps(project, indent=4)
         }
         ft.create_folder('src')
@@ -180,29 +180,36 @@ def cli():
             # add component to project json
             ft.update_file('project.json', rt.dump_project_config())
 
-            files = rt.update_component(component_name)
+            result = rt.update_component(component_name)
+            append_results(ft, result)
 
         elif args.update_component:
-            component_name = args.update_component
-            files = rt.update_component(component_name)
+            result = rt.update_component(args.update_component)
+            append_results(ft, result)
 
         elif args.update_all_components:
-            files = {}
             for component in rt._components:
                 if component.name != 'Runtime':
-                    files.update(rt.update_component(component.name))
+                    result = rt.update_component(component.name)
+                    append_results(ft, result)
 
         elif args.generate:
-            files = rt.generate_runtime()
+            result = rt.generate_runtime()
+            append_results(ft, result)
 
         else:
             parser.print_help()
             return
 
-    for file_name, contents in files.items():
-        ft.update_file(file_name, contents)
     ft.apply(delete_backups=not args.no_cleanup)
 
+def append_results(ft: FileTransaction, result: bool or dict):
+    if not result:
+        ft.abort()
+        return
+
+    for file_name, contents in result.items():
+        ft.update_file(file_name, contents)
 
 if __name__ == '__main__':
     cli()

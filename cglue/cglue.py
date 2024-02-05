@@ -96,7 +96,7 @@ class Plugin:
         except KeyError:
             return
 
-        print(f'Running {self.name}::{event_name}')
+        # print(f'Running {self.name}::{event_name}')
         handler(self._owner, *args)
 
 
@@ -208,8 +208,13 @@ class CGlue:
                     print(f'Failed to process dependencies of {type_obj}')
                     raise
 
-    def update_component(self, component_name):
-        self._components.check_dependencies()
+    def update_component(self, component_name) -> bool or dict:
+        dependency_failures = self._components.check_dependencies(component_name)
+        if dependency_failures:
+            print(f'Incorrect dependencies for {component_name}:')
+            for failure in dependency_failures:
+                print(failure)
+            return False
 
         component_folder = self.component_dir(component_name)
         source_file = f'{component_folder}/{component_name}.c'
@@ -287,7 +292,7 @@ class CGlue:
     def get_project_structure(self):
         context = RuntimeGeneratorContext(self)
 
-        self._components.check_dependencies()
+        self._components.check_all_dependencies()
         self._create_component_instances(context)
 
         port_functions = {name: port.create_runtime_functions() for name, port in self._ports.items()}
@@ -307,7 +312,7 @@ class CGlue:
 
         return context
 
-    def generate_runtime(self):
+    def generate_runtime(self) -> dict:
         filename = self.settings['generated_runtime']
 
         source_file_name = filename + '.c'

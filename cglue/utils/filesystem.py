@@ -8,6 +8,7 @@ class FileTransaction:
         self._root = root
         self._new_folders = []
         self._files = {}
+        self._aborted = False
 
     def create_folder(self, folder):
         self._new_folders.append(folder.replace('/', os.path.sep))
@@ -15,7 +16,14 @@ class FileTransaction:
     def update_file(self, file_name, contents):
         self._files[file_name.replace('/', os.path.sep)] = contents
 
+    def abort(self):
+        self._aborted = True
+
     def apply(self, delete_backups=False):
+        if self._aborted:
+            print('Not applying changes')
+            return
+
         backups = {}
         new_files = []
         try:
@@ -41,7 +49,7 @@ class FileTransaction:
             print(f'Created: {file_path}')
             new_files.append(file_path)
         else:
-            print(f'Up to date: {file_path}')
+            pass
 
     def _delete_backups(self, backups):
         for file_name, backup in backups.items():

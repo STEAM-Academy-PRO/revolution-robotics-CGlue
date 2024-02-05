@@ -21,7 +21,9 @@ class TestComponentCollection(unittest.TestCase):
 
         collection.add(component1)
         collection.add(component2)
-        collection.check_dependencies()
+
+        result = collection.check_all_dependencies()
+        self.assertEqual(0, len(result))
 
     def test_exception_when_requirements_are_not_met(self):
         collection = ComponentCollection()
@@ -31,7 +33,17 @@ class TestComponentCollection(unittest.TestCase):
 
         collection.add(component1)
         collection.add(component2)
-        self.assertRaises(Exception, collection.check_dependencies)
+
+        # Test1 requires Test2 which is not compatible
+        result = collection.check_dependencies("Test1")
+        self.assertEqual(1, len(result))
+
+        # Test2 requires Test1 which is compatible
+        result = collection.check_dependencies("Test2")
+        self.assertEqual(0, len(result))
+
+        result = collection.check_all_dependencies()
+        self.assertEqual(1, len(result))
 
     def test_minimum_requirement_only(self):
         collection = ComponentCollection()
@@ -41,4 +53,6 @@ class TestComponentCollection(unittest.TestCase):
 
         collection.add(component1)
         collection.add(component2)
-        collection.check_dependencies()
+
+        result = collection.check_all_dependencies()
+        self.assertEqual(0, len(result))

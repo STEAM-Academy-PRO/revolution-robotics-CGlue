@@ -4,6 +4,8 @@ from cglue.utils.version import Version, VersionConstraint
 
 
 class Component:
+    'A software component definition.'
+
     @staticmethod
     def create_empty_config(name):
         return Component.normalize_config({
@@ -74,6 +76,8 @@ class Component:
 
 
 class ComponentCollection:
+    'A collection of components.'
+
     def __init__(self):
         self._components = {}
 
@@ -92,18 +96,24 @@ class ComponentCollection:
     def __contains__(self, item):
         return item in self._components
 
-    def check_dependencies(self):
+    def check_all_dependencies(self) -> list:
         failures = []
-        for component in self._components.values():
-            for required_component_name, version_constraint in component.dependencies.items():
-                required_component = self._components[required_component_name]
-                if not version_constraint.check(required_component.version):
-                    failures.append(f'Component {component.name} failed to meet requirement'
-                                    f' of {component.name} ({version_constraint})')
 
-        if failures:
-            message = '\n'.join(failures)
-            raise Exception('Component dependency check failed:\n' + message)
+        for component in self._components.values():
+            failures.extend(self.check_dependencies(component.name))
+
+        return failures
+
+    def check_dependencies(self, checked_component: str) -> list:
+        failures = []
+
+        for required_component_name, version_constraint in self._components[checked_component].dependencies.items():
+            required_component = self._components[required_component_name]
+            if not version_constraint.check(required_component.version):
+                failures.append(f'Component {checked_component} failed to meet requirement'
+                                f' of {checked_component} ({version_constraint})')
+
+        return failures
 
 
 class ComponentInstance:

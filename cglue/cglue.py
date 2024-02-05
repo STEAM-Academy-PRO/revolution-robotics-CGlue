@@ -90,7 +90,7 @@ class Plugin:
                 raise Exception(f'{self.name} requires unloaded plugin {plugin}')
         self._owner = owner
 
-    def handle(self, event_name, args):
+    def handle_event(self, event_name, args):
         try:
             handler = self._event_handlers[event_name]
         except KeyError:
@@ -101,10 +101,29 @@ class Plugin:
 
 
 class CGlue:
+    '''Main class for the code generator.'''
+    # Plugins
+    #
+    # Plugins handle events and modify the runtime generator context.
+    # They can be used to add new functionality to the code generator.
+    #
+    # The following events are available:
+    # - init
+    # - load_project_config
+    # - project_config_loaded
+    # - load_component_config
+    # - save_component_config
+    # - save_project_config
+    # - before_generating_component
+    # - generating_component
+    # - before_generating_runtime
+    # - after_generating_runtime
+    #
+
     def __init__(self, project_config_file):
         self._project_config_file = project_config_file
         self._basedir = os.path.dirname(project_config_file) or '.'
-        self._plugins = {}
+        self._plugins: dict[str, Plugin] = {}
         self._project_config = {}
         self._components = ComponentCollection()
         self._types = TypeCollection()
@@ -208,7 +227,7 @@ class CGlue:
                     print(f'Failed to process dependencies of {type_obj}')
                     raise
 
-    def update_component(self, component_name) -> bool or dict:
+    def update_component(self, component_name: str) -> bool | dict[str, str]:
         dependency_failures = self._components.check_dependencies(component_name)
         if dependency_failures:
             print(f'Incorrect dependencies for {component_name}:')
@@ -312,7 +331,7 @@ class CGlue:
 
         return context
 
-    def generate_runtime(self) -> dict:
+    def generate_runtime(self) -> dict[str, str]:
         filename = self.settings['generated_runtime']
 
         source_file_name = filename + '.c'
@@ -467,7 +486,7 @@ class CGlue:
     def raise_event(self, event_name, *args):
         for plugin in self._plugins.values():
             try:
-                plugin.handle(event_name, args)
+                plugin.handle_event(event_name, args)
             except Exception:
                 print(f'Error while processing {plugin.name}::{event_name}')
                 raise

@@ -203,7 +203,7 @@ def cli():
 
     ft.apply(delete_backups=not args.no_cleanup)
 
-def append_results(ft: FileTransaction, result: bool or dict):
+def append_results(ft: FileTransaction, result: bool | dict[str, str]):
     if not result:
         ft.abort()
         return

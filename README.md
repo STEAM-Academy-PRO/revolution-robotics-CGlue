@@ -35,7 +35,7 @@ Use `nose2` to run the tests.
 Create a new project
 --------------------
 
-`cglue --new-project ProjectName [--project=project_file.json] [--cleanup]`
+`cglue --new-project ProjectName [--project=project_file.json] [--no-cleanup]`
 
 This command will create a new CGlue project file and the default directories.
 There is no makefile added to the project - you'll need to write your own
@@ -44,7 +44,7 @@ or use a script to generate based on the CGlue project file.
 Create a new software component
 -------------------------------
 
-`cglue --new-component ComponentName [--cleanup]`
+`cglue --new-component ComponentName [--no-cleanup]`
 
 This will create a new folder in the `SwComponents` folder (by default), create an empty source and
 header file as well as a component configuration json.
@@ -55,7 +55,7 @@ Updating a software component
 After you edit a component configuration json, you may call the following command to re-generate
 the header and source files:
 
-`cglue --update-component ComponentName [--cleanup]`
+`cglue --update-component ComponentName [--no-cleanup]`
 
 Alternatively, if you want to update all components, call `cglue --update-all-components [--cleanup]`
 

@@ -17,7 +17,7 @@ from .utils.filesystem import FileTransaction
 def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', help='Name of project config json file', default="./project.json")
-    parser.add_argument('--cleanup', help='Delete backup files after code generation', action='store_true')
+    parser.add_argument('--no-cleanup', help='Do not delete backup files after code generation', action='store_true')
     parser.add_argument('--cglue-output', help='Name of the generated files', default='./generated/cglue')
 
     group = parser.add_mutually_exclusive_group()
@@ -201,7 +201,7 @@ def cli():
 
     for file_name, contents in files.items():
         ft.update_file(file_name, contents)
-    ft.apply(delete_backups=args.cleanup)
+    ft.apply(delete_backups=not args.no_cleanup)
 
 
 if __name__ == '__main__':

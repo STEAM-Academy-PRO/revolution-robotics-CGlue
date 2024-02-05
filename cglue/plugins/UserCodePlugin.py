@@ -82,9 +82,13 @@ def fill_sections(source, sections):
 
 
 def add_sections_to_component(owner: CGlue, component_name, context: dict):
+    # These sections go into .c files
     context['declarations'].insert(0, create_section('Declarations', ''))
+
+    # These sections go into .h files
     context['header_declarations'].insert(0, create_section('Declarations', ''))
 
+    # Component functions have their own sections, ins
     for func_name, functions in context['functions'].items():
         for func_type, function in functions.items():
             name = f'{func_name[func_name.rfind("/") + 1:]}:{func_type}'  # don't need to have the component name
@@ -92,6 +96,7 @@ def add_sections_to_component(owner: CGlue, component_name, context: dict):
 
 
 def add_sections_to_runtime(owner: CGlue, context: dict):
+    # These sections go into the runtime .c file
     context['declarations'].insert(0, create_section('Declarations', ''))
 
     for func_name, functions in context['functions'].items():

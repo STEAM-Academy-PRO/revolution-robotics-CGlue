@@ -18,7 +18,7 @@ def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', help='Name of project config json file', default="./project.json")
     parser.add_argument('--no-cleanup', help='Do not delete backup files after code generation', action='store_true')
-    parser.add_argument('--cglue-output', help='Name of the generated files', default='./generated/cglue')
+    parser.add_argument('--cglue-output', help='Name of the generated files', default=None)
 
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--new-project', help='Create new CGlue project')
@@ -156,7 +156,7 @@ def cli():
         rt.add_plugin(locks())
         rt.add_plugin(user_code_plugin())
         rt.add_plugin(async_server_calls())
-        rt.load()
+        rt.load(args.cglue_output)
 
         if args.new_component:
             project_config = rt._project_config
@@ -193,7 +193,7 @@ def cli():
                     files.update(rt.update_component(component.name))
 
         elif args.generate:
-            files = rt.generate_runtime(args.cglue_output)
+            files = rt.generate_runtime()
 
         else:
             parser.print_help()

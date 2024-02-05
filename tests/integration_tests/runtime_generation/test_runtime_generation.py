@@ -9,7 +9,7 @@ from cglue.plugins.AsyncServerCalls import async_server_calls
 from cglue.plugins.UserCodePlugin import user_code_plugin
 
 
-def _create_generator(project_config_path):
+def _create_generator(project_config_path, output_path):
     generator = cglue.CGlue(project_config_path)
 
     generator.add_plugin(project_config_compactor())
@@ -18,7 +18,7 @@ def _create_generator(project_config_path):
     generator.add_plugin(async_server_calls())
     generator.add_plugin(user_code_plugin())
 
-    generator.load()
+    generator.load(output_path)
     return generator
 
 
@@ -30,9 +30,9 @@ class TestRuntimeGeneration(unittest.TestCase):
         project_file = f'../fixtures/{project_file}'
 
         root = os.path.dirname(project_file)
-        generator = _create_generator(project_file)
+        generator = _create_generator(project_file, f'{root}/runtime')
 
-        files = generator.generate_runtime(f'{root}/runtime')
+        files = generator.generate_runtime()
 
         self.maxDiff = None
 

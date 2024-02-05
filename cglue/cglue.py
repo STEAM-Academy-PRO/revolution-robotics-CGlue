@@ -119,7 +119,7 @@ class CGlue:
         self._plugins[plugin.name] = plugin
         plugin.bind(self)
 
-    def load(self):
+    def load(self, output_folder = None):
         self.raise_event('init')
 
         with open(self._project_config_file, "r") as file:
@@ -127,12 +127,20 @@ class CGlue:
 
         self.raise_event('load_project_config', project_config)
 
+        if output_folder is None:
+            output_folder = './generated/cglue'
+
         if 'settings' not in project_config:
             project_config['settings'] = {
                 'name': 'Project Name',
                 'components_folder': 'components',
+                'generated_runtime': output_folder,
                 'required_plugins': []
             }
+
+        # Backwards compatibility: set default
+        if 'generated_runtime' not in project_config['settings']:
+            project_config['settings']['generated_runtime'] = output_folder
 
         print(f"Loaded configuration for {project_config['settings']['name']}")
 
@@ -299,7 +307,9 @@ class CGlue:
 
         return context
 
-    def generate_runtime(self, filename):
+    def generate_runtime(self):
+        filename = self.settings['generated_runtime']
+
         source_file_name = filename + '.c'
         header_file_name = filename + '.h'
 

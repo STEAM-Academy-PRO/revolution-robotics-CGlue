@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
@@ -360,7 +358,7 @@ def create_runnable_ports(owner: CGlue, component: Component):
             }
 
         if component.config["multiple_instances"]:
-            args = OrderedDict()
+            args = {}
 
             runnable_arguments = runnable_data.get("arguments", {})
             try:

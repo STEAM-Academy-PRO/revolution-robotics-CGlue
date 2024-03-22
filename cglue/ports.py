@@ -11,8 +11,8 @@ class PortType:
         self._types = types
         self.config = config
         self._data_processor = DictProcessor(
-            required_keys=config['def_attributes'].get('required', set()),
-            optional_keys=config['def_attributes'].get('optional', {})
+            required_keys=config["def_attributes"].get("required", set()),
+            optional_keys=config["def_attributes"].get("optional", {}),
         )
 
         self.get = config.get
@@ -22,11 +22,11 @@ class PortType:
 
     @property
     def is_consumer(self) -> bool:
-        return self.config.get('consumes', False)
+        return self.config.get("consumes", False)
 
     @property
     def is_provider(self) -> bool:
-        return self.config.get('provides', False)
+        return self.config.get("provides", False)
 
     def declare_functions(self, port):
         raise NotImplementedError
@@ -39,15 +39,20 @@ class PortType:
 
     def process_port(self, component, pn, port_data):
 
-        attributes = self.config['def_attributes']
+        attributes = self.config["def_attributes"]
         port_data = port_data.copy()
-        port_type = port_data['port_type']
-        del port_data['port_type']
-        return Port(component, pn, {
-            'port_type': port_type,
-            **attributes['static'],
-            **self._data_processor.process(port_data)
-        }, self)
+        port_type = port_data["port_type"]
+        del port_data["port_type"]
+        return Port(
+            component,
+            pn,
+            {
+                "port_type": port_type,
+                **attributes["static"],
+                **self._data_processor.process(port_data),
+            },
+            self,
+        )
 
 
 class Port:
@@ -60,7 +65,7 @@ class Port:
         self.port_data = port_data
         self._owner = component
 
-        self._full_name = f'{component.name}/{port_name}'
+        self._full_name = f"{component.name}/{port_name}"
 
         self.functions = port_type.declare_functions(self)
 
@@ -68,8 +73,11 @@ class Port:
 
     def declare_function(self, function_name, return_type, arguments=None):
         args = OrderedDict()
-        if self._owner.config['multiple_instances']:
-            args['instance'] = {'direction': 'inout', 'data_type': self._owner.types.get(self._owner.instance_type)}
+        if self._owner.config["multiple_instances"]:
+            args["instance"] = {
+                "direction": "inout",
+                "data_type": self._owner.types.get(self._owner.instance_type),
+            }
         if arguments:
             args.update(arguments)
         return FunctionPrototype(function_name, return_type, args)

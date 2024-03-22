@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.11]
 
     steps:
     - uses: actions/checkout@v2
@@ -21,12 +21,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements_tests.txt
-    - name: Lint with flake8
+    - name: Run checks
       run: |
-        pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --max-complexity=15 --max-line-length=120 --show-source --statistics
+        # check formatting
+        black --check .
     - name: Test with setup.py
       run: |
         nose2 -v -B

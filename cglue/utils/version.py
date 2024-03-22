@@ -1,8 +1,12 @@
 import re
 
 
-version_re = re.compile('(?P<major>\\d+?)\\.(?P<minor>\\d+?)(\\.(?P<rev>\\d+))?(-(?P<branch>.*?))?$')
-constraint_re = re.compile('(?P<start>[\\[(])(?P<min>.*?),\\s?(?P<max>.*?)?(?P<end>[\\])])?$')
+version_re = re.compile(
+    "(?P<major>\\d+?)\\.(?P<minor>\\d+?)(\\.(?P<rev>\\d+))?(-(?P<branch>.*?))?$"
+)
+constraint_re = re.compile(
+    "(?P<start>[\\[(])(?P<min>.*?),\\s?(?P<max>.*?)?(?P<end>[\\])])?$"
+)
 
 
 def cmp(a, b):
@@ -24,14 +28,14 @@ class Version:
         match = version_re.match(ver_str)
         if not match:
             raise FormatError
-        self._major = int(match.group('major'))
-        self._minor = int(match.group('minor'))
-        self._rev = int(match.group('rev')) if match.group('rev') else 0
-        self._branch = match.group('branch') or 'stable'
-        if self._branch == 'stable':
-            self._normalized = f'{self._major}.{self._minor}.{self._rev}'
+        self._major = int(match.group("major"))
+        self._minor = int(match.group("minor"))
+        self._rev = int(match.group("rev")) if match.group("rev") else 0
+        self._branch = match.group("branch") or "stable"
+        if self._branch == "stable":
+            self._normalized = f"{self._major}.{self._minor}.{self._rev}"
         else:
-            self._normalized = f'{self._major}.{self._minor}.{self._rev}-{self._branch}'
+            self._normalized = f"{self._major}.{self._minor}.{self._rev}-{self._branch}"
 
     @property
     def major(self):
@@ -200,7 +204,7 @@ class Version:
         return self._normalized
 
     def __repr__(self):
-        return f'Version({self._normalized})'
+        return f"Version({self._normalized})"
 
     def __hash__(self) -> int:
         return self._normalized.__hash__()
@@ -226,15 +230,16 @@ class VersionConstraint:
     >>> constraint.check(Version('3.2.1'))
     False
     """
+
     def __init__(self, constraint):
         match = constraint_re.match(constraint)
         if not match:
             raise FormatError
 
-        min_version = match.group('min')
-        max_version = match.group('max')
-        start = match.group('start')
-        end = match.group('end') or ''
+        min_version = match.group("min")
+        max_version = match.group("max")
+        start = match.group("start")
+        end = match.group("end") or ""
 
         self._bounds = start + end
         self._min_version = Version(min_version)
@@ -246,22 +251,22 @@ class VersionConstraint:
 
     def check(self, version: Version):
         compares = {
-            '[]': lambda minimum, maximum: minimum <= version <= maximum,
-            '(]': lambda minimum, maximum: minimum < version <= maximum,
-            '[)': lambda minimum, maximum: minimum <= version < maximum,
-            '()': lambda minimum, maximum: minimum < version < maximum,
-            '[': lambda minimum, _: minimum <= version,
-            '(': lambda minimum, _: minimum < version
+            "[]": lambda minimum, maximum: minimum <= version <= maximum,
+            "(]": lambda minimum, maximum: minimum < version <= maximum,
+            "[)": lambda minimum, maximum: minimum <= version < maximum,
+            "()": lambda minimum, maximum: minimum < version < maximum,
+            "[": lambda minimum, _: minimum <= version,
+            "(": lambda minimum, _: minimum < version,
         }
         return compares[self._bounds](self._min_version, self._max_version)
 
     def __str__(self):
         patterns = {
-            '[]': lambda minimum, maximum: f'{minimum} <= version <= {maximum}',
-            '(]': lambda minimum, maximum: f'{minimum} < version <= {maximum}',
-            '[)': lambda minimum, maximum: f'{minimum} <= version < {maximum}',
-            '()': lambda minimum, maximum: f'{minimum} < version < {maximum}',
-            '[': lambda minimum, _: f'{minimum} <= version',
-            '(': lambda minimum, _: f'{minimum} < version'
+            "[]": lambda minimum, maximum: f"{minimum} <= version <= {maximum}",
+            "(]": lambda minimum, maximum: f"{minimum} < version <= {maximum}",
+            "[)": lambda minimum, maximum: f"{minimum} <= version < {maximum}",
+            "()": lambda minimum, maximum: f"{minimum} < version < {maximum}",
+            "[": lambda minimum, _: f"{minimum} <= version",
+            "(": lambda minimum, _: f"{minimum} < version",
         }
         return patterns[self._bounds](self._min_version, self._max_version)

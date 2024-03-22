@@ -16,16 +16,28 @@ from .utils.filesystem import FileTransaction
 
 def cli():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project', help='Name of project config json file', default="./project.json")
-    parser.add_argument('--no-cleanup', help='Do not delete backup files after code generation', action='store_true')
-    parser.add_argument('--cglue-output', help='Name of the generated files', default=None)
+    parser.add_argument(
+        "--project", help="Name of project config json file", default="./project.json"
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        help="Do not delete backup files after code generation",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--cglue-output", help="Name of the generated files", default=None
+    )
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--new-project', help='Create new CGlue project')
-    group.add_argument('--new-component', help='Create new software component')
-    group.add_argument('--update-component', help='Update software component')
-    group.add_argument('--update-all-components', help='Update all software components', action='store_true')
-    group.add_argument('--generate', help='Generate glue code', action="store_true")
+    group.add_argument("--new-project", help="Create new CGlue project")
+    group.add_argument("--new-component", help="Create new software component")
+    group.add_argument("--update-component", help="Update software component")
+    group.add_argument(
+        "--update-all-components",
+        help="Update all software components",
+        action="store_true",
+    )
+    group.add_argument("--generate", help="Generate glue code", action="store_true")
 
     args = parser.parse_args()
 
@@ -40,89 +52,77 @@ def cli():
                 "required_plugins": [
                     "ProjectConfigCompactor",
                     "BuiltinDataTypes",
-                    "RuntimeEvents"
-                ]
+                    "RuntimeEvents",
+                ],
             },
-            "sources": [
-                "src/main.c",
-                "src/generated/cglue.c"
-            ],
-            "includes": [
-                "src",
-                "src/generated"
-            ],
+            "sources": ["src/main.c", "src/generated/cglue.c"],
+            "includes": ["src", "src/generated"],
             "components": [],
             "types": {
                 "uint8_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0u"
+                    "default_value": "0u",
                 },
                 "uint8_t*": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "NULL"
+                    "default_value": "NULL",
                 },
                 "const uint8_t*": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "NULL"
+                    "default_value": "NULL",
                 },
                 "uint16_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0u"
+                    "default_value": "0u",
                 },
                 "uint32_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0u"
+                    "default_value": "0u",
                 },
                 "int8_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0"
+                    "default_value": "0",
                 },
                 "int16_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0"
+                    "default_value": "0",
                 },
                 "int32_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdint.h>",
-                    "default_value": "0"
+                    "default_value": "0",
                 },
                 "size_t": {
                     "pass_semantic": "value",
                     "defined_in": "<stdio.h>",
-                    "default_value": "0u"
+                    "default_value": "0u",
                 },
                 "bool": {
                     "pass_semantic": "value",
                     "defined_in": "<stdbool.h>",
-                    "default_value": "false"
+                    "default_value": "false",
                 },
                 "float": {
                     "pass_semantic": "value",
                     "defined_in": "<float.h>",
-                    "default_value": "0.0f"
+                    "default_value": "0.0f",
                 },
                 "ByteArray_t": {
                     "type": "struct",
                     "pass_semantic": "value",
-                    "fields": {
-                        "bytes": "uint8_t*",
-                        "count": "size_t"
-                    }
+                    "fields": {"bytes": "uint8_t*", "count": "size_t"},
                 },
                 "ConstByteArray_t": {
                     "type": "struct",
                     "pass_semantic": "value",
-                    "fields": {
-                        "bytes": "const uint8_t*",
-                        "count": "size_t"
-                    }
+                    "fields": {"bytes": "const uint8_t*", "count": "size_t"},
                 },
                 "QueueStatus_t": {
                     "type": "enum",
@@ -130,24 +130,17 @@ def cli():
                     "values": [
                         "QueueStatus_Empty",
                         "QueueStatus_Ok",
-                        "QueueStatus_Overflow"
+                        "QueueStatus_Overflow",
                     ],
-                    "default_value": "QueueStatus_Empty"
-                }
-            },
-            "runtime": {
-                "runnables": {
-                    "OnInit": []
+                    "default_value": "QueueStatus_Empty",
                 },
-                "port_connections": []
-            }
+            },
+            "runtime": {"runnables": {"OnInit": []}, "port_connections": []},
         }
-        files = {
-            args.project: json.dumps(project, indent=4)
-        }
-        ft.create_folder('src')
-        ft.create_folder('src/generated')
-        ft.create_folder('src/SwComponents')
+        result = {args.project: json.dumps(project, indent=4)}
+        ft.create_folder("src")
+        ft.create_folder("src/generated")
+        ft.create_folder("src/SwComponents")
     else:
         rt = CGlue(args.project)
         rt.add_plugin(project_config_compactor())
@@ -161,48 +154,59 @@ def cli():
         if args.new_component:
             project_config = rt._project_config
             component_name = args.new_component
-            if component_name in project_config['components']:
-                print('Component already exists')
+            if component_name in project_config["components"]:
+                print("Component already exists")
                 sys.exit(1)
 
             component_config = {
-                'name': component_name,
-                'source_files': [component_name + '.c'],
+                "name": component_name,
+                "source_files": [component_name + ".c"],
             }
 
             rt.add_component(Component(component_name, component_config, rt.types))
 
-            project_config['components'].append(component_name)
-            project_config['components'] = sorted(project_config['components'])
+            project_config["components"].append(component_name)
+            project_config["components"] = sorted(project_config["components"])
 
-            ft.create_folder(os.path.join(rt.settings['components_folder'], component_name))
+            ft.create_folder(
+                os.path.join(rt.settings["components_folder"], component_name)
+            )
 
             # add component to project json
-            ft.update_file('project.json', rt.dump_project_config())
+            ft.update_file("project.json", rt.dump_project_config())
 
-            files = rt.update_component(component_name)
+            result = rt.update_component(component_name)
+            append_results(ft, result)
 
         elif args.update_component:
-            component_name = args.update_component
-            files = rt.update_component(component_name)
+            result = rt.update_component(args.update_component)
+            append_results(ft, result)
 
         elif args.update_all_components:
-            files = {}
             for component in rt._components:
-                if component.name != 'Runtime':
-                    files.update(rt.update_component(component.name))
+                if component.name != "Runtime":
+                    result = rt.update_component(component.name)
+                    append_results(ft, result)
 
         elif args.generate:
-            files = rt.generate_runtime()
+            result = rt.generate_runtime()
+            append_results(ft, result)
 
         else:
             parser.print_help()
             return
 
-    for file_name, contents in files.items():
-        ft.update_file(file_name, contents)
     ft.apply(delete_backups=not args.no_cleanup)
 
 
-if __name__ == '__main__':
+def append_results(ft: FileTransaction, result: bool | dict[str, str]):
+    if not result:
+        ft.abort()
+        return
+
+    for file_name, contents in result.items():
+        ft.update_file(file_name, contents)
+
+
+if __name__ == "__main__":
     cli()

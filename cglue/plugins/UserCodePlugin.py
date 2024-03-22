@@ -6,14 +6,16 @@ from cglue.utils.common import indent
 
 
 parse_section = re.compile(
-    '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/[\n]?'
-    '(?P<usercode>.*?)[\n]?(?P=indent)/\\* End User Code Section: (?P=secname) \\*/',
-    flags=re.DOTALL)
+    "(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/[\n]?"
+    "(?P<usercode>.*?)[\n]?(?P=indent)/\\* End User Code Section: (?P=secname) \\*/",
+    flags=re.DOTALL,
+)
 
 fill_section = re.compile(
-    '(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/'
-    '(?P<usercode>.*?)/\\* End User Code Section: (?P=secname) \\*/',
-    flags=re.DOTALL)
+    "(?P<indent>[ ]*)/\\* Begin User Code Section: (?P<secname>.*?) \\*/"
+    "(?P<usercode>.*?)/\\* End User Code Section: (?P=secname) \\*/",
+    flags=re.DOTALL,
+)
 
 
 def remove_indentation(text, spaces):
@@ -27,7 +29,7 @@ def remove_indentation(text, spaces):
     if spaces == 0:
         return text
     else:
-        return re.sub(f'^[ ]{{1,{spaces}}}(.*?)$', '\\1', text, flags=re.MULTILINE)
+        return re.sub(f"^[ ]{{1,{spaces}}}(.*?)$", "\\1", text, flags=re.MULTILINE)
 
 
 def get_sections(text):
@@ -40,13 +42,16 @@ def get_sections(text):
     # parse contents
     matches = parse_section.findall(text)
 
-    return {secname: remove_indentation(usercode, len(indent)) for indent, secname, usercode in matches}
+    return {
+        secname: remove_indentation(usercode, len(indent))
+        for indent, secname, usercode in matches
+    }
 
 
 def get_sections_from_file(file_path):
     """Parse the given file for user sections"""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             contents = f.read()
 
         return get_sections(contents)
@@ -55,15 +60,15 @@ def get_sections_from_file(file_path):
 
 
 def create_section(name, contents):
-    return f'/* Begin User Code Section: {name} */\n{contents}/* End User Code Section: {name} */'
+    return f"/* Begin User Code Section: {name} */\n{contents}/* End User Code Section: {name} */"
 
 
 def add_sections_to_function(function: FunctionImplementation, name):
-    secname = name + ' Start'
-    function.prepend_body(create_section(secname, ''))
+    secname = name + " Start"
+    function.prepend_body(create_section(secname, ""))
 
-    secname = name + ' End'
-    function.add_body(create_section(secname, ''))
+    secname = name + " End"
+    function.add_body(create_section(secname, ""))
 
 
 def fill_sections(source, sections):
@@ -72,24 +77,27 @@ def fill_sections(source, sections):
 '    /* Begin User Code Section: foobar *//* End User Code Section: foobar */', {'foobar': 'barbaz'})
     '    /* Begin User Code Section: foobar */\\n    barbaz\\n    /* End User Code Section: foobar */'
     """
+
     def repl(matches):
         indent_amt = len(matches[1])
         secname = matches[2]
 
-        return indent(create_section(secname, sections.get(secname, '') + '\n'), indent_amt)
+        return indent(
+            create_section(secname, sections.get(secname, "") + "\n"), indent_amt
+        )
 
     return fill_section.sub(repl, source)
 
 
 def add_sections_to_component(owner: CGlue, component_name, context: dict):
     # These sections go into .c files
-    context['declarations'].insert(0, create_section('Declarations', ''))
+    context["declarations"].insert(0, create_section("Declarations", ""))
 
     # These sections go into .h files
-    context['header_declarations'].insert(0, create_section('Declarations', ''))
+    context["header_declarations"].insert(0, create_section("Declarations", ""))
 
     # Component functions have their own sections, ins
-    for func_name, functions in context['functions'].items():
+    for func_name, functions in context["functions"].items():
         for func_type, function in functions.items():
             name = f'{func_name[func_name.rfind("/") + 1:]}:{func_type}'  # don't need to have the component name
             add_sections_to_function(function, name)
@@ -97,25 +105,32 @@ def add_sections_to_component(owner: CGlue, component_name, context: dict):
 
 def add_sections_to_runtime(owner: CGlue, context: dict):
     # These sections go into the runtime .c file
-    context['declarations'].insert(0, create_section('Declarations', ''))
+    context["declarations"].insert(0, create_section("Declarations", ""))
 
-    for func_name, functions in context['functions'].items():
+    for func_name, functions in context["functions"].items():
         for func_type, function in functions.items():
-            name = f'{func_name}:{func_type}'
+            name = f"{func_name}:{func_type}"
             add_sections_to_function(function, name)
 
 
 def replace_sections_in_files(context: dict):
-    for file, source in context['files'].items():
+    for file, source in context["files"].items():
         sections = get_sections_from_file(file)
 
-        context['files'][file] = fill_sections(source, sections)
+        context["files"][file] = fill_sections(source, sections)
 
 
 def user_code_plugin():
-    return Plugin("UserCodePlugin", handlers={
-        'before_generating_component': add_sections_to_component,
-        'generating_component': lambda owner, component_name, context: replace_sections_in_files(context),
-        'before_generating_runtime': add_sections_to_runtime,
-        'after_generating_runtime': lambda owner, context: replace_sections_in_files(context)
-    })
+    return Plugin(
+        "UserCodePlugin",
+        handlers={
+            "before_generating_component": add_sections_to_component,
+            "generating_component": lambda owner, component_name, context: replace_sections_in_files(
+                context
+            ),
+            "before_generating_runtime": add_sections_to_runtime,
+            "after_generating_runtime": lambda owner, context: replace_sections_in_files(
+                context
+            ),
+        },
+    )

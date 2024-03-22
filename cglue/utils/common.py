@@ -9,11 +9,11 @@ def to_underscore(name):
     >>> to_underscore('FizzBuzz')
     'fizz_buzz'
     """
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-def chevron_list_mark_last(data, last_key='last'):
+def chevron_list_mark_last(data, last_key="last"):
     if data:
         data[-1][last_key] = True
     return data
@@ -53,7 +53,7 @@ def dict_to_chevron_list(data, key_name, value_name, last_key=None):
     return chevron_list
 
 
-indent_re = re.compile(r'^([ \t]*\S[^\n]*)$', flags=re.MULTILINE)
+indent_re = re.compile(r"^([ \t]*\S[^\n]*)$", flags=re.MULTILINE)
 
 
 def indent(text, spaces=4):
@@ -69,11 +69,11 @@ def indent(text, spaces=4):
     >>> indent('f o o \\n\\nbar')
     '    f o o \\n\\n    bar'
     """
-    indent_prefix = spaces * ' '
-    return indent_re.sub(rf'{indent_prefix}\1', text)
+    indent_prefix = spaces * " "
+    return indent_re.sub(rf"{indent_prefix}\1", text)
 
 
-trailing_ws_re = re.compile(r'[ \t]+$', flags=re.MULTILINE)
+trailing_ws_re = re.compile(r"[ \t]+$", flags=re.MULTILINE)
 
 
 def remove_trailing_spaces(text):
@@ -83,10 +83,10 @@ def remove_trailing_spaces(text):
     >>> remove_trailing_spaces('foobar  \\n ')
     'foobar\\n'
     """
-    return trailing_ws_re.sub('', text)
+    return trailing_ws_re.sub("", text)
 
 
-def rpad(string, length, char=' '):
+def rpad(string, length, char=" "):
     """
     >>> rpad('foo', 6)
     'foo   '
@@ -115,4 +115,4 @@ def split(data: Sequence[Any], chunk_size: int):
     >>> list(split(b'apple', 3))
     [b'app', b'le']
     """
-    return (data[i:i + chunk_size] for i in range(0, len(data), chunk_size))
+    return (data[i : i + chunk_size] for i in range(0, len(data), chunk_size))

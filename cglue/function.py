@@ -22,20 +22,22 @@ class ArgumentList(dict):
         if args:
             for arg_name, arg_data in args.items():
                 if type(arg_data) is dict:
-                    self.add(arg_name, arg_data['direction'], arg_data['data_type'])
+                    self.add(arg_name, arg_data["direction"], arg_data["data_type"])
                 else:
-                    self.add(arg_name, 'in', arg_data)
+                    self.add(arg_name, "in", arg_data)
 
     def add(self, name, direction, data_type):
         from cglue.data_types import TypeWrapper
 
         if type(data_type) is not TypeWrapper:
-            raise TypeError(f'Type info for argument "{name}" is not a TypeWrapper object')
+            raise TypeError(
+                f'Type info for argument "{name}" is not a TypeWrapper object'
+            )
 
-        if direction not in ('in', 'out', 'inout'):
-            raise ValueError(f'Unknown argument direction {direction}')
+        if direction not in ("in", "out", "inout"):
+            raise ValueError(f"Unknown argument direction {direction}")
 
-        self[name] = {'direction': direction, 'data_type': data_type}
+        self[name] = {"direction": direction, "data_type": data_type}
 
     def assemble(self, args: dict):
         try:
@@ -43,33 +45,46 @@ class ArgumentList(dict):
         except KeyError as e:
             required_args = set(self.keys())
             missing_args = required_args - args.keys()
-            raise MissingArgumentException(f'Arguments are missing: {", ".join(missing_args)}') from e
+            raise MissingArgumentException(
+                f'Arguments are missing: {", ".join(missing_args)}'
+            ) from e
 
     def get_argument_list(self):
         def generate_parameter(name, data):
             from cglue.data_types import TypeCollection
-            try:
-                pass_by_ptr = data['data_type']['pass_semantic'] == TypeCollection.PASS_BY_POINTER
-            except KeyError:
-                arg_is_ptr = '*' in data['data_type'].name
-                pass_by_ptr = not arg_is_ptr  # pointers can be passed by value, otherwise assume pass-by-pointer
 
-            if data['direction'] == 'in':
+            try:
+                pass_by_ptr = (
+                    data["data_type"]["pass_semantic"] == TypeCollection.PASS_BY_POINTER
+                )
+            except KeyError:
+                arg_is_ptr = "*" in data["data_type"].name
+                pass_by_ptr = (
+                    not arg_is_ptr
+                )  # pointers can be passed by value, otherwise assume pass-by-pointer
+
+            if data["direction"] == "in":
                 if pass_by_ptr:
-                    pattern = 'const {}* {}'
+                    pattern = "const {}* {}"
                 else:
-                    pattern = '{} {}'
+                    pattern = "{} {}"
 
             else:
-                pattern = '{}* {}'
+                pattern = "{}* {}"
 
-            return pattern.format(data['data_type'].name, name)
+            return pattern.format(data["data_type"].name, name)
 
-        return "void" if not self else ", ".join(generate_parameter(name, data) for name, data in self.items())
+        return (
+            "void"
+            if not self
+            else ", ".join(
+                generate_parameter(name, data) for name, data in self.items()
+            )
+        )
 
 
 class FunctionPrototype:
-    def __init__(self, name, return_type='void', args=None):
+    def __init__(self, name, return_type="void", args=None):
         self._name = name
         self._return_type = return_type
 
@@ -89,22 +104,27 @@ class FunctionPrototype:
 
     def generate_call(self, arguments):
         try:
-            return f'{self.function_name}({self.arguments.assemble(arguments)})'
+            return f"{self.function_name}({self.arguments.assemble(arguments)})"
         except MissingArgumentException as e:
-            raise FunctionCallGenerationException(f'Failed to generate call for {self.function_name}') from e
+            raise FunctionCallGenerationException(
+                f"Failed to generate call for {self.function_name}"
+            ) from e
 
     @property
     def referenced_types(self):
-        return [data['data_type'].name for data in self.arguments.values()] + [self.return_type]
+        return [data["data_type"].name for data in self.arguments.values()] + [
+            self.return_type
+        ]
 
     def generate_header(self):
         try:
             args_list = self.arguments.get_argument_list()
 
-            return f'{self.return_type} {self.function_name}({args_list})'
+            return f"{self.return_type} {self.function_name}({args_list})"
         except TypeError as e:
             raise FunctionDeclarationGenerationException(
-                f'Failed to generate declaration for {self.function_name}') from e
+                f"Failed to generate declaration for {self.function_name}"
+            ) from e
 
 
 class FunctionImplementation:
@@ -133,7 +153,7 @@ class FunctionImplementation:
     def add_input_assert(self, input_arg, statements):
         self.includes.add('"utils_assert.h"')
         self.mark_argument_used(input_arg)
-        self._asserts.add(f'ASSERT({statements});')
+        self._asserts.add(f"ASSERT({statements});")
 
     def add_body(self, body):
         if type(body) is str:
@@ -146,11 +166,11 @@ class FunctionImplementation:
 
     def set_return_statement(self, statement):
         if self._return_statement and statement != self._return_statement:
-            raise Exception(f'Return statement already set for {self.function_name}')
+            raise Exception(f"Return statement already set for {self.function_name}")
 
         if statement:
-            if self.return_type == 'void':
-                raise Exception(f'Function {self.function_name} is void')
+            if self.return_type == "void":
+                raise Exception(f"Function {self.function_name} is void")
 
             self._return_statement = statement
 
@@ -160,27 +180,26 @@ class FunctionImplementation:
     def get_function(self):
         unused_arguments = self.arguments.keys() - self._used_arguments
 
-        body = ''.join(f'(void) {arg};\n' for arg in sorted(unused_arguments))
+        body = "".join(f"(void) {arg};\n" for arg in sorted(unused_arguments))
 
         if self._asserts:
-            body += "\n".join(sorted(self._asserts)) + '\n'
+            body += "\n".join(sorted(self._asserts)) + "\n"
 
         body += "\n".join(self._body)
         if self._return_statement:
-            body += f'\nreturn {self._return_statement};'
+            body += f"\nreturn {self._return_statement};"
 
         ctx = {
-            'template': "{{# attributes }}__attribute__(({{ . }}))\n{{/ attributes }}"
-                        "{{ header }}\n"
-                        "{\n"
-                        "{{{ body }}}\n"
-                        "}\n",
-
-            'data': {
-                'header': self.get_header(),
-                'attributes': list(self._attributes),
-                'body': indent(remove_trailing_spaces(body))
-            }
+            "template": "{{# attributes }}__attribute__(({{ . }}))\n{{/ attributes }}"
+            "{{ header }}\n"
+            "{\n"
+            "{{{ body }}}\n"
+            "}\n",
+            "data": {
+                "header": self.get_header(),
+                "attributes": list(self._attributes),
+                "body": indent(remove_trailing_spaces(body)),
+            },
         }
         return chevron.render(**ctx)
 
@@ -204,4 +223,4 @@ class FunctionImplementation:
         return self._prototype.generate_call(arguments)
 
     def __str__(self) -> str:
-        return f'FunctionDescriptor of {self.function_name}'
+        return f"FunctionDescriptor of {self.function_name}"

@@ -8,28 +8,26 @@ class TypeCategory:
         self._attributes = attributes
         self._type_collection = type_collection
         self._data_processor = DictProcessor(
-            required_keys=attributes.get('required', set()),
-            optional_keys=attributes.get('optional', {}))
+            required_keys=attributes.get("required", set()),
+            optional_keys=attributes.get("optional", {}),
+        )
 
     def __str__(self):
-        return f'TypeCategory({self._name})'
+        return f"TypeCategory({self._name})"
 
     def can_process(self, type_data):
-        for attr in self._attributes['required']:
+        for attr in self._attributes["required"]:
             if attr not in type_data:
                 return False
         return True
 
     def process_type(self, type_data):
-        return {
-            **self._attributes['static'],
-            **self._data_processor.process(type_data)
-        }
+        return {**self._attributes["static"], **self._data_processor.process(type_data)}
 
     def render_typedef(self, type_name, type_data):
         raise NotImplementedError
 
-    def render_value(self, type_name, type_data, value, context='assignment'):
+    def render_value(self, type_name, type_data, value, context="assignment"):
         return str(value)
 
     @property
@@ -51,36 +49,36 @@ class TypeCategory:
 class TypeAlias(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': {'aliases'},
-            'optional': {'default_value': None, 'pass_semantic': None},
-            'static': {
-                'type': TypeCollection.ALIAS
-            }
+            "required": {"aliases"},
+            "optional": {"default_value": None, "pass_semantic": None},
+            "static": {"type": TypeCollection.ALIAS},
         }
         super().__init__(type_collection, "type_alias", attributes)
 
     def render_typedef(self, type_name, type_data):
         return f"typedef {type_data['aliases']} {type_name};"
 
-    def render_value(self, type_name, type_data, value, context='assignment'):
+    def render_value(self, type_name, type_data, value, context="assignment"):
         # call the render of aliased type
         return self.aliased_type(type_data).render_value(value, context)
 
     def attribute(self, type_name, type_data: dict, attr_name):
-        return type_data.get(attr_name) or self.aliased_type(type_data).get_attribute(attr_name)
+        return type_data.get(attr_name) or self.aliased_type(type_data).get_attribute(
+            attr_name
+        )
 
     def referenced_types(self, type_name, type_data):
-        yield type_data['aliases']
+        yield type_data["aliases"]
         yield from super().referenced_types(type_name, type_data)
 
     def aliased_type(self, type_data):
-        return self._type_collection.get(type_data['aliases'])
+        return self._type_collection.get(type_data["aliases"])
 
 
 class BuiltinType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {}
-        super().__init__(type_collection, 'builtin', attributes)
+        super().__init__(type_collection, "builtin", attributes)
 
     def can_process(self, type_data):
         return False
@@ -92,13 +90,11 @@ class BuiltinType(TypeCategory):
 class ExternalType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': {'defined_in', 'default_value'},
-            'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
-            'static': {
-                'type': TypeCollection.EXTERNAL_DEF
-            }
+            "required": {"defined_in", "default_value"},
+            "optional": {"pass_semantic": TypeCollection.PASS_BY_VALUE},
+            "static": {"type": TypeCollection.EXTERNAL_DEF},
         }
-        super().__init__(type_collection, 'external_type_def', attributes)
+        super().__init__(type_collection, "external_type_def", attributes)
 
     def render_typedef(self, type_name, type_data):
         pass
@@ -107,24 +103,26 @@ class ExternalType(TypeCategory):
 class FunctionPointerType(TypeCategory):
     def __init__(self, type_collection):
         attributes = {
-            'required': {'return_type', 'arguments'},
-            'optional': {'pass_semantic': TypeCollection.PASS_BY_VALUE},
-            'static': {
-                'type': TypeCollection.FUNC_PTR
-            }
+            "required": {"return_type", "arguments"},
+            "optional": {"pass_semantic": TypeCollection.PASS_BY_VALUE},
+            "static": {"type": TypeCollection.FUNC_PTR},
         }
-        super().__init__(type_collection, 'func_ptr', attributes)
+        super().__init__(type_collection, "func_ptr", attributes)
 
     def render_typedef(self, type_name, type_data):
         args = ArgumentList()
-        for arg_name, arg_data in type_data['arguments'].items():
-            args.add(arg_name, arg_data['direction'], self._type_collection.get(arg_data['data_type']))
+        for arg_name, arg_data in type_data["arguments"].items():
+            args.add(
+                arg_name,
+                arg_data["direction"],
+                self._type_collection.get(arg_data["data_type"]),
+            )
 
         return f"typedef {type_data['return_type']} (*{type_name})({args.get_argument_list()});"
 
     def referenced_types(self, type_name, type_data):
-        yield type_data['return_type']
-        yield from {arg['data_type'] for arg in type_data['arguments'].values()}
+        yield type_data["return_type"]
+        yield from {arg["data_type"] for arg in type_data["arguments"].values()}
 
         yield from super().referenced_types(type_name, type_data)
 
@@ -161,7 +159,7 @@ class TypeWrapper:
     def get(self, item, default=None):
         return self._type_data.get(item, default)
 
-    def render_value(self, value, context='assignment'):
+    def render_value(self, value, context="assignment"):
         if value is None:
             value = self.default_value()
 
@@ -171,10 +169,10 @@ class TypeWrapper:
         return self.category.attribute(self.name, self._type_data, attr_name)
 
     def default_value(self):
-        return self.get_attribute('default_value')
+        return self.get_attribute("default_value")
 
     def passed_by(self):
-        return self.get_attribute('pass_semantic')
+        return self.get_attribute("pass_semantic")
 
     def render_typedef(self):
         return self.category.render_typedef(self.name, self._type_data)
@@ -190,17 +188,17 @@ class TypeWrapper:
         return id(self)
 
     def __str__(self):
-        return f'TypeWrapper({self._type_name}, {self._type_category})'
+        return f"TypeWrapper({self._type_name}, {self._type_category})"
 
 
 class TypeCollection:
-    BUILTIN = 'builtin'
-    ALIAS = 'type_alias'
-    EXTERNAL_DEF = 'external_type_def'
-    FUNC_PTR = 'func_ptr'
+    BUILTIN = "builtin"
+    ALIAS = "type_alias"
+    EXTERNAL_DEF = "external_type_def"
+    FUNC_PTR = "func_ptr"
 
-    PASS_BY_VALUE = 'value'
-    PASS_BY_POINTER = 'pointer'
+    PASS_BY_VALUE = "value"
+    PASS_BY_POINTER = "pointer"
 
     def __init__(self):
         self._type_data = {}
@@ -212,20 +210,20 @@ class TypeCollection:
         self.add_category(FunctionPointerType(self))
 
         default_types = {
-            'void':  {
-                'type':          TypeCollection.BUILTIN,
-                'pass_semantic': TypeCollection.PASS_BY_VALUE,
-                'default_value': None
+            "void": {
+                "type": TypeCollection.BUILTIN,
+                "pass_semantic": TypeCollection.PASS_BY_VALUE,
+                "default_value": None,
             },
-            'void*': {
-                'type':          TypeCollection.BUILTIN,
-                'pass_semantic': TypeCollection.PASS_BY_VALUE,
-                'default_value': 'NULL'
-            }
+            "void*": {
+                "type": TypeCollection.BUILTIN,
+                "pass_semantic": TypeCollection.PASS_BY_VALUE,
+                "default_value": "NULL",
+            },
         }
 
         for name, data in default_types.items():
-            self.add(name, data, 'builtin type')
+            self.add(name, data, "builtin type")
 
     def add_category(self, info: TypeCategory):
         self._type_categories[info.name] = info
@@ -238,14 +236,18 @@ class TypeCollection:
             # if the type is already known, check if the definitions are compatible
             existing_type = self.get(type_name)
 
-            print(f'Warning: Duplicate type {type_name} defined in {defined_by}, '
-                  f'already added from {existing_type.defined_by}')
+            print(
+                f"Warning: Duplicate type {type_name} defined in {defined_by}, "
+                f"already added from {existing_type.defined_by}"
+            )
 
             if info != existing_type:
-                raise Exception(f'Conflicting definitions exist for {type_name}')
+                raise Exception(f"Conflicting definitions exist for {type_name}")
         except KeyError:
             # type is not yet known, add it
-            self._type_data[type_name] = TypeWrapper(type_name, info, self._type_categories[info['type']], defined_by)
+            self._type_data[type_name] = TypeWrapper(
+                type_name, info, self._type_categories[info["type"]], defined_by
+            )
 
     def get(self, type_name):
         if type(type_name) is not str:
@@ -256,15 +258,21 @@ class TypeCollection:
     def export(self):
         def strip(data):
             data = data._type_data.copy()
-            if data['type'] in (TypeCollection.ALIAS, TypeCollection.EXTERNAL_DEF):
-                del data['type']
+            if data["type"] in (TypeCollection.ALIAS, TypeCollection.EXTERNAL_DEF):
+                del data["type"]
 
             return data
 
-        return {name: strip(data) for name, data in self._type_data.items() if data['type'] != TypeCollection.BUILTIN}
+        return {
+            name: strip(data)
+            for name, data in self._type_data.items()
+            if data["type"] != TypeCollection.BUILTIN
+        }
 
     def collect_type_dependencies(self, type_data: TypeWrapper):
-        for referenced_type_name in sorted(type_data.category.referenced_types(type_data.name, type_data)):
+        for referenced_type_name in sorted(
+            type_data.category.referenced_types(type_data.name, type_data)
+        ):
             referenced_type = self.get(referenced_type_name)
             if referenced_type != type_data:
                 yield from self.collect_type_dependencies(referenced_type)
@@ -278,19 +286,23 @@ class TypeCollection:
         try:
             self.get(type_name)
         except KeyError:
-            type_name = type_name.replace('const ', '').replace('*', '').replace(' ', '')
+            type_name = (
+                type_name.replace("const ", "").replace("*", "").replace(" ", "")
+            )
 
         return type_name
 
     def process_type_definition(self, type_name, type_def):
-        if 'type' in type_def:
+        if "type" in type_def:
             type_data = type_def.copy()
-            type_category = type_data['type']
+            type_category = type_data["type"]
             try:
                 category = self._type_categories[type_category]
-                del type_data['type']
+                del type_data["type"]
             except KeyError as e:
-                raise Exception(f'Unknown type category {type_category} set for {type_name}') from e
+                raise Exception(
+                    f"Unknown type category {type_category} set for {type_name}"
+                ) from e
         else:
             type_data = type_def
 
@@ -298,9 +310,13 @@ class TypeCollection:
                 if category.can_process(type_data):
                     break
             else:
-                raise Exception(f'Invalid type definition for {type_name}, maybe missing type specifier?')
+                raise Exception(
+                    f"Invalid type definition for {type_name}, maybe missing type specifier?"
+                )
 
         try:
             return category.process_type(type_data)
         except Exception as e:
-            raise Exception(f'Type {type_name} ({type_category}) definition is not valid: {e}') from e
+            raise Exception(
+                f"Type {type_name} ({type_category}) definition is not valid: {e}"
+            ) from e

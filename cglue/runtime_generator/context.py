@@ -8,14 +8,14 @@ class RuntimeGeneratorContext:
     def __init__(self, owner):
         self._owner = owner
         self._context = {
-            'runtime': owner,
-            'files': {},
-            'functions': {},
-            'declarations': [],
-            'exported_function_declarations': [],
-            'runtime_includes': {'"utils.h"'},
-            'signals': defaultdict(lambda: defaultdict(list)),
-            'used_types': []
+            "runtime": owner,
+            "files": {},
+            "functions": {},
+            "declarations": [],
+            "exported_function_declarations": [],
+            "runtime_includes": {'"utils.h"'},
+            "signals": defaultdict(lambda: defaultdict(list)),
+            "used_types": [],
         }
         self.component_instances = ComponentInstanceCollection()
 
@@ -37,12 +37,12 @@ class RuntimeGeneratorContext:
         return self._owner.get_port(self.get_component_ref(short_name))
 
     def _split(self, short_name):
-        component_name, port_name = short_name.split('/', 2)
+        component_name, port_name = short_name.split("/", 2)
         return self.component_instances[component_name], port_name
 
     def get_component_ref(self, short_name):
         component, port_name = self._split(short_name)
-        return f'{component.component.name}/{port_name}'
+        return f"{component.component.name}/{port_name}"
 
     def get_component_instance(self, port_short_name):
         component, port = self._split(port_short_name)

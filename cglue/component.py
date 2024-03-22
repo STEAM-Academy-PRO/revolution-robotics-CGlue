@@ -25,10 +25,11 @@ class Component:
         defaults.update(config)
         return defaults
 
-    def __init__(self, name, config, types):
+    def __init__(self, name: str, path: str, config: dict, types):
         self._name = name
         self.types = types
         self._config = self.normalize_config(config)
+        self.path = path
 
         self._version = Version(self._config["version"])
         self._dependencies = {

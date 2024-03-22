@@ -320,7 +320,7 @@ def expand_runtime_events(owner: CGlue, project_config):
         for event, handlers in runtime_runnables.items()
     )
 
-    owner.add_component(Component("Runtime", runtime_component, owner.types))
+    owner.add_component(Component("Runtime", "", runtime_component, owner.types))
     runtime_config["port_connections"] += event_connections
 
 

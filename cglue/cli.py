@@ -163,14 +163,17 @@ def cli():
                 "source_files": [component_name + ".c"],
             }
 
-            rt.add_component(Component(component_name, component_config, rt.types))
+            component_path = os.path.join(
+                rt.settings["components_folder"], component_name
+            )
+            rt.add_component(
+                Component(component_name, component_path, component_config, rt.types)
+            )
 
             project_config["components"].append(component_name)
             project_config["components"] = sorted(project_config["components"])
 
-            ft.create_folder(
-                os.path.join(rt.settings["components_folder"], component_name)
-            )
+            ft.create_folder(component_path)
 
             # add component to project json
             ft.update_file("project.json", rt.dump_project_config())

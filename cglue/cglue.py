@@ -2,7 +2,7 @@ import json
 import os
 from collections import defaultdict
 from contextlib import suppress
-from typing import Iterable
+from typing import Iterable, Optional
 
 import chevron
 
@@ -153,7 +153,7 @@ class CGlue:
         if "settings" not in project_config:
             project_config["settings"] = {
                 "name": "Project Name",
-                "components_folder": "components",
+                "components_folder": ["components"],
                 "generated_runtime": output_folder,
                 "required_plugins": [],
             }
@@ -180,12 +180,16 @@ class CGlue:
     def add_port_type(self, port_type_name, port_type):
         self._port_types[port_type_name] = port_type
 
-    def component_dir(self, component_name):
-        return f'{self.settings["components_folder"]}/{component_name}'
+    def component_dir(self, component_name: str) -> Optional[str]:
+        for folder in self.settings["components_folder"]:
+            if os.path.exists(f"{self._basedir}/{folder}/{component_name}"):
+                return f"{folder}/{component_name}"
 
-    def _load_component_config(self, component_name):
+    def _load_component_config(self, component_name: str):
         if component_name not in self._components:
             component_path = self.component_dir(component_name)
+            if component_path is None:
+                raise Exception(f"Component {component_name} not found")
             component_config_file = f"{self._basedir}/{component_path}/config.json"
             with open(component_config_file, "r") as file:
                 component_config = json.load(file)

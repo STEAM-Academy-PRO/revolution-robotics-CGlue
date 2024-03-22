@@ -164,7 +164,7 @@ def cli():
             }
 
             component_path = os.path.join(
-                rt.settings["components_folder"], component_name
+                rt.settings["components_folder"][0], component_name
             )
             rt.add_component(
                 Component(component_name, component_path, component_config, rt.types)

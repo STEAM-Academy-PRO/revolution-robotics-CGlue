@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Dict, Any
 
 from cglue.function import FunctionPrototype
@@ -72,7 +71,7 @@ class Port:
         self.get = self.port_data.get
 
     def declare_function(self, function_name, return_type, arguments=None):
-        args = OrderedDict()
+        args = {}
         if self._owner.config["multiple_instances"]:
             args["instance"] = {
                 "direction": "inout",

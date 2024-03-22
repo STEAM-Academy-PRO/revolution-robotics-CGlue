@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from cglue.utils.version import Version, VersionConstraint
 
 
@@ -12,26 +10,26 @@ class Component:
 
     @staticmethod
     def normalize_config(config):
-        defaults = OrderedDict(
-            {
-                "name": "ComponentName",
-                "version": "1.0.0",
-                "requires": {},
-                "source_files": [],
-                "multiple_instances": False,
-                "instance_variables": {},
-                "types": {},
-                "runnables": {},
-                "ports": {},
-            }
-        )
+        defaults = {
+            "name": "ComponentName",
+            "version": "1.0.0",
+            "requires": {},
+            "source_files": [],
+            "multiple_instances": False,
+            "instance_variables": {},
+            "types": {},
+            "runnables": {},
+            "ports": {},
+        }
+
         defaults.update(config)
         return defaults
 
-    def __init__(self, name, config, types):
+    def __init__(self, name: str, path: str, config: dict, types):
         self._name = name
         self.types = types
         self._config = self.normalize_config(config)
+        self.path = path
 
         self._version = Version(self._config["version"])
         self._dependencies = {

@@ -59,6 +59,12 @@ def expand_project_config(owner, project_config):
         for port_connection in raw_port_connections
     ]
 
+    # normalize components_folder to list
+    if isinstance(project_config["settings"]["components_folder"], str):
+        project_config["settings"]["components_folder"] = [
+            project_config["settings"]["components_folder"]
+        ]
+
 
 def _compact_ref(ref):
     if type(ref) is str:
@@ -118,6 +124,12 @@ def compact_project_config(owner: CGlue, config):
         )
 
         compacted_runtime["port_connections"].append(compacted_connection)
+
+    # only store components_folder as string if there is only one
+    if len(config["settings"]["components_folder"]) == 1:
+        config["settings"]["components_folder"] = config["settings"][
+            "components_folder"
+        ][0]
 
     config["runtime"] = compacted_runtime
     config["types"] = types

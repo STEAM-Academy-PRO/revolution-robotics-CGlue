@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 from cglue.function import FunctionImplementation
 from cglue.ports import PortType
 from cglue.cglue import Plugin, CGlue
@@ -322,7 +320,7 @@ def expand_runtime_events(owner: CGlue, project_config):
         for event, handlers in runtime_runnables.items()
     )
 
-    owner.add_component(Component("Runtime", runtime_component, owner.types))
+    owner.add_component(Component("Runtime", "", runtime_component, owner.types))
     runtime_config["port_connections"] += event_connections
 
 
@@ -360,7 +358,7 @@ def create_runnable_ports(owner: CGlue, component: Component):
             }
 
         if component.config["multiple_instances"]:
-            args = OrderedDict()
+            args = {}
 
             runnable_arguments = runnable_data.get("arguments", {})
             try:

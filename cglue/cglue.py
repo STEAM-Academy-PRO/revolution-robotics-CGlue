@@ -2,7 +2,7 @@ import json
 import os
 from collections import defaultdict
 from contextlib import suppress
-from typing import Iterable
+from typing import Iterable, Optional
 
 import chevron
 
@@ -28,7 +28,7 @@ runtime_header_template = """#ifndef GENERATED_RUNTIME_H_
 {{/ components }}
 
 {{# components }}
-#include "{{ components_dir }}/{{ name }}/{{ name }}.h"
+#include "{{ component_dir }}/{{ name }}.h"
 {{/ components }}
 
 {{# function_declarations }}
@@ -153,7 +153,7 @@ class CGlue:
         if "settings" not in project_config:
             project_config["settings"] = {
                 "name": "Project Name",
-                "components_folder": "components",
+                "components_folder": ["components"],
                 "generated_runtime": output_folder,
                 "required_plugins": [],
             }
@@ -180,15 +180,22 @@ class CGlue:
     def add_port_type(self, port_type_name, port_type):
         self._port_types[port_type_name] = port_type
 
-    def component_dir(self, component_name):
-        return f'{self._basedir}/{self.settings["components_folder"]}/{component_name}'
+    def component_dir(self, component_name: str) -> Optional[str]:
+        for folder in self.settings["components_folder"]:
+            if os.path.exists(f"{self._basedir}/{folder}/{component_name}"):
+                return f"{folder}/{component_name}"
 
-    def _load_component_config(self, component_name):
+    def _load_component_config(self, component_name: str):
         if component_name not in self._components:
-            component_config_file = f"{self.component_dir(component_name)}/config.json"
+            component_path = self.component_dir(component_name)
+            if component_path is None:
+                raise Exception(f"Component {component_name} not found")
+            component_config_file = f"{self._basedir}/{component_path}/config.json"
             with open(component_config_file, "r") as file:
                 component_config = json.load(file)
-            self.add_component(Component(component_name, component_config, self.types))
+            self.add_component(
+                Component(component_name, component_path, component_config, self.types)
+            )
 
     def add_component(self, component: Component):
         if component.name not in self._components:
@@ -241,9 +248,9 @@ class CGlue:
             return False
 
         component_folder = self.component_dir(component_name)
-        source_file = f"{component_folder}/{component_name}.c"
-        header_file = f"{component_folder}/{component_name}.h"
-        config_file = f"{component_folder}/config.json"
+        source_file = f"{self._basedir}/{component_folder}/{component_name}.c"
+        header_file = f"{self._basedir}/{component_folder}/{component_name}.h"
+        config_file = f"{self._basedir}/{component_folder}/config.json"
 
         component_object = self._components[component_name]
         port_short_names = (
@@ -399,12 +406,12 @@ class CGlue:
         ]
 
         template_data = {
-            "components_dir": self.settings["components_folder"],
             "includes": sorted(includes),
             "components": [
                 {
                     "name": component.name,
                     "guard_def": to_underscore(component.name).upper(),
+                    "component_dir": component.path,
                 }
                 for component in self._components
                 if component.name != "Runtime"

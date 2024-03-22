@@ -8,7 +8,7 @@ from cglue.data_types import TypeCollection
 class TestComponent(unittest.TestCase):
     def test_default_version_is_added_if_missing(self):
         config = {}
-        component = Component("Test", config, TypeCollection())
+        component = Component("Test", "", config, TypeCollection())
         self.assertEqual(Version("1.0.0"), component.version)
 
 
@@ -18,11 +18,13 @@ class TestComponentCollection(unittest.TestCase):
 
         component1 = Component(
             "Test1",
+            "",
             {"requires": {"Test2": "[1.0.0, 2.0.0)"}, "version": "1.5.3"},
             TypeCollection(),
         )
         component2 = Component(
             "Test2",
+            "",
             {"requires": {"Test1": "[1.0.0, 2.0.0)"}, "version": "1.0.0"},
             TypeCollection(),
         )
@@ -38,11 +40,13 @@ class TestComponentCollection(unittest.TestCase):
 
         component1 = Component(
             "Test1",
+            "",
             {"requires": {"Test2": "[1.0.0, 2.0.0)"}, "version": "1.5.3"},
             TypeCollection(),
         )
         component2 = Component(
             "Test2",
+            "",
             {"requires": {"Test1": "[1.0.0, 2.0.0)"}, "version": "2.0.0"},
             TypeCollection(),
         )
@@ -66,11 +70,13 @@ class TestComponentCollection(unittest.TestCase):
 
         component1 = Component(
             "Test1",
+            "",
             {"requires": {"Test2": "[1.0.0,"}, "version": "1.5.3"},
             TypeCollection(),
         )
         component2 = Component(
             "Test2",
+            "",
             {"requires": {"Test1": "[1.0.0, 2.0.0)"}, "version": "3.0.0"},
             TypeCollection(),
         )

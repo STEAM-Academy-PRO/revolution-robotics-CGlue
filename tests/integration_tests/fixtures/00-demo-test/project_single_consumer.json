@@ -22,18 +22,15 @@
                 "foo/Initialize"
             ]
         },
-        "port_connections": [
-            {
-                "provider": "foo/EventSource",
-                "consumer": [
-                    "foo/EventHandler",
-                    {
-                        "arguments": {
-                            "some_arg": 2
-                        }
+        "port_connections": {
+            "foo/EventSource": [
+                "foo/EventHandler",
+                {
+                    "arguments": {
+                        "some_arg": 2
                     }
-                ]
-            }
-        ]
+                }
+            ]
+        }
     }
 }

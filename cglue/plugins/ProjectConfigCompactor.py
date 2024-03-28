@@ -48,6 +48,16 @@ def expand_project_config(owner, project_config):
     raw_runnables = project_config["runtime"].get("runnables", {})
     raw_port_connections = project_config["runtime"].get("port_connections", [])
 
+    expanded_port_connections = []
+    if isinstance(raw_port_connections, dict):
+        for provider, obj in raw_port_connections.items():
+            if not isinstance(obj, dict):
+                obj = {"consumer": obj}
+            obj["provider"] = provider
+            expanded_port_connections.append(obj)
+    else:
+        expanded_port_connections = raw_port_connections
+
     for runnable_group, runnables in raw_runnables.items():
         processed_runnables[runnable_group] = [
             expand_port(runnable, "runnable") for runnable in runnables
@@ -56,7 +66,7 @@ def expand_project_config(owner, project_config):
     project_config["runtime"]["runnables"] = processed_runnables
     project_config["runtime"]["port_connections"] = [
         expand_port_connection(port_connection)
-        for port_connection in raw_port_connections
+        for port_connection in expanded_port_connections
     ]
 
     # normalize components_folder to list

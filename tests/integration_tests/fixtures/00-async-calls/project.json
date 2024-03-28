@@ -39,23 +39,20 @@
         "runnables": {
             "loop": []
         },
-        "port_connections": [
-            {
-                "provider": "bar/no_args",
+        "port_connections": {
+            "bar/no_args": {
                 "consumer": "foo/no_args",
                 "update_on": "Runtime/loop",
                 "comment": "Connections can have comments. In this case, foo/no_args calls bar/no_args asynchronously, polled in every loop iteration."
             },
-            {
-                "provider": "bar/async_runnable",
+            "bar/async_runnable": {
                 "consumer": "foo/no_args_async",
                 "update_on": "Runtime/loop"
             },
-            {
-                "provider": "bar/with_args",
+            "bar/with_args": {
                 "consumer": "foo/with_args",
                 "update_on": "Runtime/loop"
             }
-        ]
+        }
     }
 }

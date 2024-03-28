@@ -311,9 +311,12 @@ def expand_runtime_events(owner: CGlue, project_config):
 
     runtime_runnables = runtime_config["runnables"]
 
+    # Create Event ports from the keys
     runtime_component["ports"] = {
         event: {"port_type": "Event"} for event in runtime_runnables
     }
+
+    # Create signals from the key-value pairs
     event_connections = (
         {
             "provider": {
@@ -326,6 +329,7 @@ def expand_runtime_events(owner: CGlue, project_config):
         for event, handlers in runtime_runnables.items()
     )
 
+    # Register the component and the connections
     owner.add_component(Component("Runtime", "", runtime_component, owner.types))
     runtime_config["port_connections"] += event_connections
 

@@ -36,11 +36,10 @@
         }
     },
     "runtime": {
-        "port_connections": [
-            {
-                "provider": "foo/port",
+        "port_connections": {
+            "foo/port": {
                 "consumers": []
             }
-        ]
+        }
     }
 }

@@ -41,71 +41,49 @@
                 ]
             ]
         },
-        "port_connections": [
-            {
-                "provider": "foo1/EventPort",
-                "consumer": "foo2/Runnable"
-            },
-            {
-                "provider": "foo2/EventPort",
-                "consumer": "foo1/Runnable"
-            },
-            {
-                "provider": "foo2/RunnableWithReturnValue",
-                "consumer": "foo1/CallPort"
-            },
-            {
-                "provider": "foo1/RunnableWithReturnValue",
-                "consumer": "foo2/CallPort"
-            },
-            {
-                "provider": "foo1/WPort",
-                "consumer": "foo2/RPort"
-            },
-            {
-                "provider": "foo1/CPort",
-                "consumer": "foo2/RCPort"
-            },
-            {
-                "provider": "foo2/CPort",
-                "consumer": "foo1/RCPort"
-            },
-            {
-                "provider": "foo1/CAPort",
-                "consumer": "foo2/RCAPort"
-            },
-            {
-                "provider": "foo2/CAPort",
-                "consumer": "foo1/RCAPort"
-            },
-            {
+        "port_connections": {
+            "foo1/EventPort": "foo2/Runnable",
+            "foo2/EventPort": "foo1/Runnable",
+            "foo2/RunnableWithReturnValue": "foo1/CallPort",
+            "foo1/RunnableWithReturnValue": "foo2/CallPort",
+            "foo1/WPort": "foo2/RPort",
+            "foo1/CPort": "foo2/RCPort",
+            "foo2/CPort": "foo1/RCPort",
+            "foo1/CAPort": "foo2/RCAPort",
+            "foo2/CAPort": "foo1/RCAPort",
+            "queue1": {
                 "provider": "foo1/WPort",
                 "consumer": "foo1/RQPort",
                 "queue_length": 2
             },
-            {
+            "queue2": {
                 "provider": "foo2/WPort",
                 "consumer": "foo2/RQPort",
                 "queue_length": 1
             },
-            {
-                "provider": "foo2/WPort",
-                "consumer": "foo1/RPort"
-            },
-            {
-                "provider": "foo1/WIPort",
+            "foo2/WPort": "foo1/RPort",
+            "foo1/WIPort": {
                 "consumers": [
                     "foo2/RIPort",
-                    ["foo2/RPortFromI", {"index": 2}]
+                    [
+                        "foo2/RPortFromI",
+                        {
+                            "index": 2
+                        }
+                    ]
                 ]
             },
-            {
-                "provider": "foo2/WIPort",
+            "foo2/WIPort": {
                 "consumers": [
                     "foo1/RIPort",
-                    ["foo1/RPortFromI", {"index": 3}]
+                    [
+                        "foo1/RPortFromI",
+                        {
+                            "index": 3
+                        }
+                    ]
                 ]
             }
-        ]
+        }
     }
 }

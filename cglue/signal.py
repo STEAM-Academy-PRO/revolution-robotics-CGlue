@@ -90,9 +90,16 @@ class SignalConnection:
 class SignalType:
     def __init__(self, consumers="multiple", attributes=None):
         self._consumers = consumers
+
+        required_keys = attributes.get("required", set())
+        optional_keys = attributes.get("optional", {})
+
+        if "comment" not in required_keys:
+            optional_keys["comment"] = ""
+
         self._data_processor = DictProcessor(
-            required_keys=attributes.get("required", set()),
-            optional_keys=attributes.get("optional", {}),
+            required_keys=required_keys,
+            optional_keys=optional_keys,
         )
 
     @property

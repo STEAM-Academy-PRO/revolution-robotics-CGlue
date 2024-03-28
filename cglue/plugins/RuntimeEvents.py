@@ -1,5 +1,5 @@
-from cglue.function import FunctionImplementation
-from cglue.ports import PortType
+from cglue.function import FunctionImplementation, FunctionPrototype
+from cglue.ports import Port, PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.signal import SignalConnection, SignalType
@@ -216,11 +216,13 @@ class RunnablePortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         fn_name = f"{port.component_name}_Run_{port.port_name}"
         return _create_callee_function(port, self._types, fn_name, port["return_type"])
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["run"])
 
         for arg in function.arguments:
@@ -228,7 +230,7 @@ class RunnablePortType(PortType):
 
         return {"run": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         return {}
 
 
@@ -243,17 +245,19 @@ class EventPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         fn_name = f"{port.component_name}_RaiseEvent_{port.port_name}"
         return _create_callee_function(port, self._types, fn_name, "void")
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["run"])
         function.attributes.add("weak")
 
         return {"run": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["run"])
 
         return {"run": function}
@@ -277,11 +281,13 @@ class ServerCallPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         fn_name = f"{port.component_name}_Call_{port.port_name}"
         return _create_callee_function(port, self._types, fn_name, port["return_type"])
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["run"])
         function.attributes.add("weak")
 
@@ -292,7 +298,7 @@ class ServerCallPortType(PortType):
 
         return {"run": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["run"])
 
         return {"run": function}

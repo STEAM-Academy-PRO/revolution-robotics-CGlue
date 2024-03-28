@@ -1,13 +1,13 @@
-from typing import Dict, Any, Set
+from typing import Any
 
 
 class DictProcessor:
-    def __init__(self, required_keys: Set[str], optional_keys: Dict[str, Any]):
+    def __init__(self, required_keys: set[str], optional_keys: dict[str, Any]):
         self._required = required_keys
         self._optional = optional_keys
         self._optional_keys = set(self._optional.keys())
 
-    def process(self, target: Dict[str, Any]):
+    def process(self, target: dict[str, Any]):
         """This function makes sure src contains required and optional keys and nothing else"""
 
         present_keys = set(target.keys())

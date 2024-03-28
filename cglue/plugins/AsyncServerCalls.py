@@ -1,7 +1,7 @@
 import chevron
 
 from cglue.function import FunctionImplementation, FunctionPrototype
-from cglue.ports import PortType
+from cglue.ports import Port, PortType
 from cglue.cglue import Plugin, CGlue
 from cglue.runtime_generator.context import RuntimeGeneratorContext
 from cglue.signal import SignalType, SignalConnection
@@ -519,7 +519,7 @@ class AsyncCallPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         call_fn_name = f"{port.component_name}_Async_{port.port_name}_Call"
         result_fn_name = f"{port.component_name}_Async_{port.port_name}_GetResult"
         cancel_fn_name = f"{port.component_name}_Async_{port.port_name}_Cancel"
@@ -546,7 +546,9 @@ class AsyncCallPortType(PortType):
             "cancel": cancel_function,
         }
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         declared_functions = port.functions
 
         call_fn = FunctionImplementation(declared_functions["async_call"])
@@ -562,7 +564,7 @@ class AsyncCallPortType(PortType):
 
         return {"async_call": call_fn, "get_result": result_fn, "cancel": cancel_fn}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         declared_functions = port.functions
 
         call_fn = FunctionImplementation(declared_functions["async_call"])
@@ -583,7 +585,7 @@ class AsyncRunnablePortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         fn_name = f"{port.component_name}_AsyncRunnable_{port.port_name}"
 
         function = port.declare_function(fn_name, "AsyncResult_t")
@@ -602,12 +604,14 @@ class AsyncRunnablePortType(PortType):
 
         return {"async_run": function}
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = FunctionImplementation(port.functions["async_run"])
 
         return {"async_run": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         return {}
 
 

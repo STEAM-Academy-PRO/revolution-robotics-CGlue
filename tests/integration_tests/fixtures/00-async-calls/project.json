@@ -43,7 +43,8 @@
             {
                 "provider": "bar/no_args",
                 "consumer": "foo/no_args",
-                "update_on": "Runtime/loop"
+                "update_on": "Runtime/loop",
+                "comment": "Connections can have comments. In this case, foo/no_args calls bar/no_args asynchronously, polled in every loop iteration."
             },
             {
                 "provider": "bar/async_runnable",

@@ -15,7 +15,8 @@
                     "data_type": "uint32_t",
                     "direction": "inout"
                 }
-            }
+            },
+            "comment": "Async runnables are started by the consumer component. The runtime periodically calls update, and the consumer component can poll the result."
         },
         "with_args": {
             "arguments": {

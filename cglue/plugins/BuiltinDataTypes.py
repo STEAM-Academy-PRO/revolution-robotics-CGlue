@@ -1,6 +1,6 @@
 import chevron
 
-from cglue.function import FunctionImplementation
+from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.utils.common import (
     chevron_list_mark_last,
     dict_to_chevron_list,
@@ -8,7 +8,7 @@ from cglue.utils.common import (
     rpad,
     split,
 )
-from cglue.ports import PortType
+from cglue.ports import Port, PortType
 from cglue.data_types import TypeCollection, TypeCategory
 from cglue.cglue import Plugin, CGlue
 from cglue.runtime_generator.context import RuntimeGeneratorContext
@@ -857,7 +857,7 @@ class ReadValuePortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Read_{port.port_name}"
@@ -871,7 +871,7 @@ class ReadValuePortType(PortType):
 
         return {"read": function}
 
-    def _create_function(self, port):
+    def _create_function(self, port: Port) -> FunctionImplementation:
         function = FunctionImplementation(port.functions["read"])
 
         data_type = self._types.get(port["data_type"])
@@ -880,7 +880,9 @@ class ReadValuePortType(PortType):
 
         return function
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
         function.attributes.add("weak")
 
@@ -888,7 +890,7 @@ class ReadValuePortType(PortType):
 
         return {"read": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         return {"read": function}
@@ -909,7 +911,7 @@ class ReadQueuedValuePortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Read_{port.port_name}"
@@ -923,13 +925,15 @@ class ReadQueuedValuePortType(PortType):
         return {"read": function}
 
     @staticmethod
-    def _create_function(port):
+    def _create_function(port: Port) -> FunctionImplementation:
         function = FunctionImplementation(port.functions["read"])
         function.add_input_assert("value", "value != NULL")
 
         return function
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         function.attributes.add("weak")
@@ -939,7 +943,7 @@ class ReadQueuedValuePortType(PortType):
 
         return {"read": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         return {"read": function}
@@ -960,7 +964,7 @@ class ReadIndexedValuePortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Read_{port.port_name}"
@@ -991,7 +995,7 @@ class ReadIndexedValuePortType(PortType):
 
         return {"read": function}
 
-    def _create_function(self, port):
+    def _create_function(self, port: Port) -> FunctionImplementation:
         function = FunctionImplementation(port.functions["read"])
         function.add_input_assert("index", f'index < {port["count"]}')
 
@@ -1001,7 +1005,9 @@ class ReadIndexedValuePortType(PortType):
 
         return function
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
         function.attributes.add("weak")
 
@@ -1009,7 +1015,7 @@ class ReadIndexedValuePortType(PortType):
 
         return {"read": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         return {"read": function}
@@ -1030,7 +1036,7 @@ class WriteDataPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Write_{port.port_name}"
@@ -1041,7 +1047,7 @@ class WriteDataPortType(PortType):
 
         return {"write": function}
 
-    def _create_function(self, port):
+    def _create_function(self, port: Port) -> FunctionImplementation:
         function = FunctionImplementation(port.functions["write"])
 
         data_type = self._types.get(port["data_type"])
@@ -1050,13 +1056,15 @@ class WriteDataPortType(PortType):
 
         return function
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
         function.attributes.add("weak")
 
         return {"write": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         return {"write": function}
@@ -1077,7 +1085,7 @@ class WriteIndexedDataPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Write_{port.port_name}"
@@ -1093,18 +1101,20 @@ class WriteIndexedDataPortType(PortType):
 
         return {"write": function}
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
         function.attributes.add("weak")
 
         return {"write": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         function = self._create_function(port)
 
         return {"write": function}
 
-    def _create_function(self, port):
+    def _create_function(self, port: Port) -> FunctionImplementation:
         function = FunctionImplementation(port.functions["write"])
         function.add_input_assert("index", f'index < {port["count"]}')
 
@@ -1130,7 +1140,7 @@ class ConstantPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Constant_{port.port_name}"
@@ -1144,7 +1154,9 @@ class ConstantPortType(PortType):
 
         return {"constant": function}
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         prototype = port.functions["constant"]
         data_type = self._types.get(port["data_type"])
 
@@ -1159,7 +1171,7 @@ class ConstantPortType(PortType):
 
         return {"constant": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         return {}
 
 
@@ -1178,7 +1190,7 @@ class ConstantArrayPortType(PortType):
             },
         )
 
-    def declare_functions(self, port):
+    def declare_functions(self, port: Port) -> dict[str, FunctionPrototype]:
         data_type = self._types.get(port["data_type"])
 
         fn_name = f"{port.component_name}_Constant_{port.port_name}"
@@ -1209,7 +1221,9 @@ class ConstantArrayPortType(PortType):
 
         return {"constant": function}
 
-    def create_component_functions(self, port):
+    def create_component_functions(
+        self, port: Port
+    ) -> dict[str, FunctionImplementation]:
         prototype = port.functions["constant"]
         data_type = self._types.get(port["data_type"])
 
@@ -1230,7 +1244,7 @@ class ConstantArrayPortType(PortType):
 
         return {"constant": function}
 
-    def create_runtime_functions(self, port):
+    def create_runtime_functions(self, port: Port) -> dict[str, FunctionImplementation]:
         return {}
 
 

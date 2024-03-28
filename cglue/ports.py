@@ -1,17 +1,25 @@
-from typing import Dict, Any
+import abc
+from typing import Any
 
-from cglue.function import FunctionPrototype
+from cglue.function import FunctionImplementation, FunctionPrototype
 from cglue.data_types import TypeCollection
 from cglue.utils.dict_processor import DictProcessor
 
 
-class PortType:
-    def __init__(self, types: TypeCollection, config: Dict[str, Any]):
+class PortType(abc.ABC):
+    def __init__(self, types: TypeCollection, config: dict[str, Any]):
         self._types = types
         self.config = config
+
+        required_keys = config["def_attributes"].get("required", set())
+        optional_keys = config["def_attributes"].get("optional", {})
+
+        if "comment" not in required_keys:
+            optional_keys["comment"] = ""
+
         self._data_processor = DictProcessor(
-            required_keys=config["def_attributes"].get("required", set()),
-            optional_keys=config["def_attributes"].get("optional", {}),
+            required_keys=required_keys,
+            optional_keys=optional_keys,
         )
 
         self.get = config.get
@@ -27,13 +35,20 @@ class PortType:
     def is_provider(self) -> bool:
         return self.config.get("provides", False)
 
-    def declare_functions(self, port):
+    @abc.abstractmethod
+    def declare_functions(self, port: "Port") -> dict[str, FunctionPrototype]:
         raise NotImplementedError
 
-    def create_component_functions(self, port):
+    @abc.abstractmethod
+    def create_component_functions(
+        self, port: "Port"
+    ) -> dict[str, FunctionImplementation]:
         raise NotImplementedError
 
-    def create_runtime_functions(self, port):
+    @abc.abstractmethod
+    def create_runtime_functions(
+        self, port: "Port"
+    ) -> dict[str, FunctionImplementation]:
         raise NotImplementedError
 
     def process_port(self, component, pn, port_data):
@@ -55,8 +70,6 @@ class PortType:
 
 
 class Port:
-    functions: Dict[str, FunctionPrototype]
-
     def __init__(self, component, port_name, port_data, port_type: PortType):
         self.port_name = port_name
         self.component_name = component.name

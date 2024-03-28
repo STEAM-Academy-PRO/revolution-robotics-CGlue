@@ -53,7 +53,9 @@ def expand_project_config(owner, project_config):
         for provider, obj in raw_port_connections.items():
             if not isinstance(obj, dict):
                 obj = {"consumer": obj}
-            obj["provider"] = provider
+            # Prefer the provider key - in some cases a single provider may need multiple separate signals
+            if "provider" not in obj:
+                obj["provider"] = provider
             expanded_port_connections.append(obj)
     else:
         expanded_port_connections = raw_port_connections

@@ -1,0 +1,34 @@
+{
+    "settings": {
+        "name": "test project",
+        "components_folder": "components_dir",
+        "required_plugins": []
+    },
+    "sources": [],
+    "includes": [],
+    "components": [
+        "foo"
+    ],
+    "types": {
+        "uint8_t": {
+            "pass_semantic": "value",
+            "defined_in": "<stdint.h>",
+            "default_value": "0u"
+        }
+    },
+    "runtime": {
+        "runnables": {},
+        "port_connections": {
+            "queue1": {
+                "provider": "foo/DataOutput",
+                "consumer": "foo/QueuedInput1",
+                "queue_length": 8
+            },
+            "queue2": {
+                "provider": "foo/DataOutput",
+                "consumer": "foo/QueuedInput2",
+                "queue_length": 16
+            }
+        }
+    }
+}

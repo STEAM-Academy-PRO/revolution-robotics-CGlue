@@ -1,0 +1,20 @@
+{
+    "name": "Foo",
+    "source_files": [
+        "foo.c"
+    ],
+    "ports": {
+        "DataOutput": {
+            "port_type": "WriteData",
+            "data_type": "uint8_t"
+        },
+        "QueuedInput1": {
+            "port_type": "ReadQueuedValue",
+            "data_type": "uint8_t"
+        },
+        "QueuedInput2": {
+            "port_type": "ReadQueuedValue",
+            "data_type": "uint8_t"
+        }
+    }
+}

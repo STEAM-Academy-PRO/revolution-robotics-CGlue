@@ -38,8 +38,8 @@ class TestRuntimeGeneration(unittest.TestCase):
 
         # to bless the output, uncomment this and run the test
         # for generated_file, expected_file in expectations.items():
-        #     with open(f'{root}/{expected_file}', 'w') as f:
-        #         f.write(files[f'{root}/{generated_file}'])
+        #     with open(f"{root}/{expected_file}", "w") as f:
+        #         f.write(files[f"{root}/{generated_file}"])
 
         for generated_file, expected_file in expectations.items():
             with open(f"{root}/{expected_file}", "r") as f:
@@ -88,4 +88,10 @@ class TestRuntimeGeneration(unittest.TestCase):
     def test_conditional_server_calls(self):
         self._test_generated_files(
             "04-conditional-calls/project.json", {"runtime.c": "runtime.expected.c"}
+        )
+
+    def test_queues(self):
+        self._test_generated_files(
+            "05-queues/project.json",
+            {"runtime.h": "runtime.expected.h", "runtime.c": "runtime.expected.c"},
         )
